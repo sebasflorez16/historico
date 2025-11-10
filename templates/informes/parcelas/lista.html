@@ -1,0 +1,225 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Lista de Parcelas - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-header {
+        background: linear-gradient(135deg, #2d5016 0%, #4a8234 100%);
+        color: white;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #2d5016 0%, #4a8234 100%);
+        border: none;
+    }
+    
+    .btn-success:hover {
+        background: linear-gradient(135deg, #1a3009 0%, #2d5016 100%);
+    }
+    
+    .parcela-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid #4a8234;
+    }
+    
+    .parcela-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stats-badge {
+        background: #f8f9fa;
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 0.85rem;
+        color: #4a8234;
+        font-weight: 600;
+    }
+    
+    .area-info {
+        background: linear-gradient(135deg, #4a8234 0%, #2d5016 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 text-dark">
+                    <i class="fas fa-map me-2"></i>
+                    Lista de Parcelas
+                </h1>
+                <div>
+                    <a href="{% url 'informes:crear_parcela' %}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Nueva Parcela
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-primary">{{ total_parcelas }}</h4>
+                    <p class="text-muted mb-0">Total Parcelas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-success">{{ total_hectareas|floatformat:2 }}</h4>
+                    <p class="text-muted mb-0">Hectáreas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-info">{{ parcelas_activas }}</h4>
+                    <p class="text-muted mb-0">Activas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h4 class="text-warning">{{ parcelas_recientes }}</h4>
+                    <p class="text-muted mb-0">Este Mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Parcelas -->
+    <div class="row">
+        {% if parcelas %}
+            {% for parcela in parcelas %}
+            <div class="col-xl-4 col-lg-6 mb-4">
+                <div class="card parcela-card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ parcela.nombre }}</h5>
+                        <span class="badge badge-success">Activa</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="area-info">
+                                    <h6 class="mb-0">{{ parcela.area_hectareas|floatformat:2 }}</h6>
+                                    <small>Hectáreas</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h6 class="text-muted mb-0">{{ parcela.perimetro_metros|floatformat:0 }}m</h6>
+                                    <small class="text-muted">Perímetro</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Propietario:</strong><br>
+                            <span class="text-muted">{{ parcela.propietario }}</span>
+                        </div>
+                        
+                        {% if parcela.descripcion %}
+                        <div class="mb-3">
+                            <strong>Descripción:</strong><br>
+                            <span class="text-muted">{{ parcela.descripcion|truncatechars:100 }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <span class="stats-badge">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ parcela.fecha_registro|date:"d/m/Y" }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'informes:detalle_parcela' parcela.id %}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>Ver Detalle
+                            </a>
+                            <a href="{% url 'informes:mapa_parcela' parcela.id %}" 
+                               class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-map me-1"></i>Ver Mapa
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-map fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No hay parcelas registradas</h5>
+                        <p class="text-muted">Comienza creando tu primera parcela para monitoreo satelital</p>
+                        <a href="{% url 'informes:crear_parcela' %}" class="btn btn-success">
+                            <i class="fas fa-plus me-2"></i>Crear Primera Parcela
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="Paginación de parcelas">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

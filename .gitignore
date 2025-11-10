@@ -1,0 +1,31 @@
+# Entornos virtuales
+.venv/
+venv/
+ENV/
+
+# Archivos de base de datos locales
+*.sqlite3
+
+# Archivos de configuración sensibles
+.env
+.env.*
+
+# Archivos temporales y de sistema
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.DS_Store
+
+# Archivos de medios generados
+/media/
+
+# Archivos de migraciones compilados
+**/migrations/__pycache__/
+
+# Archivos de VSCode
+.vscode/
+
+# Otros
+*.bak
+*.swp

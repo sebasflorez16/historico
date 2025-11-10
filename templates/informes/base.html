@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AgroTech Histórico{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --agrotech-verde: #2d5a27;
+            --agrotech-verde-claro: #4a7c59;
+            --agrotech-gris: #2c3e50;
+            --agrotech-verde-suave: #e8f5e8;
+            --agrotech-amarillo: #f39c12;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--agrotech-verde), var(--agrotech-verde-claro)) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: white !important;
+        }
+        
+        .navbar-nav .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            color: white !important;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--agrotech-verde), var(--agrotech-verde-claro));
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--agrotech-verde), var(--agrotech-verde-claro));
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--agrotech-gris), var(--agrotech-verde));
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-success {
+            background-color: var(--agrotech-verde-claro);
+            border-color: var(--agrotech-verde-claro);
+            border-radius: 8px;
+        }
+        
+        .btn-warning {
+            background-color: var(--agrotech-amarillo);
+            border-color: var(--agrotech-amarillo);
+            border-radius: 8px;
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .badge {
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .badge.bg-success {
+            background-color: var(--agrotech-verde) !important;
+        }
+        
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table thead th {
+            background-color: var(--agrotech-verde-suave);
+            border: none;
+            color: var(--agrotech-gris);
+            font-weight: 600;
+        }
+        
+        .leaflet-container {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+            border-left: 4px solid var(--agrotech-verde);
+        }
+        
+        .main-content {
+            min-height: calc(100vh - 140px);
+        }
+        
+        footer {
+            background: linear-gradient(135deg, var(--agrotech-gris), var(--agrotech-verde));
+            color: white;
+            margin-top: 60px;
+        }
+        
+        .logo-agrotech {
+            height: 40px;
+            margin-right: 10px;
+        }
+        
+        /* Estilos para formularios */
+        .form-control:focus {
+            border-color: var(--agrotech-verde-claro);
+            box-shadow: 0 0 0 0.2rem rgba(77, 124, 89, 0.25);
+        }
+        
+        .form-select:focus {
+            border-color: var(--agrotech-verde-claro);
+            box-shadow: 0 0 0 0.2rem rgba(77, 124, 89, 0.25);
+        }
+        
+        /* Animaciones */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        /* Responsive mejoras */
+        @media (max-width: 768px) {
+            .card {
+                margin-bottom: 20px;
+            }
+            
+            .navbar-brand {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'informes:dashboard' %}">
+                <i class="fas fa-seedling me-2"></i>
+                AgroTech Histórico
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'informes:dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-1"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'informes:lista_parcelas' %}">
+                            <i class="fas fa-map me-1"></i>
+                            Parcelas
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'informes:lista_informes' %}">
+                            <i class="fas fa-file-pdf me-1"></i>
+                            Informes
+                        </a>
+                    </li>
+                    {% if user.is_superuser %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'informes:gestionar_invitaciones' %}">
+                            <i class="fas fa-envelope-open-text me-1"></i>
+                            Invitaciones
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'informes:estado_sistema' %}">
+                            <i class="fas fa-cogs me-1"></i>
+                            Sistema
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/">
+                            <i class="fas fa-user-shield me-1"></i>
+                            Admin
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container mt-4 main-content">
+        <!-- Mensajes de alerta -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <!-- Breadcrumb -->
+        {% block breadcrumb %}{% endblock %}
+        
+        <!-- Contenido de la página -->
+        {% block content %}
+        <div class="text-center py-5">
+            <h2>Bienvenido a AgroTech Histórico</h2>
+            <p class="text-muted">Sistema de análisis satelital agrícola</p>
+        </div>
+        {% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="py-4 mt-auto">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-0">
+                        <i class="fas fa-satellite-dish me-2"></i>
+                        <strong>AgroTech Histórico</strong> - Análisis satelital agrícola
+                    </p>
+                    <small class="text-muted">
+                        Integración con EOSDA API para datos en tiempo real
+                    </small>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">
+                        © 2025 AgroTech Histórico. Sistema desarrollado para análisis agrícola.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <!-- jQuery (para compatibilidad) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        // Configuración global para AgroTech
+        window.AgroTech = {
+            colors: {
+                verde: '#2d5a27',
+                verdeClaro: '#4a7c59',
+                gris: '#2c3e50',
+                amarillo: '#f39c12'
+            },
+            mapConfig: {
+                defaultCenter: [4.570868, -74.297333], // Bogotá, Colombia
+                defaultZoom: 10,
+                maxZoom: 18,
+                minZoom: 3
+            }
+        };
+        
+        // Función para mostrar notificaciones
+        function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' || tipo === 'danger' ? 'exclamation-triangle' : tipo === 'warning' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Auto-eliminar después del tiempo especificado
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, duracion);
+            
+            return alertDiv;
+        }
+        
+        // Función para mostrar errores críticos con modal
+        function mostrarErrorCritico(titulo, mensaje, detalles = '') {
+            const modalId = 'errorModal' + Date.now();
+            const modalHtml = `
+                <div class="modal fade" id="${modalId}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    ${titulo}
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-danger">
+                                    <strong>Error:</strong> ${mensaje}
+                                </div>
+                                ${detalles ? `
+                                    <details>
+                                        <summary class="mb-2"><strong>Detalles técnicos</strong></summary>
+                                        <pre class="bg-light p-3 rounded"><code>${detalles}</code></pre>
+                                    </details>
+                                ` : ''}
+                                <div class="mt-3">
+                                    <h6>Posibles soluciones:</h6>
+                                    <ul class="mb-0">
+                                        <li>Verifique su conexión a internet</li>
+                                        <li>Revise la configuración del servidor</li>
+                                        <li>Contacte al administrador del sistema</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                <button type="button" class="btn btn-primary" onclick="location.reload()">
+                                    <i class="fas fa-redo me-2"></i>Recargar Página
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById(modalId));
+            modal.show();
+            
+            // Limpiar modal cuando se cierre
+            document.getElementById(modalId).addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+        
+        // Monitorear errores JavaScript globales
+        window.addEventListener('error', function(e) {
+            console.error('Error JavaScript:', e);
+            mostrarNotificacion('Se detectó un error en la aplicación', 'warning', 8000);
+        });
+        
+        // Función para validar estado del sistema
+        function verificarEstadoSistema() {
+            // Esta función puede expandirse para hacer verificaciones periódicas
+            const now = new Date();
+            const lastCheck = localStorage.getItem('lastSystemCheck');
+            
+            if (!lastCheck || (now - new Date(lastCheck)) > 300000) { // 5 minutos
+                // Realizar verificación básica
+                localStorage.setItem('lastSystemCheck', now.toISOString());
+            }
+        }
+        
+        // Animaciones al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Aplicar animación fade-in a las tarjetas
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('fade-in-up');
+                }, index * 100);
+            });
+            
+            // Verificar estado del sistema
+            verificarEstadoSistema();
+            
+            // Auto-mostrar mensajes de Django como notificaciones popup
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == 'error' %}
+                        setTimeout(() => {
+                            mostrarErrorCritico(
+                                'Error del Sistema',
+                                '{{ message|escapejs }}',
+                                '{% now "Y-m-d H:i:s" %} - Error reportado desde el servidor'
+                            );
+                        }, 500);
+                    {% elif message.tags == 'warning' %}
+                        setTimeout(() => {
+                            mostrarNotificacion('{{ message|escapejs }}', 'warning', 8000);
+                        }, 300);
+                    {% elif message.tags == 'success' %}
+                        setTimeout(() => {
+                            mostrarNotificacion('{{ message|escapejs }}', 'success', 4000);
+                        }, 300);
+                    {% else %}
+                        setTimeout(() => {
+                            mostrarNotificacion('{{ message|escapejs }}', 'info', 5000);
+                        }, 300);
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

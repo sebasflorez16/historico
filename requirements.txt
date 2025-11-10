@@ -1,0 +1,26 @@
+# Requirements para AgroTech Histórico con PostgreSQL + PostGIS
+
+# Framework principal
+Django>=5.2.0
+
+# Base de datos PostgreSQL + PostGIS
+psycopg2-binary>=2.9.0
+django-environ>=0.11.0
+
+# APIs y servicios
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Análisis geoespacial y visualización
+folium>=0.15.0
+matplotlib>=3.7.0
+pandas>=2.1.0
+numpy>=1.24.0
+geojson>=3.0.0
+
+# Generación de reportes
+reportlab>=4.0.0
+Pillow>=10.0.0
+
+# Utilidades adicionales
+python-dateutil>=2.8.0

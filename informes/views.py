@@ -1,0 +1,1479 @@
+"""
+Vistas para la aplicación de informes AgroTech Histórico
+Incluye dashboard, gestión de parcelas, análisis y autenticación
+"""
+
+import logging
+import json
+from datetime import datetime, timedelta, date
+from decimal import Decimal
+from typing import Optional, Dict, List, Any
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.db.models import Q, Count, Avg, Sum
+from django.core.paginator import Paginator
+from django.conf import settings
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import Parcela, IndiceMensual, Informe, ConfiguracionAPI
+from .models_clientes import ClienteInvitacion, RegistroEconomico
+# from .utils.eosda_client import EOSDAClient
+# from .utils.ai_analyzer import AIAnalyzer
+# from .utils.pdf_generator import PDFGenerator
+
+# Configurar logging
+logger = logging.getLogger(__name__)
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponse
+from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db.models import Q
+import json
+from datetime import datetime, date, timedelta
+import logging
+
+from .models import Parcela, IndiceMensual, Informe
+# Importaciones de servicios
+from .services.eosda_api import eosda_service
+from .services.analisis_datos import analisis_service
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+def dashboard(request):
+    """
+    Panel principal del sistema - Vista general de parcelas y datos
+    Solo para superusuarios
+    """
+    # Verificar si es superusuario
+    if not request.user.is_superuser:
+        messages.warning(request, 'No tiene permisos para acceder al dashboard administrativo.')
+        return redirect('informes:crear_parcela')
+    try:
+        # Obtener estadísticas generales
+        total_parcelas = Parcela.objects.filter(activa=True).count()
+        total_indices = IndiceMensual.objects.count()
+        total_informes = Informe.objects.count()
+        
+        # Estadísticas económicas (solo para superusuarios)
+        estadisticas_economicas = {}
+        if request.user.is_superuser:
+            try:
+                from .models_clientes import ClienteInvitacion, RegistroEconomico
+                
+                # Estadísticas de invitaciones
+                total_invitaciones = ClienteInvitacion.objects.count()
+                invitaciones_pendientes = ClienteInvitacion.objects.filter(
+                    estado='pendiente',
+                    fecha_expiracion__gte=timezone.now()
+                ).count()
+                invitaciones_completadas = ClienteInvitacion.objects.filter(
+                    estado='utilizada'
+                ).count()
+                
+                # Estadísticas económicas
+                registros_economicos = RegistroEconomico.objects.all()
+                ingresos_totales = registros_economicos.aggregate(Sum('valor_final'))['valor_final__sum'] or 0
+                servicios_pendientes = registros_economicos.filter(pagado=False).count()
+                servicios_pagados = registros_economicos.filter(pagado=True).count()
+                
+                # Total de hectáreas registradas
+                total_hectareas = Parcela.objects.filter(activa=True).aggregate(
+                    Sum('area_hectareas')
+                )['area_hectareas__sum'] or 0
+                
+                estadisticas_economicas = {
+                    'total_invitaciones': total_invitaciones,
+                    'invitaciones_pendientes': invitaciones_pendientes,
+                    'invitaciones_completadas': invitaciones_completadas,
+                    'ingresos_totales': ingresos_totales,
+                    'servicios_pendientes': servicios_pendientes,
+                    'servicios_pagados': servicios_pagados,
+                    'total_hectareas': round(total_hectareas, 2)
+                }
+            except Exception as e:
+                logger.error(f"Error cargando estadísticas económicas: {str(e)}")
+                # Si hay error, usar valores por defecto
+                estadisticas_economicas = {
+                    'total_invitaciones': 0,
+                    'invitaciones_pendientes': 0,
+                    'invitaciones_completadas': 0,
+                    'ingresos_totales': 0,
+                    'servicios_pendientes': 0,
+                    'servicios_pagados': 0,
+                    'total_hectareas': 0
+                }
+        
+        # Parcelas recientes
+        parcelas_recientes = Parcela.objects.filter(activa=True).order_by('-fecha_registro')[:5]
+        
+        # Últimos informes generados
+        informes_recientes = Informe.objects.order_by('-fecha_generacion')[:5]
+        
+        # Verificar conectividad de EOSDA
+        # conectividad_eosda = eosda_service.verificar_conectividad()
+        conectividad_eosda = {'status': 'offline', 'message': 'Servicio temporalmente deshabilitado'}
+        
+        # Verificar estado del email
+        from .services.email_service import email_service
+        estado_email = email_service.validar_configuracion_email()
+        
+        contexto = {
+            'total_parcelas': total_parcelas,
+            'total_indices': total_indices,
+            'total_informes': total_informes,
+            'estadisticas_economicas': estadisticas_economicas,
+            'parcelas_recientes': parcelas_recientes,
+            'informes_recientes': informes_recientes,
+            'conectividad_eosda': conectividad_eosda,
+            'estado_email': estado_email,
+        }
+        
+        return render(request, 'informes/dashboard.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en dashboard: {str(e)}")
+        messages.error(request, f"Error cargando dashboard: {str(e)}")
+        return render(request, 'informes/dashboard.html', {'error': str(e)})
+
+
+@login_required
+def lista_parcelas(request):
+    """
+    Lista todas las parcelas con paginación y filtros
+    Solo para superusuarios
+    """
+    # Verificar si es superusuario
+    if not request.user.is_superuser:
+        messages.warning(request, 'No tiene permisos para listar parcelas.')
+        return redirect('informes:crear_parcela')
+        
+    try:
+        # Obtener todas las parcelas activas
+        parcelas_queryset = Parcela.objects.filter(activa=True).order_by('-fecha_registro')
+        
+        # Filtro de búsqueda
+        busqueda = request.GET.get('busqueda', '')
+        if busqueda:
+            parcelas_queryset = parcelas_queryset.filter(
+                Q(nombre__icontains=busqueda) | 
+                Q(propietario__icontains=busqueda) |
+                Q(tipo_cultivo__icontains=busqueda)
+            )
+        
+        # Paginación
+        paginator = Paginator(parcelas_queryset, 12)  # 12 parcelas por página
+        page_number = request.GET.get('page')
+        parcelas = paginator.get_page(page_number)
+        
+        # Estadísticas para la vista
+        total_parcelas = Parcela.objects.filter(activa=True).count()
+        total_hectareas = Parcela.objects.filter(activa=True).aggregate(
+            Sum('area_hectareas')
+        )['area_hectareas__sum'] or 0
+        parcelas_activas = total_parcelas
+        
+        # Parcelas del mes actual
+        from datetime import datetime, date
+        inicio_mes = date.today().replace(day=1)
+        parcelas_recientes = Parcela.objects.filter(
+            activa=True, 
+            fecha_registro__gte=inicio_mes
+        ).count()
+        
+        contexto = {
+            'parcelas': parcelas,
+            'total_parcelas': total_parcelas,
+            'total_hectareas': total_hectareas,
+            'parcelas_activas': parcelas_activas,
+            'parcelas_recientes': parcelas_recientes,
+            'busqueda': busqueda,
+            'is_paginated': parcelas.has_other_pages(),
+            'page_obj': parcelas,
+        }
+        
+        return render(request, 'informes/parcelas/lista.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error listando parcelas: {str(e)}")
+        messages.error(request, f"Error cargando parcelas: {str(e)}")
+        return render(request, 'informes/parcelas/lista.html', {
+            'parcelas': [],
+            'total_parcelas': 0,
+            'total_hectareas': 0,
+            'parcelas_activas': 0,
+            'parcelas_recientes': 0,
+        })
+        
+        contexto = {
+            'parcelas': parcelas,
+            'busqueda': busqueda,
+        }
+        
+        return render(request, 'informes/parcelas/lista.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en lista_parcelas: {str(e)}")
+        messages.error(request, f"Error cargando parcelas: {str(e)}")
+        return render(request, 'informes/parcelas/lista.html', {'error': str(e)})
+
+
+def detalle_parcela(request, parcela_id):
+    """
+    Muestra el detalle de una parcela específica con información completa
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Obtener registros económicos asociados
+        registros_economicos = RegistroEconomico.objects.filter(
+            parcela=parcela
+        ).order_by('-fecha_servicio')
+        
+        # Obtener índices mensuales recientes (último año)
+        indices_recientes = IndiceMensual.objects.filter(
+            parcela=parcela
+        ).order_by('-año', '-mes')[:12]
+        
+        # Calcular estadísticas básicas
+        if indices_recientes:
+            ndvi_promedio = sum(i.ndvi_promedio for i in indices_recientes if i.ndvi_promedio) / len([i for i in indices_recientes if i.ndvi_promedio])
+            ultimo_indice = indices_recientes[0]
+        else:
+            ndvi_promedio = None
+            ultimo_indice = None
+        
+        # Obtener informes de esta parcela
+        informes = Informe.objects.filter(parcela=parcela).order_by('-fecha_generacion')[:5]
+        
+        # Calcular centro de la parcela para el mapa con manejo de errores
+        centro_lat = None
+        centro_lon = None
+        
+        try:
+            if parcela.geometria:
+                centro = parcela.geometria.centroid
+                centro_lat = float(centro.y)
+                centro_lon = float(centro.x)
+                logger.info(f"Centro calculado para {parcela.nombre}: lat={centro_lat}, lon={centro_lon}")
+            elif parcela.centroide:
+                centro_lat = float(parcela.centroide.y)
+                centro_lon = float(parcela.centroide.x)
+                logger.info(f"Usando centroide precalculado para {parcela.nombre}: lat={centro_lat}, lon={centro_lon}")
+            else:
+                logger.warning(f"Parcela {parcela.nombre} no tiene geometría ni centroide válidos")
+        except Exception as e:
+            logger.error(f"Error calculando centro para parcela {parcela.nombre}: {str(e)}")
+        
+        contexto = {
+            'parcela': parcela,
+            'registros_economicos': registros_economicos,
+            'indices_recientes': indices_recientes,
+            'ndvi_promedio': ndvi_promedio,
+            'ultimo_indice': ultimo_indice,
+            'informes': informes,
+            'centro_lat': centro_lat,
+            'centro_lon': centro_lon,
+        }
+        
+        return render(request, 'informes/parcelas/detalle.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en detalle_parcela: {str(e)}")
+        messages.error(request, f"Error cargando parcela: {str(e)}")
+        return redirect('informes:lista_parcelas')
+
+
+@login_required
+def crear_parcela(request):
+    """
+    Vista para crear una nueva parcela con soporte para:
+    - Dibujo interactivo en mapa
+    - Entrada manual de coordenadas GPS
+    Accesible para usuarios autenticados y superusuarios
+    """
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            nombre = request.POST.get('nombre')
+            propietario = request.POST.get('propietario')
+            tipo_cultivo = request.POST.get('tipo_cultivo', '')
+            fecha_inicio_monitoreo = request.POST.get('fecha_inicio_monitoreo')
+            notas = request.POST.get('notas', '')
+            geometria_json = request.POST.get('geometria')
+            
+            # Validar datos requeridos
+            if not all([nombre, propietario, fecha_inicio_monitoreo, geometria_json]):
+                messages.error(request, 'Por favor complete todos los campos requeridos.')
+                return render(request, 'informes/parcelas/crear.html')
+            
+            # Importar herramientas PostGIS
+            from django.contrib.gis.geos import GEOSGeometry
+            import json
+            from datetime import datetime
+            
+            # Procesar geometría
+            try:
+                geometria_data = json.loads(geometria_json)
+                
+                # Asegurar que es una Feature con geometría Polygon
+                if geometria_data.get('type') == 'Feature':
+                    geometry = geometria_data['geometry']
+                else:
+                    geometry = geometria_data
+                
+                # Crear geometría PostGIS
+                geometria_postgis = GEOSGeometry(json.dumps(geometry))
+                
+                # Validar que sea un polígono válido
+                if not geometria_postgis.valid:
+                    messages.error(request, 'La geometría de la parcela no es válida.')
+                    return render(request, 'informes/parcelas/crear.html')
+                
+            except (ValueError, TypeError, KeyError) as e:
+                logger.error(f"Error procesando geometría: {str(e)}")
+                messages.error(request, 'Error en los datos de geometría de la parcela.')
+                return render(request, 'informes/parcelas/crear.html')
+            
+            # Crear la parcela con PostGIS
+            parcela = Parcela.objects.create(
+                nombre=nombre,
+                propietario=propietario,
+                geometria=geometria_postgis,  # PostGIS calcula área automáticamente
+                tipo_cultivo=tipo_cultivo,
+                fecha_inicio_monitoreo=datetime.strptime(fecha_inicio_monitoreo, '%Y-%m-%d').date(),
+                notas=notas,
+                activa=True
+            )
+            
+            logger.info(f"Parcela '{nombre}' creada exitosamente con área de {parcela.area_hectareas:.2f} ha")
+            messages.success(request, f'Parcela "{nombre}" creada exitosamente con {parcela.area_hectareas:.2f} hectáreas.')
+            
+            return redirect('informes:detalle_parcela', parcela_id=parcela.id)
+            
+        except Exception as e:
+            logger.error(f"Error creando parcela: {str(e)}")
+            messages.error(request, f'Error creando parcela: {str(e)}')
+    
+    return render(request, 'informes/parcelas/crear.html')
+
+
+def registro_cliente(request):
+    """
+    Vista simplificada para que los clientes registren sus parcelas
+    Sin acceso a funciones administrativas
+    """
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario cliente
+            nombre = request.POST.get('nombre')
+            propietario = request.POST.get('propietario')
+            tipo_cultivo = request.POST.get('tipo_cultivo', '')
+            email_contacto = request.POST.get('email_contacto', '')
+            geometria_json = request.POST.get('geometria')
+            fecha_inicio_monitoreo = request.POST.get('fecha_inicio_monitoreo')
+            
+            # Validar datos requeridos
+            if not all([nombre, propietario, geometria_json]):
+                messages.error(request, 'Por favor complete todos los campos requeridos.')
+                return render(request, 'informes/parcelas/registro_cliente.html')
+            
+            # Importar herramientas PostGIS
+            from django.contrib.gis.geos import GEOSGeometry
+            import json
+            from datetime import datetime, date
+            
+            # Procesar geometría
+            try:
+                geometria_data = json.loads(geometria_json)
+                
+                # Asegurar que es una Feature con geometría Polygon
+                if geometria_data.get('type') == 'Feature':
+                    geometry = geometria_data['geometry']
+                else:
+                    geometry = geometria_data
+                
+                # Crear geometría PostGIS
+                geometria_postgis = GEOSGeometry(json.dumps(geometry))
+                
+                # Validar que sea un polígono válido
+                if not geometria_postgis.valid:
+                    messages.error(request, 'La geometría de la parcela no es válida. Por favor revise las coordenadas.')
+                    return render(request, 'informes/parcelas/registro_cliente.html')
+                
+            except (ValueError, TypeError, KeyError) as e:
+                logger.error(f"Error procesando geometría del cliente: {str(e)}")
+                messages.error(request, 'Error en los datos de geometría. Por favor intente nuevamente.')
+                return render(request, 'informes/parcelas/registro_cliente.html')
+            
+            # Usar fecha de inicio por defecto si no se proporciona
+            if fecha_inicio_monitoreo:
+                fecha_inicio = datetime.strptime(fecha_inicio_monitoreo, '%Y-%m-%d').date()
+            else:
+                fecha_inicio = date.today()
+            
+            # Crear notas especiales para clientes
+            notas_cliente = f"Parcela registrada por cliente.\nEmail: {email_contacto}\nEstado: Pendiente de procesamiento\nFecha registro: {date.today()}"
+            
+            # Crear la parcela para cliente
+            parcela = Parcela.objects.create(
+                nombre=nombre,
+                propietario=propietario,
+                geometria=geometria_postgis,
+                tipo_cultivo=tipo_cultivo,
+                fecha_inicio_monitoreo=fecha_inicio,
+                notas=notas_cliente,
+                activa=True
+            )
+            
+            logger.info(f"Parcela cliente '{nombre}' registrada exitosamente. Área: {parcela.area_hectareas:.2f} ha")
+            
+            # Respuesta de éxito para cliente
+            contexto = {
+                'parcela': parcela,
+                'area_hectareas': parcela.area_hectareas,
+                'registro_exitoso': True
+            }
+            
+            return render(request, 'informes/parcelas/registro_cliente.html', contexto)
+            
+        except Exception as e:
+            logger.error(f"Error en registro de cliente: {str(e)}")
+            messages.error(request, 'Error procesando su solicitud. Por favor intente nuevamente.')
+    
+    return render(request, 'informes/parcelas/registro_cliente.html')
+
+
+def mapa_parcela(request, parcela_id):
+    """
+    Vista del mapa interactivo de una parcela específica
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        contexto = {
+            'parcela': parcela,
+            'geojson_data': parcela.poligono_geojson,
+            'centro_mapa': parcela.centro_parcela,
+        }
+        
+        return render(request, 'informes/parcelas/mapa.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en mapa_parcela: {str(e)}")
+        messages.error(request, f"Error cargando mapa: {str(e)}")
+        return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def procesar_datos_parcela(request, parcela_id):
+    """
+    API endpoint para procesar datos satelitales de una parcela
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Obtener parámetros
+        data = json.loads(request.body) if request.body else {}
+        meses_atras = data.get('meses_atras', 12)
+        
+        # Calcular fechas
+        fecha_fin = date.today()
+        fecha_inicio = fecha_fin - timedelta(days=meses_atras * 30)
+        
+        # Procesar datos
+        # resultado = analisis_service.procesar_datos_mensuales(
+        #     parcela, fecha_inicio, fecha_fin
+        # )
+        resultado = {'success': True, 'message': 'Análisis temporalmente deshabilitado'}
+        
+        if 'error' in resultado:
+            return JsonResponse({
+                'success': False,
+                'error': resultado['error']
+            }, status=400)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Datos procesados exitosamente para {parcela.nombre}',
+            'meses_procesados': resultado.get('total_meses', 0),
+            'simulado': resultado.get('simulado', False)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error procesando datos de parcela {parcela_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+def analisis_tendencias(request, parcela_id):
+    """
+    Vista para mostrar análisis de tendencias de una parcela
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Obtener período de análisis
+        meses_analisis = int(request.GET.get('meses', 12))
+        
+        # Calcular tendencias
+        # tendencias = analisis_service.calcular_tendencias_parcela(
+        #     parcela, meses_analisis
+        # )
+        tendencias = {'datos_disponibles': False, 'mensaje': 'Análisis temporalmente deshabilitado'}
+        
+        if 'error' in tendencias:
+            messages.warning(request, tendencias['error'])
+            tendencias = {'datos_disponibles': False}
+        
+        contexto = {
+            'parcela': parcela,
+            'tendencias': tendencias,
+            'meses_analisis': meses_analisis,
+        }
+        
+        return render(request, 'informes/analisis/tendencias.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en análisis de tendencias: {str(e)}")
+        messages.error(request, f"Error en análisis: {str(e)}")
+        return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+
+
+def lista_informes(request):
+    """
+    Lista todos los informes generados
+    """
+    try:
+        informes_queryset = Informe.objects.all().order_by('-fecha_generacion')
+        
+        # Filtro por parcela
+        parcela_id = request.GET.get('parcela')
+        if parcela_id:
+            informes_queryset = informes_queryset.filter(parcela_id=parcela_id)
+        
+        # Paginación
+        paginator = Paginator(informes_queryset, 10)
+        page_number = request.GET.get('page')
+        informes = paginator.get_page(page_number)
+        
+        # Lista de parcelas para filtro
+        parcelas = Parcela.objects.filter(activa=True).order_by('nombre')
+        
+        contexto = {
+            'informes': informes,
+            'parcelas': parcelas,
+            'parcela_filtro': parcela_id,
+        }
+        
+        return render(request, 'informes/informes/lista.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en lista_informes: {str(e)}")
+        messages.error(request, f"Error cargando informes: {str(e)}")
+        return render(request, 'informes/informes/lista.html', {'error': str(e)})
+
+
+def detalle_informe(request, informe_id):
+    """
+    Muestra el detalle de un informe específico
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        contexto = {
+            'informe': informe,
+        }
+        
+        return render(request, 'informes/informes/detalle.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en detalle_informe: {str(e)}")
+        messages.error(request, f"Error cargando informe: {str(e)}")
+        return redirect('informes:lista_informes')
+
+
+def estado_sistema(request):
+    """
+    Vista para monitorear el estado del sistema
+    """
+    try:
+        # Verificar conectividad EOSDA
+        # estado_eosda = eosda_service.verificar_conectividad()
+        estado_eosda = {'status': 'offline', 'message': 'Servicio temporalmente deshabilitado'}
+        
+        # Verificar estado del email
+        from .services.email_service import email_service
+        estado_email = email_service.validar_configuracion_email()
+        
+        # Estadísticas de datos
+        estadisticas = {
+            'total_parcelas': Parcela.objects.filter(activa=True).count(),
+            'total_indices': IndiceMensual.objects.count(),
+            'total_informes': Informe.objects.count(),
+            'indices_ultimo_mes': IndiceMensual.objects.filter(
+                fecha_consulta_api__gte=datetime.now() - timedelta(days=30)
+            ).count(),
+            'informes_ultimo_mes': Informe.objects.filter(
+                fecha_generacion__gte=datetime.now() - timedelta(days=30)
+            ).count(),
+        }
+        
+        # Estado general del sistema
+        estado_general = 'operativo' if estado_email.get('valido', False) else 'degradado'
+        
+        contexto = {
+            'estado_eosda': estado_eosda,
+            'estado_email': estado_email,
+            'estadisticas': estadisticas,
+            'estado_general': estado_general,
+        }
+        
+        return render(request, 'informes/sistema/estado.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en estado_sistema: {str(e)}")
+        return render(request, 'informes/sistema/estado.html', {'error': str(e)})
+
+
+@login_required
+def probar_email(request):
+    """
+    Vista para probar la configuración de email
+    Solo para superusuarios
+    """
+    if not request.user.is_superuser:
+        messages.warning(request, 'No tiene permisos para probar la configuración de email.')
+        return redirect('informes:estado_sistema')
+        
+    if request.method == 'POST':
+        try:
+            from .services.email_service import email_service
+            
+            email_destino = request.POST.get('email_destino', 'agrotechdigitalcolombia@gmail.com')
+            resultado = email_service.probar_configuracion_email(email_destino)
+            
+            if resultado['exito']:
+                messages.success(request, resultado['mensaje'])
+                logger.info(f"Prueba de email exitosa a {email_destino}")
+            else:
+                messages.error(request, f"Error en prueba de email: {resultado['error']}")
+                logger.error(f"Error en prueba de email: {resultado['error']}")
+                
+        except Exception as e:
+            logger.error(f"Error en probar_email: {str(e)}")
+            messages.error(request, f"Error ejecutando prueba: {str(e)}")
+    
+    return redirect('informes:estado_sistema')
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_datos_parcela(request, parcela_id):
+    """
+    API para obtener datos de una parcela en formato JSON
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Obtener parámetros
+        limite = int(request.GET.get('limite', 12))
+        
+        # Obtener índices recientes
+        indices = IndiceMensual.objects.filter(
+            parcela=parcela
+        ).order_by('-año', '-mes')[:limite]
+        
+        # Convertir a formato JSON
+        datos = []
+        for indice in indices:
+            datos.append({
+                'fecha': f"{indice.año}-{indice.mes:02d}-01",
+                'periodo': indice.periodo_texto,
+                'ndvi': indice.ndvi_promedio,
+                'ndmi': indice.ndmi_promedio,
+                'savi': indice.savi_promedio,
+                'temperatura': indice.temperatura_promedio,
+                'precipitacion': indice.precipitacion_total,
+                'calidad_datos': indice.calidad_datos,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'parcela': {
+                'id': parcela.id,
+                'nombre': parcela.nombre,
+                'propietario': parcela.propietario,
+            },
+            'datos': datos,
+            'total_registros': len(datos)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en api_datos_parcela: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+# =============================================================================
+# VISTAS DE AUTENTICACIÓN
+# =============================================================================
+
+def user_login(request):
+    """
+    Vista de login con redirección diferenciada:
+    - Superusuarios -> Dashboard completo
+    - Otros usuarios -> Registro de parcelas solamente
+    """
+    # Si ya está autenticado, redirigir según el tipo de usuario
+    if request.user.is_authenticated:
+        if request.user.is_superuser:
+            return redirect('informes:dashboard')
+        else:
+            return redirect('informes:crear_parcela')
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        if username and password:
+            user = authenticate(request, username=username, password=password)
+            
+            if user is not None:
+                if user.is_active:
+                    login(request, user)
+                    logger.info(f"Usuario '{username}' inició sesión exitosamente")
+                    
+                    # Redirección diferenciada
+                    if user.is_superuser:
+                        messages.success(request, f'¡Bienvenido {user.first_name or username}! Acceso administrativo completo.')
+                        return redirect('informes:dashboard')
+                    else:
+                        messages.success(request, f'¡Bienvenido {user.first_name or username}! Acceso a registro de parcelas.')
+                        return redirect('informes:crear_parcela')
+                else:
+                    messages.error(request, 'Su cuenta está desactivada.')
+            else:
+                logger.warning(f"Intento de login fallido para usuario: {username}")
+                messages.error(request, 'Usuario o contraseña incorrectos.')
+        else:
+            messages.error(request, 'Por favor ingrese usuario y contraseña.')
+    
+    return render(request, 'registration/login.html')
+
+
+@login_required
+def user_logout(request):
+    """
+    Vista de logout
+    """
+    username = request.user.username
+    logout(request)
+    messages.info(request, f'Sesión cerrada correctamente. ¡Hasta pronto!')
+    logger.info(f"Usuario '{username}' cerró sesión")
+    return redirect('informes:login')
+
+
+def is_superuser(user):
+    """
+    Helper function para verificar si el usuario es superusuario
+    """
+    return user.is_superuser
+
+
+@user_passes_test(is_superuser, login_url='informes:crear_parcela')
+@login_required
+def admin_dashboard(request):
+    """
+    Dashboard completo solo para superusuarios
+    Redirige a usuarios normales al registro de parcelas
+    """
+    return dashboard(request)
+
+
+# Actualizar la vista dashboard existente para verificar permisos
+@login_required
+def dashboard_admin(request):
+    """
+    Dashboard principal del sistema
+    Solo accesible para superusuarios
+    """
+    # Verificar si es superusuario
+    if not request.user.is_superuser:
+        messages.warning(request, 'No tiene permisos para acceder al dashboard administrativo.')
+        return redirect('informes:crear_parcela')
+    
+    # Redirigir al dashboard principal
+    return dashboard(request)
+
+
+# =============================================================================
+# VISTAS DE GESTIÓN DE INVITACIONES
+# =============================================================================
+
+@login_required
+@user_passes_test(is_superuser, login_url='informes:crear_parcela')
+def gestionar_invitaciones(request):
+    """
+    Vista para gestionar invitaciones de clientes
+    Solo para superusuarios
+    """
+    try:
+        # Obtener invitaciones con filtros
+        estado_filtro = request.GET.get('estado', 'todas')
+        busqueda = request.GET.get('busqueda', '')
+        
+        invitaciones_queryset = ClienteInvitacion.objects.all()
+        
+        if estado_filtro != 'todas':
+            invitaciones_queryset = invitaciones_queryset.filter(estado=estado_filtro)
+        
+        if busqueda:
+            invitaciones_queryset = invitaciones_queryset.filter(
+                Q(nombre_cliente__icontains=busqueda) |
+                Q(email_cliente__icontains=busqueda) |
+                Q(telefono_cliente__icontains=busqueda)
+            )
+        
+        # Paginación
+        paginator = Paginator(invitaciones_queryset, 10)
+        page_number = request.GET.get('page')
+        invitaciones = paginator.get_page(page_number)
+        
+        # Estadísticas
+        estadisticas = {
+            'total_invitaciones': ClienteInvitacion.objects.count(),
+            'pendientes': ClienteInvitacion.objects.filter(estado='pendiente').count(),
+            'utilizadas': ClienteInvitacion.objects.filter(estado='utilizada').count(),
+            'expiradas': ClienteInvitacion.objects.filter(estado='expirada').count(),
+            'ingresos_totales': RegistroEconomico.objects.aggregate(
+                total=Sum('valor_final')
+            )['total'] or 0,
+            'ingresos_pendientes': RegistroEconomico.objects.filter(
+                pagado=False
+            ).aggregate(total=Sum('valor_final'))['total'] or 0,
+        }
+        
+        contexto = {
+            'invitaciones': invitaciones,
+            'estadisticas': estadisticas,
+            'estado_filtro': estado_filtro,
+            'busqueda': busqueda,
+        }
+        
+        return render(request, 'informes/invitaciones/gestionar.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en gestionar_invitaciones: {str(e)}")
+        messages.error(request, f"Error cargando invitaciones: {str(e)}")
+        return redirect('informes:dashboard')
+
+
+@login_required
+@login_required
+@user_passes_test(is_superuser, login_url='informes:crear_parcela')
+def crear_invitacion(request):
+    """
+    Vista para crear nueva invitación de cliente
+    """
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            nombre_cliente = request.POST.get('nombre_cliente')
+            email_cliente = request.POST.get('email_cliente', '')
+            descripcion_servicio = request.POST.get('descripcion_servicio', 'Análisis satelital agrícola')
+            precio_servicio = request.POST.get('precio_servicio', '0.00')
+            dias_vigencia = int(request.POST.get('dias_vigencia', '15'))
+            
+            # Validaciones
+            if not nombre_cliente:
+                messages.error(request, 'El nombre del cliente es requerido.')
+                return render(request, 'informes/invitaciones/crear.html')
+            
+            if not email_cliente:
+                messages.error(request, 'El email del cliente es requerido.')
+                return render(request, 'informes/invitaciones/crear.html')
+            
+            # Generar token único
+            import secrets
+            token = secrets.token_urlsafe(24)
+            
+            # Calcular fecha de expiración
+            from datetime import timedelta
+            fecha_expiracion = timezone.now() + timedelta(days=dias_vigencia)
+            
+            # Crear invitación
+            invitacion = ClienteInvitacion.objects.create(
+                token=token,
+                nombre_cliente=nombre_cliente,
+                email_cliente=email_cliente,
+                telefono_cliente='',  # No se solicita en el formulario actual
+                costo_servicio=Decimal(precio_servicio),
+                descripcion_servicio=descripcion_servicio,
+                fecha_expiracion=fecha_expiracion,
+                creado_por=request.user
+            )
+            
+            logger.info(f"Invitación creada para {nombre_cliente} por {request.user.username}")
+            messages.success(request, f'Invitación creada exitosamente para {nombre_cliente}')
+            
+            return redirect('informes:detalle_invitacion', invitacion_id=invitacion.id)
+            
+        except Exception as e:
+            logger.error(f"Error creando invitación: {str(e)}")
+            messages.error(request, f'Error creando invitación: {str(e)}')
+    
+    return render(request, 'informes/invitaciones/crear.html')
+
+
+@login_required
+@user_passes_test(is_superuser, login_url='informes:crear_parcela')
+def detalle_invitacion(request, invitacion_id):
+    """
+    Vista de detalle de una invitación específica
+    """
+    try:
+        invitacion = get_object_or_404(ClienteInvitacion, id=invitacion_id)
+        
+        # Manejar envío de email
+        if request.method == 'POST' and 'enviar_email' in request.POST:
+            from .services.email_service import email_service
+            
+            url_completa = request.build_absolute_uri(invitacion.url_invitacion)
+            resultado = email_service.enviar_invitacion(invitacion, url_completa)
+            
+            if resultado['exito']:
+                messages.success(request, resultado['mensaje'])
+                logger.info(f"Email enviado exitosamente para invitación {invitacion.id}")
+            else:
+                # Usar error level para mostrar modal crítico
+                messages.error(request, f"{resultado['error']}")
+                logger.error(f"Error enviando email para invitación {invitacion.id}: {resultado['error']}")
+        
+        # Obtener registros económicos asociados
+        registros_economicos = RegistroEconomico.objects.filter(
+            invitacion=invitacion
+        ).order_by('-fecha_servicio')
+        
+        # Generar mensaje de WhatsApp
+        from .services.email_service import email_service
+        url_completa = request.build_absolute_uri(invitacion.url_invitacion)
+        mensaje_whatsapp = email_service.generar_mensaje_whatsapp(invitacion, url_completa)
+        
+        contexto = {
+            'invitacion': invitacion,
+            'registros_economicos': registros_economicos,
+            'url_completa': url_completa,
+            'mensaje_whatsapp': mensaje_whatsapp,
+        }
+        
+        return render(request, 'informes/invitaciones/detalle.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en detalle_invitacion: {str(e)}")
+        messages.error(request, f"Error cargando invitación: {str(e)}")
+        return redirect('informes:gestionar_invitaciones')
+
+
+def registro_invitacion(request, token):
+    """
+    Vista pública para registro usando token de invitación
+    """
+    try:
+        # Buscar invitación por token
+        invitacion = get_object_or_404(ClienteInvitacion, token=token)
+        
+        # Verificar estado de la invitación
+        if invitacion.estado != 'pendiente':
+            messages.error(request, 'Esta invitación ya ha sido utilizada o ha expirado.')
+            return render(request, 'informes/invitaciones/error.html', {
+                'error': 'Invitación no válida',
+                'invitacion': invitacion
+            })
+        
+        # Verificar expiración
+        if invitacion.esta_expirada:
+            invitacion.estado = 'expirada'
+            invitacion.save()
+            messages.error(request, 'Esta invitación ha expirado.')
+            return render(request, 'informes/invitaciones/error.html', {
+                'error': 'Invitación expirada',
+                'invitacion': invitacion
+            })
+        
+        # Procesar registro de parcela
+        if request.method == 'POST':
+            try:
+                # Obtener datos del formulario
+                nombre = request.POST.get('nombre')
+                tipo_cultivo = request.POST.get('tipo_cultivo', '')
+                geometria_json = request.POST.get('geometria')
+                notas = request.POST.get('notas', '')
+                
+                # Validar datos requeridos
+                if not all([nombre, geometria_json]):
+                    messages.error(request, 'Por favor complete todos los campos requeridos.')
+                    return render(request, 'informes/invitaciones/registro.html', {
+                        'invitacion': invitacion
+                    })
+                
+                # Procesar geometría con PostGIS
+                from django.contrib.gis.geos import GEOSGeometry
+                import json
+                from datetime import date
+                
+                geometria_data = json.loads(geometria_json)
+                
+                if geometria_data.get('type') == 'Feature':
+                    geometry = geometria_data['geometry']
+                else:
+                    geometry = geometria_data
+                
+                geometria_postgis = GEOSGeometry(json.dumps(geometry))
+                
+                if not geometria_postgis.valid:
+                    messages.error(request, 'La geometría de la parcela no es válida.')
+                    return render(request, 'informes/invitaciones/registro.html', {
+                        'invitacion': invitacion
+                    })
+                
+                # Crear parcela
+                parcela = Parcela.objects.create(
+                    nombre=nombre,
+                    propietario=invitacion.nombre_cliente,
+                    geometria=geometria_postgis,
+                    tipo_cultivo=tipo_cultivo,
+                    fecha_inicio_monitoreo=date.today(),
+                    notas=f"Registrada por invitación.\nCliente: {invitacion.nombre_cliente}\nEmail: {invitacion.email_cliente}\n{notas}",
+                    activa=True
+                )
+                
+                # Marcar invitación como utilizada
+                invitacion.marcar_como_utilizada(parcela)
+                
+                # Crear registro económico
+                if invitacion.costo_servicio > 0:
+                    RegistroEconomico.objects.create(
+                        invitacion=invitacion,
+                        parcela=parcela,
+                        tipo_servicio='analisis_basico',
+                        descripcion=f'Análisis satelital para parcela {parcela.nombre}',
+                        valor_servicio=invitacion.costo_servicio,
+                        valor_final=invitacion.costo_servicio
+                    )
+                
+                logger.info(f"Parcela registrada por invitación: {invitacion.token} - {parcela.nombre}")
+                
+                return render(request, 'informes/invitaciones/exito.html', {
+                    'invitacion': invitacion,
+                    'parcela': parcela
+                })
+                
+            except Exception as e:
+                logger.error(f"Error procesando registro por invitación: {str(e)}")
+                messages.error(request, 'Error procesando su solicitud. Por favor intente nuevamente.')
+        
+        # Mostrar formulario de registro
+        return render(request, 'informes/invitaciones/registro.html', {
+            'invitacion': invitacion
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en registro_invitacion: {str(e)}")
+        messages.error(request, 'Error procesando invitación.')
+        return render(request, 'informes/invitaciones/error.html', {
+            'error': 'Error del sistema'
+        })
+
+
+@login_required
+def verificar_eosda(request):
+    """
+    Vista para verificar la conectividad con la API de EOSDA
+    """
+    try:
+        logger.info("Iniciando verificación de conexión con EOSDA")
+        
+        # Verificar configuración básica
+        resultado_conexion = eosda_service.verificar_conectividad()
+        
+        # Información de configuración
+        configuracion = {
+            'api_key_configurado': bool(eosda_service.api_key and eosda_service.api_key != ''),
+            'api_key_valido': len(eosda_service.api_key) > 10 if eosda_service.api_key else False,
+            'url_base': eosda_service.base_url,
+            'api_key_preview': f"{eosda_service.api_key[:10]}..." if eosda_service.api_key else "No configurado"
+        }
+        
+        # Intentar una consulta real si hay una parcela disponible
+        datos_prueba = None
+        parcela_prueba = None
+        try:
+            parcela_prueba = Parcela.objects.filter(activa=True).first()
+            if parcela_prueba and resultado_conexion['conexion_exitosa']:
+                logger.info(f"Probando obtener datos para parcela: {parcela_prueba.nombre}")
+                from datetime import date, timedelta
+                
+                fecha_fin = date.today()
+                fecha_inicio = fecha_fin - timedelta(days=90)  # Últimos 3 meses
+                
+                # Intentar obtener datos reales
+                datos_prueba = eosda_service.obtener_datos_parcela(
+                    parcela_prueba, 
+                    fecha_inicio, 
+                    fecha_fin
+                )
+                
+                if datos_prueba:
+                    ndvi_count = len(datos_prueba.get('ndvi', []))
+                    ndmi_count = len(datos_prueba.get('ndmi', []))
+                    savi_count = len(datos_prueba.get('savi', []))
+                    logger.info(f"Datos obtenidos - NDVI: {ndvi_count}, NDMI: {ndmi_count}, SAVI: {savi_count}")
+                else:
+                    logger.warning("No se obtuvieron datos de prueba")
+                    
+        except Exception as e:
+            logger.error(f"Error obteniendo datos de prueba: {str(e)}")
+            datos_prueba = None
+        
+        contexto = {
+            'resultado_conexion': resultado_conexion,
+            'configuracion': configuracion,
+            'datos_prueba': datos_prueba,
+            'parcela_prueba': parcela_prueba,
+            'timestamp': timezone.now()
+        }
+        
+        return render(request, 'informes/sistema/verificar_eosda.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en verificar_eosda: {str(e)}")
+        messages.error(request, f"Error verificando EOSDA: {str(e)}")
+        return redirect('informes:estado_sistema')
+
+
+@login_required
+def obtener_datos_historicos(request, parcela_id):
+    """
+    Vista para obtener datos históricos de una parcela específica desde EOSDA
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Definir período de análisis optimizado (últimos 3 meses para reducir requests)
+        from datetime import date, timedelta
+        fecha_fin = date.today()
+        fecha_inicio = fecha_fin - timedelta(days=90)  # Reducido de 365 a 90 días
+        
+        logger.info(f"Obteniendo datos históricos para {parcela.nombre} desde {fecha_inicio} hasta {fecha_fin}")
+        
+        # Obtener datos desde EOSDA
+        datos_satelitales = eosda_service.obtener_datos_parcela(parcela, fecha_inicio, fecha_fin)
+        
+        # Debug: Log para ver estructura de datos
+        logger.info(f"Estructura de datos recibida: {list(datos_satelitales.keys())}")
+        for clave, valor in datos_satelitales.items():
+            if isinstance(valor, list):
+                logger.info(f"  {clave}: {len(valor)} elementos")
+                if valor:
+                    logger.info(f"    Ejemplo: {valor[0]}")
+        
+        # Procesar y guardar los datos en la base de datos
+        indices_creados = 0
+        datos_procesados = 0
+        
+        # Función auxiliar para procesar datos por índice
+        def procesar_indice_datos(datos_lista, indice_nombre):
+            nonlocal indices_creados, datos_procesados
+            for dato in datos_lista:
+                try:
+                    # Adaptarse al formato real de EOSDA
+                    fecha_dato = dato.get('fecha')
+                    if not fecha_dato:
+                        continue
+                        
+                    if isinstance(fecha_dato, str):
+                        fecha_dato = datetime.fromisoformat(fecha_dato).date()
+                    
+                    # Usar 'valor' en lugar de 'promedio' según estructura real
+                    valor_principal = dato.get('valor', dato.get('promedio', dato.get('average')))
+                    
+                    if valor_principal is None:
+                        logger.warning(f"No se encontró valor para {indice_nombre} en fecha {fecha_dato}")
+                        continue
+                    
+                    metadatos = dato.get('metadatos', {})
+                    
+                    # Crear o actualizar registro
+                    defaults = {
+                        'fuente_datos': 'EOSDA',
+                        'calidad_datos': 'buena' if metadatos.get('cloud_coverage', 0) < 50 else 'regular'
+                    }
+                    
+                    if indice_nombre == 'NDVI':
+                        defaults.update({
+                            'ndvi_promedio': valor_principal,
+                            'ndvi_maximo': metadatos.get('max'),
+                            'ndvi_minimo': metadatos.get('min'),
+                            'nubosidad_promedio': metadatos.get('cloud_coverage', 0)
+                        })
+                    elif indice_nombre == 'NDMI':
+                        defaults.update({
+                            'ndmi_promedio': valor_principal,
+                            'ndmi_maximo': metadatos.get('max'),
+                            'ndmi_minimo': metadatos.get('min')
+                        })
+                    elif indice_nombre == 'SAVI':
+                        defaults.update({
+                            'savi_promedio': valor_principal,
+                            'savi_maximo': metadatos.get('max'),
+                            'savi_minimo': metadatos.get('min')
+                        })
+                    
+                    indice, created = IndiceMensual.objects.update_or_create(
+                        parcela=parcela,
+                        año=fecha_dato.year,
+                        mes=fecha_dato.month,
+                        defaults=defaults
+                    )
+                    
+                    if created:
+                        indices_creados += 1
+                    datos_procesados += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error procesando dato {indice_nombre}: {str(e)} - Dato: {dato}")
+        
+        # Procesar cada tipo de índice
+        procesar_indice_datos(datos_satelitales.get('ndvi', []), 'NDVI')
+        procesar_indice_datos(datos_satelitales.get('ndmi', []), 'NDMI')
+        procesar_indice_datos(datos_satelitales.get('savi', []), 'SAVI')
+        
+        # Procesar datos climáticos si existen
+        for dato in datos_satelitales.get('datos_clima', []):
+            try:
+                fecha_dato = dato.get('fecha')
+                if isinstance(fecha_dato, str):
+                    fecha_dato = datetime.fromisoformat(fecha_dato).date()
+                
+                IndiceMensual.objects.filter(
+                    parcela=parcela,
+                    año=fecha_dato.year,
+                    mes=fecha_dato.month
+                ).update(
+                    temperatura_promedio=dato.get('temperatura_promedio'),
+                    temperatura_maxima=dato.get('temperatura_maxima'),
+                    temperatura_minima=dato.get('temperatura_minima'),
+                    precipitacion_total=dato.get('precipitacion_total')
+                )
+            except Exception as e:
+                logger.error(f"Error procesando dato climático: {str(e)}")
+        
+        logger.info(f"Datos históricos procesados para {parcela.nombre}: {indices_creados} nuevos registros, {datos_procesados} datos procesados")
+        
+        if datos_satelitales.get('simulado'):
+            messages.info(request, 
+                f'Se obtuvieron datos para {parcela.nombre}. '
+                f'Procesados: {datos_procesados} registros, Nuevos: {indices_creados}. '
+                'Nota: Algunos datos pueden ser simulados si EOSDA no tiene cobertura completa.'
+            )
+        else:
+            messages.success(request, 
+                f'Datos históricos actualizados para {parcela.nombre}: {indices_creados} nuevos registros, {datos_procesados} datos procesados'
+            )
+        
+        return redirect('informes:detalle_parcela', parcela_id=parcela.id)
+        
+    except Exception as e:
+        for dato in datos_satelitales.get('savi', []):
+            IndiceMensual.objects.filter(
+                parcela=parcela,
+                año=dato['fecha'].year,
+                mes=dato['fecha'].month
+            ).update(
+                savi_promedio=dato['promedio'],
+                savi_maximo=dato.get('maximo'),
+                savi_minimo=dato.get('minimo')
+            )
+        
+        # Procesar datos climáticos
+        for dato in datos_satelitales.get('datos_clima', []):
+            IndiceMensual.objects.filter(
+                parcela=parcela,
+                año=dato['fecha'].year,
+                mes=dato['fecha'].month
+            ).update(
+                temperatura_promedio=dato.get('temperatura_promedio'),
+                temperatura_maxima=dato.get('temperatura_maxima'),
+                temperatura_minima=dato.get('temperatura_minima'),
+                precipitacion_total=dato.get('precipitacion_total')
+            )
+        
+        logger.info(f"Datos históricos procesados para {parcela.nombre}: {indices_creados} nuevos registros")
+        
+        if datos_satelitales.get('simulado'):
+            messages.warning(request, 
+                f'Se generaron datos simulados para {parcela.nombre}. '
+                'Verifique la configuración de EOSDA para obtener datos reales.'
+            )
+        else:
+            messages.success(request, 
+                f'Datos históricos actualizados para {parcela.nombre}: {indices_creados} nuevos registros'
+            )
+        
+        return redirect('informes:detalle_parcela', parcela_id=parcela.id)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo datos históricos: {str(e)}")
+        messages.error(request, f"Error obteniendo datos históricos: {str(e)}")
+        return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+
+
+@login_required 
+def ver_datos_guardados(request, parcela_id):
+    """
+    Vista para mostrar todos los datos históricos guardados en la base de datos
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Obtener todos los índices mensuales de la parcela
+        indices = IndiceMensual.objects.filter(
+            parcela=parcela
+        ).order_by('-año', '-mes')
+        
+        # Estadísticas
+        total_registros = indices.count()
+        registros_eosda = indices.filter(fuente_datos='EOSDA').count()
+        registros_simulados = indices.filter(fuente_datos='Simulado').count()
+        
+        # Preparar datos para visualización
+        datos_graficos = {
+            'fechas': [],
+            'ndvi': [],
+            'ndmi': [],
+            'savi': [],
+            'temperatura': [],
+            'precipitacion': []
+        }
+        
+        for indice in indices:
+            fecha_label = f"{indice.año}-{indice.mes:02d}"
+            datos_graficos['fechas'].append(fecha_label)
+            datos_graficos['ndvi'].append(indice.ndvi_promedio)
+            datos_graficos['ndmi'].append(indice.ndmi_promedio)
+            datos_graficos['savi'].append(indice.savi_promedio)
+            datos_graficos['temperatura'].append(indice.temperatura_promedio)
+            datos_graficos['precipitacion'].append(indice.precipitacion_total)
+        
+        contexto = {
+            'parcela': parcela,
+            'indices': indices[:20],  # Mostrar últimos 20 registros
+            'total_registros': total_registros,
+            'registros_eosda': registros_eosda,
+            'registros_simulados': registros_simulados,
+            'datos_graficos': json.dumps(datos_graficos),
+            'tiene_datos': total_registros > 0
+        }
+        
+        return render(request, 'informes/parcelas/datos_guardados.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error mostrando datos guardados: {str(e)}")
+        messages.error(request, f"Error cargando datos: {str(e)}")
+        return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+
+
+@login_required
+def sincronizar_con_eosda(request, parcela_id):
+    """
+    Vista para sincronizar una parcela específica con EOSDA Field Management API
+    """
+    try:
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        logger.info(f"Iniciando sincronización de {parcela.nombre} con EOSDA")
+        
+        # Sincronizar con EOSDA
+        resultado = eosda_service.sincronizar_parcela_con_eosda(parcela)
+        
+        if resultado['exito']:
+            if resultado.get('ya_existia'):
+                messages.info(request, 
+                    f'La parcela {parcela.nombre} ya estaba sincronizada con EOSDA '
+                    f'(Field ID: {resultado["field_id"]})'
+                )
+            else:
+                messages.success(request, 
+                    f'Parcela {parcela.nombre} sincronizada exitosamente con EOSDA '
+                    f'(Field ID: {resultado["field_id"]})'
+                )
+        else:
+            messages.error(request, 
+                f'Error sincronizando {parcela.nombre} con EOSDA: {resultado["error"]}'
+            )
+        
+        return redirect('informes:detalle_parcela', parcela_id=parcela.id)
+        
+    except Exception as e:
+        logger.error(f"Error sincronizando parcela con EOSDA: {str(e)}")
+        messages.error(request, f"Error en sincronización: {str(e)}")
+        return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+
+
+@login_required 
+def estado_sincronizacion_eosda(request):
+    """
+    Vista para mostrar el estado de sincronización de todas las parcelas con EOSDA
+    """
+    try:
+        parcelas = Parcela.objects.filter(activa=True).order_by('-fecha_registro')
+        
+        # Estadísticas generales
+        total_parcelas = parcelas.count()
+        sincronizadas = parcelas.filter(eosda_sincronizada=True).count()
+        con_errores = parcelas.exclude(eosda_errores__isnull=True).exclude(eosda_errores='').count()
+        
+        # Agrupar por estado
+        parcelas_data = []
+        for parcela in parcelas:
+            parcelas_data.append({
+                'parcela': parcela,
+                'estado': 'sincronizada' if parcela.eosda_sincronizada else 'pendiente',
+                'field_id': parcela.eosda_field_id,
+                'fecha_sync': parcela.eosda_fecha_sincronizacion,
+                'errores': parcela.eosda_errores,
+                'requiere_sync': parcela.requiere_sincronizacion_eosda,
+                'puede_obtener_datos': parcela.puede_obtener_datos_eosda
+            })
+        
+        contexto = {
+            'parcelas_data': parcelas_data,
+            'total_parcelas': total_parcelas,
+            'sincronizadas': sincronizadas,
+            'pendientes': total_parcelas - sincronizadas,
+            'con_errores': con_errores,
+            'porcentaje_sync': round((sincronizadas / total_parcelas * 100) if total_parcelas > 0 else 0, 1)
+        }
+        
+        return render(request, 'informes/sistema/sincronizacion_eosda.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error mostrando estado sincronización: {str(e)}")
+        messages.error(request, f"Error cargando estado: {str(e)}")
+        return redirect('informes:estado_sistema')
