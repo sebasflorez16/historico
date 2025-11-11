@@ -44,11 +44,12 @@ class EosdaAPIService:
     def crear_campo_eosda(self, parcela) -> Dict:
         """
         Crea un campo en EOSDA usando Field Management API
+        Documentación: https://doc.eos.com/docs/field-management-api/field-management/
         """
         try:
             from django.utils import timezone
             
-            # Endpoint para Field Management según documentación
+            # Endpoint correcto según documentación oficial
             url = f"{self.base_url}/field-management"
             
             # Preparar geometría en formato GeoJSON
@@ -59,12 +60,18 @@ class EosdaAPIService:
                 # Fallback a coordenadas JSON
                 geojson_dict = parcela.coordenadas_dict
             
-            # Payload según documentación Field Management API
+            if not geojson_dict:
+                error_msg = "No hay geometría disponible para la parcela"
+                parcela.marcar_error_eosda(error_msg)
+                return {'exito': False, 'error': error_msg}
+            
+            # Payload según documentación oficial de EOSDA Field Management API
+            # IMPORTANTE: La respuesta retorna "id" no "field_id"
             payload = {
                 'type': 'Feature',
                 'properties': {
                     'name': parcela.nombre,
-                    'group': 'AgroTech Histórico',  # Grupo por defecto
+                    'group': 'AgroTech Histórico',
                     'years_data': [{
                         'crop_type': parcela.tipo_cultivo or 'Other',
                         'year': parcela.fecha_inicio_monitoreo.year if parcela.fecha_inicio_monitoreo else datetime.now().year,
@@ -75,57 +82,77 @@ class EosdaAPIService:
             }
             
             logger.info(f"Creando campo en EOSDA para parcela: {parcela.nombre}")
+            logger.debug(f"Payload enviado a EOSDA: {json.dumps(payload, indent=2)}")
             
-            # Crear campo en EOSDA
+            # Crear campo en EOSDA con timeout adecuado
             response = self.session.post(url, json=payload, timeout=30)
+            
+            logger.info(f"Respuesta EOSDA - Status: {response.status_code}")
+            logger.debug(f"Respuesta EOSDA - Body: {response.text}")
             
             if response.status_code in [200, 201]:
                 data = response.json()
-                field_id = data.get('field_id') or data.get('id')
+                # IMPORTANTE: Según documentación, la respuesta es {"id": number, "area": number}
+                field_id = data.get('id') or data.get('field_id')
                 
                 if field_id:
                     # Actualizar parcela con información de EOSDA
                     parcela.marcar_sincronizada_eosda(
                         field_id=str(field_id),
-                        nombre_campo=payload['name']
+                        nombre_campo=payload['properties']['name']
                     )
                     
-                    logger.info(f"Campo creado exitosamente en EOSDA: {field_id}")
+                    logger.info(f"✅ Campo creado exitosamente en EOSDA con ID: {field_id}")
                     return {
                         'exito': True,
-                        'field_id': field_id,
-                        'mensaje': 'Campo sincronizado con EOSDA',
+                        'field_id': str(field_id),
+                        'area': data.get('area'),
+                        'mensaje': f'Campo registrado en EOSDA con ID {field_id}',
                         'datos': data
                     }
                 else:
-                    error_msg = "EOSDA no retornó field_id"
+                    error_msg = f"EOSDA no retornó field_id en la respuesta: {data}"
                     parcela.marcar_error_eosda(error_msg)
+                    logger.error(error_msg)
                     return {'exito': False, 'error': error_msg}
             else:
-                error_msg = f"Error HTTP {response.status_code}: {response.text[:200]}"
+                error_msg = f"Error HTTP {response.status_code}: {response.text[:500]}"
                 parcela.marcar_error_eosda(error_msg)
-                logger.error(f"Error creando campo en EOSDA: {error_msg}")
-                return {'exito': False, 'error': error_msg}
+                logger.error(f"❌ Error creando campo en EOSDA: {error_msg}")
+                return {'exito': False, 'error': error_msg, 'status_code': response.status_code}
                 
+        except requests.exceptions.Timeout:
+            error_msg = "Timeout al conectar con EOSDA (>30s)"
+            parcela.marcar_error_eosda(error_msg)
+            logger.error(error_msg)
+            return {'exito': False, 'error': error_msg}
+        except requests.exceptions.ConnectionError:
+            error_msg = "Error de conexión con EOSDA API"
+            parcela.marcar_error_eosda(error_msg)
+            logger.error(error_msg)
+            return {'exito': False, 'error': error_msg}
         except Exception as e:
             error_msg = f"Excepción creando campo: {str(e)}"
             parcela.marcar_error_eosda(error_msg)
-            logger.error(f"Error en crear_campo_eosda: {error_msg}")
+            logger.error(f"Error en crear_campo_eosda: {error_msg}", exc_info=True)
             return {'exito': False, 'error': error_msg}
     
     def obtener_campos_eosda(self) -> List[Dict]:
         """
         Obtiene la lista de campos desde EOSDA Field Management API
+        Documentación: https://doc.eos.com/docs/field-management-api/field-management/
         """
         try:
-            url = f"{self.base_url}/gdw/field"
+            # Endpoint correcto según documentación oficial
+            url = f"{self.base_url}/field-management/fields"
             response = self.session.get(url, timeout=30)
             
             if response.status_code == 200:
-                data = response.json()
-                return data.get('fields', [])
+                fields = response.json()
+                logger.info(f"Se obtuvieron {len(fields)} campos desde EOSDA")
+                return fields if isinstance(fields, list) else []
             else:
-                logger.warning(f"Error obteniendo campos de EOSDA: {response.status_code}")
+                logger.warning(f"Error obteniendo campos de EOSDA: {response.status_code} - {response.text[:200]}")
                 return []
                 
         except Exception as e:

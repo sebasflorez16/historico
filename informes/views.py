@@ -357,7 +357,34 @@ def crear_parcela(request):
             )
             
             logger.info(f"Parcela '{nombre}' creada exitosamente con área de {parcela.area_hectareas:.2f} ha")
-            messages.success(request, f'Parcela "{nombre}" creada exitosamente con {parcela.area_hectareas:.2f} hectáreas.')
+            
+            # SINCRONIZAR AUTOMÁTICAMENTE CON EOSDA después de crear la parcela
+            try:
+                logger.info(f"Iniciando sincronización automática con EOSDA para parcela '{nombre}'")
+                resultado_eosda = eosda_service.sincronizar_parcela_con_eosda(parcela)
+                
+                if resultado_eosda['exito']:
+                    messages.success(
+                        request, 
+                        f'✅ Parcela "{nombre}" creada exitosamente con {parcela.area_hectareas:.2f} hectáreas '
+                        f'y sincronizada con EOSDA (Field ID: {resultado_eosda["field_id"]})'
+                    )
+                    logger.info(f"✅ Parcela '{nombre}' sincronizada con EOSDA: {resultado_eosda['field_id']}")
+                else:
+                    messages.warning(
+                        request,
+                        f'Parcela "{nombre}" creada exitosamente con {parcela.area_hectareas:.2f} hectáreas, '
+                        f'pero hubo un error en la sincronización con EOSDA: {resultado_eosda.get("error", "Error desconocido")}. '
+                        f'Puede sincronizarla manualmente desde el detalle de la parcela.'
+                    )
+                    logger.warning(f"⚠️ Error sincronizando con EOSDA: {resultado_eosda.get('error')}")
+            except Exception as e:
+                logger.error(f"Error en sincronización automática con EOSDA: {str(e)}", exc_info=True)
+                messages.warning(
+                    request,
+                    f'Parcela "{nombre}" creada exitosamente, pero no se pudo sincronizar con EOSDA. '
+                    f'Puede sincronizarla manualmente desde el detalle de la parcela.'
+                )
             
             return redirect('informes:detalle_parcela', parcela_id=parcela.id)
             
@@ -437,6 +464,18 @@ def registro_cliente(request):
             )
             
             logger.info(f"Parcela cliente '{nombre}' registrada exitosamente. Área: {parcela.area_hectareas:.2f} ha")
+            
+            # SINCRONIZAR AUTOMÁTICAMENTE CON EOSDA después de crear la parcela del cliente
+            try:
+                logger.info(f"Iniciando sincronización automática con EOSDA para parcela cliente '{nombre}'")
+                resultado_eosda = eosda_service.sincronizar_parcela_con_eosda(parcela)
+                
+                if resultado_eosda['exito']:
+                    logger.info(f"✅ Parcela cliente '{nombre}' sincronizada con EOSDA: {resultado_eosda['field_id']}")
+                else:
+                    logger.warning(f"⚠️ Error sincronizando parcela cliente con EOSDA: {resultado_eosda.get('error')}")
+            except Exception as e:
+                logger.error(f"Error en sincronización automática con EOSDA para cliente: {str(e)}", exc_info=True)
             
             # Respuesta de éxito para cliente
             contexto = {
