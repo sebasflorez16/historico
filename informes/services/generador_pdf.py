@@ -55,6 +55,285 @@ class GeneradorInformePDF:
             'savefig.bbox': 'tight'
         })
     
+    def generar_informe_optimizado(self, parcela: Parcela, usuario,
+                                  periodo_meses: int = 12, 
+                                  configuracion=None) -> Dict:
+        """
+        Genera informe usando el método optimizado de EOSDA con caché y tracking.
+        
+        Este método reemplaza la obtención manual de datos con una llamada
+        optimizada que:
+        - Consulta caché primero (0 requests si existe)
+        - Hace 1 sola petición para todos los índices
+        - Registra estadísticas de uso
+        
+        Args:
+            parcela: Parcela para generar informe
+            usuario: Usuario que solicita el informe
+            periodo_meses: Meses de análisis
+            configuracion: ConfiguracionReporte opcional
+            
+        Returns:
+            Dict con success, informe_id, archivo_pdf, analisis_ia
+        """
+        from .eosda_api import eosda_service
+        from ..models import ConfiguracionReporte
+        
+        try:
+            logger.info(f"🚀 Generando informe OPTIMIZADO para {parcela.nombre}")
+            
+            # Verificar sincronización
+            if not parcela.puede_obtener_datos_eosda:
+                raise ValueError(f"Parcela no sincronizada con EOSDA. field_id: {parcela.eosda_field_id}")
+            
+            # Obtener configuración si existe
+            if not configuracion:
+                try:
+                    configuracion = ConfiguracionReporte.objects.get(
+                        usuario=usuario,
+                        parcela=parcela
+                    )
+                except ConfiguracionReporte.DoesNotExist:
+                    # Usar configuración por defecto
+                    logger.info("Usando configuración por defecto")
+            
+            # Calcular fechas
+            fecha_fin = date.today()
+            fecha_inicio = fecha_fin - timedelta(days=periodo_meses * 30)
+            
+            # Determinar índices a solicitar
+            indices = ['ndvi']  # NDVI siempre incluido
+            if configuracion:
+                if configuracion.incluir_ndmi:
+                    indices.append('ndmi')
+                if configuracion.incluir_savi:
+                    indices.append('savi')
+            else:
+                # Por defecto, todos los índices
+                indices = ['ndvi', 'ndmi', 'savi']
+            
+            logger.info(f"📊 Solicitando índices: {', '.join(indices)}")
+            
+            # ✨ MÉTODO OPTIMIZADO: 1 sola petición, caché inteligente
+            datos_eosda = eosda_service.obtener_datos_optimizado(
+                field_id=parcela.eosda_field_id,
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                indices=indices,
+                usuario=usuario,
+                parcela=parcela,
+                max_nubosidad=50
+            )
+            
+            if 'error' in datos_eosda or not datos_eosda.get('resultados'):
+                raise ValueError(f"Error obteniendo datos de EOSDA: {datos_eosda.get('error', 'Sin datos')}")
+            
+            # Procesar resultados
+            resultados = datos_eosda['resultados']
+            logger.info(f"✅ Obtenidos {len(resultados)} escenas satelitales")
+            
+            # Convertir datos de EOSDA a formato para análisis
+            datos_procesados = self._procesar_datos_eosda(resultados, indices)
+            
+            # Crear análisis IA con los datos obtenidos
+            analisis_ia = self._generar_analisis_ia_local(datos_procesados)
+            
+            # Generar componentes visuales
+            grafico_tendencias = self._generar_grafico_tendencias_eosda(datos_procesados)
+            mapa_ndvi = self._generar_mapa_parcela(parcela, datos_procesados.get('ultimo_dato'))
+            
+            # Generar PDF
+            archivo_pdf = self._crear_pdf_informe(
+                parcela=parcela,
+                periodo_meses=periodo_meses,
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                datos_analisis=datos_procesados,
+                grafico_tendencias=grafico_tendencias,
+                mapa_ndvi=mapa_ndvi,
+                analisis_ia=analisis_ia
+            )
+            
+            # Crear registro de informe
+            informe = Informe.objects.create(
+                parcela=parcela,
+                periodo_analisis_meses=periodo_meses,
+                fecha_inicio_analisis=fecha_inicio,
+                fecha_fin_analisis=fecha_fin,
+                titulo=f"Análisis Satelital Optimizado - {parcela.nombre}",
+                resumen_ejecutivo=analisis_ia['resumen_ejecutivo'],
+                analisis_tendencias=analisis_ia['analisis_tendencias'],
+                conclusiones_ia=analisis_ia['conclusiones'],
+                recomendaciones=analisis_ia['recomendaciones'],
+                archivo_pdf=archivo_pdf,
+                grafico_tendencias=grafico_tendencias,
+                mapa_ndvi_imagen=mapa_ndvi,
+                ndvi_promedio_periodo=datos_procesados['estadisticas'].get('ndvi_promedio'),
+                ndmi_promedio_periodo=datos_procesados['estadisticas'].get('ndmi_promedio'),
+                savi_promedio_periodo=datos_procesados['estadisticas'].get('savi_promedio'),
+            )
+            
+            logger.info(f"✅ Informe optimizado generado: ID {informe.id}")
+            logger.info(f"📊 Total escenas procesadas: {datos_procesados['estadisticas']['total_escenas']}")
+            
+            return {
+                'success': True,
+                'informe_id': informe.id,
+                'archivo_pdf': archivo_pdf.url if archivo_pdf else None,
+                'analisis_ia': analisis_ia,
+                'num_escenas': datos_procesados['estadisticas']['total_escenas'],
+                'indices_incluidos': indices
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error generando informe optimizado: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def _procesar_datos_eosda(self, resultados: List[Dict], indices: List[str]) -> Dict:
+        """
+        Procesa los datos crudos de EOSDA en formato para análisis
+        
+        Args:
+            resultados: Lista de escenas con statistics
+            indices: Índices solicitados
+            
+        Returns:
+            Dict con datos_disponibles, series temporales, estadísticas
+        """
+        try:
+            if not resultados:
+                return {'datos_disponibles': False}
+            
+            # Inicializar series temporales
+            series = {indice: [] for indice in indices}
+            fechas = []
+            
+            # Procesar cada escena
+            for escena in resultados:
+                fecha_str = escena.get('date')
+                if not fecha_str:
+                    continue
+                
+                # Parsear fecha
+                fecha = datetime.fromisoformat(fecha_str.replace('Z', '+00:00')).date()
+                fechas.append(fecha)
+                
+                # Extraer estadísticas de cada índice
+                stats = escena.get('statistics', {})
+                for indice in indices:
+                    indice_data = stats.get(indice, {})
+                    mean_value = indice_data.get('mean')
+                    
+                    series[indice].append({
+                        'fecha': fecha,
+                        'valor': mean_value,
+                        'std': indice_data.get('std'),
+                        'min': indice_data.get('min'),
+                        'max': indice_data.get('max'),
+                        'pixels_analizados': indice_data.get('pixels_analyzed', 0)
+                    })
+            
+            # Calcular estadísticas globales
+            estadisticas = {}
+            for indice in indices:
+                valores = [d['valor'] for d in series[indice] if d['valor'] is not None]
+                if valores:
+                    estadisticas[f'{indice}_promedio'] = sum(valores) / len(valores)
+                    estadisticas[f'{indice}_maximo'] = max(valores)
+                    estadisticas[f'{indice}_minimo'] = min(valores)
+                else:
+                    estadisticas[f'{indice}_promedio'] = None
+                    estadisticas[f'{indice}_maximo'] = None
+                    estadisticas[f'{indice}_minimo'] = None
+            
+            estadisticas['total_escenas'] = len(resultados)
+            estadisticas['total_registros'] = len(fechas)
+            
+            return {
+                'datos_disponibles': True,
+                'series': series,
+                'fechas': fechas,
+                'ultimo_dato': series.get('ndvi', [{}])[-1] if series.get('ndvi') else None,
+                'estadisticas': estadisticas,
+                'periodo': {
+                    'inicio': min(fechas) if fechas else None,
+                    'fin': max(fechas) if fechas else None,
+                    'total_dias': (max(fechas) - min(fechas)).days if fechas else 0
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error procesando datos EOSDA: {str(e)}")
+            return {'datos_disponibles': False}
+    
+    def _generar_grafico_tendencias_eosda(self, datos: Dict) -> Optional[ContentFile]:
+        """
+        Genera gráfico de tendencias a partir de datos procesados de EOSDA
+        """
+        try:
+            if not datos.get('datos_disponibles'):
+                return None
+            
+            series = datos['series']
+            
+            # Crear figura
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            # Colores para cada índice
+            colores = {
+                'ndvi': '#4CAF50',
+                'ndmi': '#2196F3',
+                'savi': '#FF9800'
+            }
+            
+            # Graficar cada índice
+            for indice, datos_serie in series.items():
+                if not datos_serie:
+                    continue
+                
+                fechas = [d['fecha'] for d in datos_serie if d['valor'] is not None]
+                valores = [d['valor'] for d in datos_serie if d['valor'] is not None]
+                
+                if fechas and valores:
+                    ax.plot(fechas, valores, 
+                           marker='o', 
+                           markersize=4,
+                           linewidth=2,
+                           label=indice.upper(),
+                           color=colores.get(indice, '#333'))
+            
+            # Configurar ejes
+            ax.set_xlabel('Fecha', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Valor del Índice', fontsize=12, fontweight='bold')
+            ax.set_title('Evolución de Índices Vegetativos', fontsize=14, fontweight='bold')
+            ax.legend(loc='best')
+            ax.grid(True, alpha=0.3)
+            
+            # Formato de fechas
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+            ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+            plt.xticks(rotation=45)
+            
+            # Ajustar layout
+            plt.tight_layout()
+            
+            # Guardar en memoria
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            buffer.seek(0)
+            plt.close()
+            
+            # Guardar como ContentFile
+            filename = f"grafico_tendencias_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+            return ContentFile(buffer.read(), name=filename)
+            
+        except Exception as e:
+            logger.error(f"Error generando gráfico: {str(e)}")
+            return None
+    
     def generar_informe_completo(self, parcela: Parcela, 
                                 periodo_meses: int = 12) -> Dict:
         """

@@ -1,6 +1,7 @@
 """
 Servicio para integración con la API de EOSDA
 Obtiene datos satelitales como NDVI, NDMI, SAVI y datos climatológicos
+Sistema optimizado con caché y tracking de requests
 """
 
 import requests
@@ -29,6 +30,51 @@ class EosdaAPIService:
             'x-api-key': self.api_key,  # EOSDA usa x-api-key en lugar de Bearer
             'Content-Type': 'application/json'
         })
+        
+        # Mapeo de nombres de cultivos en español a nombres válidos de EOSDA
+        self.mapeo_cultivos = {
+            'cacao': 'Cocoa',
+            'café': 'Coffee',
+            'cafe': 'Coffee',
+            'maíz': 'Corn',
+            'maiz': 'Corn',
+            'arroz': 'Rice',
+            'plátano': 'Plantain',
+            'platano': 'Plantain',
+            'banano': 'Bananas',
+            'palma de aceite': 'Oil palm',
+            'palma': 'Oil palm',
+            'caucho': 'Rubber',
+            'yuca': 'Cassava',
+            'papa': 'Potatoes',
+            'tomate': 'Vegetables',
+            'aguacate': 'Fruit',
+            'cítricos': 'Citrus',
+            'citricos': 'Citrus',
+            'caña de azúcar': 'Sugarcane',
+            'caña': 'Sugarcane',
+            'soya': 'Soybeans',
+            'algodón': 'Cotton',
+            'algodon': 'Cotton',
+            'trigo': 'Wheat',
+            'cebada': 'Winter Barley',
+            'avena': 'Oats',
+            'sorgo': 'Sorghum',
+            'frijol': 'Beans',
+            'fríjol': 'Beans',
+            'girasol': 'Sunflower',
+            'uva': 'Grapes',
+            'uvas': 'Grapes',
+            'manzana': 'Apple',
+            'manzanas': 'Apple',
+            'pasto': 'Pasture',
+            'pastura': 'Pasture',
+            'otros': 'Other',
+            'otro': 'Other'
+        }
+        
+        # Cache para la lista de tipos de cultivo válidos
+        self._cultivos_validos_cache = None
     
     def validar_configuracion(self) -> bool:
         """
@@ -40,6 +86,79 @@ class EosdaAPIService:
         return True
     
     # ========= FIELD MANAGEMENT API =========
+    
+    def obtener_cultivos_validos(self) -> List[str]:
+        """
+        Obtiene la lista de tipos de cultivo válidos desde EOSDA
+        Documentación: https://doc.eos.com/docs/field-management-api/field-management/
+        Endpoint: GET /field-management/fields/crop-types
+        """
+        if self._cultivos_validos_cache:
+            return self._cultivos_validos_cache
+            
+        try:
+            url = f"{self.base_url}/field-management/fields/crop-types"
+            response = self.session.get(url, timeout=30)
+            
+            if response.status_code == 200:
+                cultivos = response.json()
+                if isinstance(cultivos, list):
+                    self._cultivos_validos_cache = cultivos
+                    logger.info(f"Obtenidos {len(cultivos)} tipos de cultivo válidos desde EOSDA")
+                    return cultivos
+            else:
+                logger.warning(f"Error obteniendo tipos de cultivo: {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo lista de cultivos: {str(e)}")
+        
+        # Fallback a lista conocida
+        return [
+            "Olive tree", "Pasture", "Poppy seed", "Cherry", "Summer fallow", 
+            "Cassava", "Ginger", "Yams", "Kola nut", "Millet", "Plantain", 
+            "Bananas", "Sesame", "Milk thistle", "Cashew", "Gum arabic", 
+            "Melon", "Oil palm", "Rubber", "Turmeric", "Wheat", "Grapes", 
+            "Vegetables", "Beans", "Nuts", "Almonds", "Potatoes", "Rye", 
+            "Rapeseed", "Corn", "Sugar Beet", "Sunflower", "Soybeans", "Peas", 
+            "Oats", "Mixed cereals", "Cotton", "Flax", "Rice", "Pulses", 
+            "Coffee", "Cocoa", "Tobacco", "Tuber crops", "Citrus", "Sugarcane", 
+            "Canola", "Alfalfa", "Fruit", "Apple", "Spice", "Peanuts", "Other"
+        ]
+    
+    def normalizar_tipo_cultivo(self, tipo_cultivo: str) -> str:
+        """
+        Normaliza el nombre del tipo de cultivo al formato esperado por EOSDA
+        
+        Args:
+            tipo_cultivo: Nombre del cultivo en español o inglés
+            
+        Returns:
+            Nombre normalizado válido para EOSDA
+        """
+        if not tipo_cultivo:
+            return "Other"
+        
+        # Convertir a minúsculas para búsqueda
+        tipo_lower = tipo_cultivo.lower().strip()
+        
+        # 1. Buscar en el mapeo español -> inglés
+        if tipo_lower in self.mapeo_cultivos:
+            nombre_normalizado = self.mapeo_cultivos[tipo_lower]
+            logger.info(f"Cultivo mapeado: '{tipo_cultivo}' -> '{nombre_normalizado}'")
+            return nombre_normalizado
+        
+        # 2. Verificar si ya está en inglés y es válido
+        cultivos_validos = self.obtener_cultivos_validos()
+        
+        # Búsqueda case-insensitive
+        for cultivo_valido in cultivos_validos:
+            if cultivo_valido.lower() == tipo_lower:
+                logger.info(f"Cultivo válido encontrado: '{cultivo_valido}'")
+                return cultivo_valido
+        
+        # 3. Si no se encuentra, usar "Other"
+        logger.warning(f"Tipo de cultivo '{tipo_cultivo}' no reconocido, usando 'Other'")
+        return "Other"
     
     def crear_campo_eosda(self, parcela) -> Dict:
         """
@@ -67,13 +186,16 @@ class EosdaAPIService:
             
             # Payload según documentación oficial de EOSDA Field Management API
             # IMPORTANTE: La respuesta retorna "id" no "field_id"
+            # IMPORTANTE: crop_type debe ser un valor válido de la lista de EOSDA
+            tipo_cultivo_normalizado = self.normalizar_tipo_cultivo(parcela.tipo_cultivo)
+            
             payload = {
                 'type': 'Feature',
                 'properties': {
                     'name': parcela.nombre,
                     'group': 'AgroTech Histórico',
                     'years_data': [{
-                        'crop_type': parcela.tipo_cultivo or 'Other',
+                        'crop_type': tipo_cultivo_normalizado,
                         'year': parcela.fecha_inicio_monitoreo.year if parcela.fecha_inicio_monitoreo else datetime.now().year,
                         'sowing_date': parcela.fecha_inicio_monitoreo.isoformat() if parcela.fecha_inicio_monitoreo else None
                     }]
@@ -238,7 +360,7 @@ class EosdaAPIService:
         """
         try:
             # Endpoint de estadísticas según documentación oficial
-            url = f"{self.base_url}/gdw/api"
+            url = f"{self.base_url}/api/gdw/api"
             
             # Convertir fechas a formato ISO
             start_date = fecha_inicio.isoformat()
@@ -319,7 +441,7 @@ class EosdaAPIService:
         """
         try:
             # Endpoint de estadísticas según documentación oficial
-            url = f"{self.base_url}/gdw/api"
+            url = f"{self.base_url}/api/gdw/api"
             
             # Convertir fechas a formato ISO
             start_date = fecha_inicio.isoformat()
@@ -385,7 +507,7 @@ class EosdaAPIService:
         Obtiene los resultados de una tarea asíncrona de EOSDA Statistics
         """
         try:
-            url = f"{self.base_url}/gdw/api/{task_id}"
+            url = f"{self.base_url}/api/gdw/api/{task_id}"
             
             for intento in range(max_intentos):
                 response = self.session.get(url, timeout=30)
@@ -690,7 +812,7 @@ class EosdaAPIService:
         try:
             inicio = time.time()
             # Endpoint de statistics para verificar conectividad
-            url = f"{self.base_url}/gdw/api"
+            url = f"{self.base_url}/api/gdw/api"
             
             # Parámetros mínimos para crear una tarea de prueba
             payload = {
@@ -737,6 +859,186 @@ class EosdaAPIService:
             resultado['mensaje'] = f'Error de conexión: {str(e)}'
         
         return resultado
+    
+    # ========= MÉTODOS OPTIMIZADOS CON CACHÉ Y TRACKING =========
+    
+    def obtener_datos_optimizado(self, field_id: str, fecha_inicio: date, fecha_fin: date,
+                                indices: List[str], usuario, parcela=None,
+                                max_nubosidad: int = 50) -> Dict:
+        """
+        Método optimizado que:
+        1. Consulta caché primero (0 requests si existe)
+        2. Hace 1 SOLA petición para TODOS los índices
+        3. Registra estadísticas de uso
+        4. Guarda en caché para futuras consultas
+        
+        Args:
+            field_id: ID del campo en EOSDA
+            fecha_inicio: Fecha de inicio del análisis
+            fecha_fin: Fecha de fin del análisis
+            indices: Lista de índices a obtener ['ndvi', 'ndmi', 'savi']
+            usuario: Usuario que hace la petición
+            parcela: Parcela asociada (opcional)
+            max_nubosidad: Porcentaje máximo de nubes (30-50)
+            
+        Returns:
+            Dict con los datos satelitales organizados por índice
+        """
+        from informes.models import CacheDatosEOSDA, EstadisticaUsoEOSDA
+        
+        tiempo_inicio = time.time()
+        
+        # 1. CONSULTAR CACHÉ PRIMERO
+        datos_cache = CacheDatosEOSDA.obtener_o_none(
+            field_id=field_id,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            indices=indices
+        )
+        
+        if datos_cache:
+            tiempo_respuesta = time.time() - tiempo_inicio
+            
+            # Registrar uso desde caché (0 requests consumidos)
+            EstadisticaUsoEOSDA.registrar_uso(
+                usuario=usuario,
+                parcela=parcela,
+                tipo_operacion='statistics',
+                endpoint=f'/api/gdw/api (CACHE)',
+                exitoso=True,
+                tiempo_respuesta=tiempo_respuesta,
+                requests_consumidos=0,
+                desde_cache=True,
+                cache_key=CacheDatosEOSDA.generar_cache_key(
+                    field_id, fecha_inicio, fecha_fin, indices
+                )
+            )
+            
+            logger.info(f"✅ Datos obtenidos desde CACHÉ para field {field_id} - 0 requests consumidos")
+            return datos_cache
+        
+        # 2. NO HAY CACHÉ - HACER PETICIÓN A EOSDA
+        logger.info(f"🔍 No hay caché, consultando EOSDA para field {field_id} - {len(indices)} índices")
+        
+        try:
+            # UNA SOLA petición con TODOS los índices
+            url = f"{self.base_url}/api/gdw/api"
+            
+            payload = {
+                'type': 'mt_stats',
+                'params': {
+                    'bm_type': indices,  # ✅ TODOS los índices en una petición
+                    'date_start': fecha_inicio.isoformat(),
+                    'date_end': fecha_fin.isoformat(),
+                    'field_id': field_id,
+                    'sensors': ['S2_MSI_L2A'],
+                    'reference': f'optimized_{field_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}',
+                    'limit': 50,
+                    'max_cloud_cover_in_aoi': max_nubosidad,
+                    'exclude_cover_pixels': True,
+                    'cloud_masking_level': 3
+                }
+            }
+            
+            logger.info(f"📡 Enviando petición EOSDA: {len(indices)} índices, nubosidad max {max_nubosidad}%")
+            
+            response = self.session.post(url, json=payload, timeout=60)
+            tiempo_respuesta = time.time() - tiempo_inicio
+            
+            if response.status_code not in [200, 201, 202]:
+                # Registrar fallo
+                EstadisticaUsoEOSDA.registrar_uso(
+                    usuario=usuario,
+                    parcela=parcela,
+                    tipo_operacion='statistics',
+                    endpoint=url,
+                    exitoso=False,
+                    tiempo_respuesta=tiempo_respuesta,
+                    requests_consumidos=1,
+                    codigo_respuesta=response.status_code,
+                    mensaje_error=response.text[:500]
+                )
+                
+                logger.error(f"❌ Error EOSDA: {response.status_code} - {response.text[:200]}")
+                return {'error': f'Error HTTP {response.status_code}', 'resultados': []}
+            
+            # Obtener task_id
+            task_data = response.json()
+            task_id = task_data.get('task_id')
+            
+            if not task_id:
+                logger.error("❌ No se obtuvo task_id de EOSDA")
+                return {'error': 'No task_id', 'resultados': []}
+            
+            # 3. ESPERAR Y OBTENER RESULTADOS
+            logger.info(f"⏳ Esperando resultados de tarea {task_id}...")
+            resultados = self._obtener_resultados_tarea(task_id, 'optimizado')
+            
+            if not resultados:
+                logger.warning(f"⚠️ No se obtuvieron resultados para tarea {task_id}")
+                return {'error': 'Sin resultados', 'resultados': []}
+            
+            # 4. GUARDAR EN CACHÉ
+            datos_formateados = {
+                'resultados': resultados,
+                'field_id': field_id,
+                'indices': indices,
+                'fecha_consulta': datetime.now().isoformat(),
+                'num_escenas': len(resultados)
+            }
+            
+            CacheDatosEOSDA.guardar_datos(
+                field_id=field_id,
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                indices=indices,
+                datos=datos_formateados,
+                task_id=task_id
+            )
+            
+            # 5. REGISTRAR ESTADÍSTICAS
+            tiempo_total = time.time() - tiempo_inicio
+            EstadisticaUsoEOSDA.registrar_uso(
+                usuario=usuario,
+                parcela=parcela,
+                tipo_operacion='statistics',
+                endpoint=url,
+                exitoso=True,
+                tiempo_respuesta=tiempo_total,
+                requests_consumidos=1,  # ✅ Solo 1 request para todos los índices
+                codigo_respuesta=response.status_code
+            )
+            
+            logger.info(f"✅ Datos obtenidos y guardados en caché - 1 request, {len(resultados)} escenas")
+            return datos_formateados
+            
+        except requests.exceptions.Timeout:
+            tiempo_respuesta = time.time() - tiempo_inicio
+            EstadisticaUsoEOSDA.registrar_uso(
+                usuario=usuario,
+                parcela=parcela,
+                tipo_operacion='statistics',
+                endpoint=f'{self.base_url}/api/gdw/api',
+                exitoso=False,
+                tiempo_respuesta=tiempo_respuesta,
+                mensaje_error='Timeout >60s'
+            )
+            logger.error("❌ Timeout en petición EOSDA")
+            return {'error': 'Timeout', 'resultados': []}
+            
+        except Exception as e:
+            tiempo_respuesta = time.time() - tiempo_inicio
+            EstadisticaUsoEOSDA.registrar_uso(
+                usuario=usuario,
+                parcela=parcela,
+                tipo_operacion='statistics',
+                endpoint=f'{self.base_url}/api/gdw/api',
+                exitoso=False,
+                tiempo_respuesta=tiempo_respuesta,
+                mensaje_error=str(e)
+            )
+            logger.error(f"❌ Error obteniendo datos: {str(e)}", exc_info=True)
+            return {'error': str(e), 'resultados': []}
 
 
 # Instancia global del servicio

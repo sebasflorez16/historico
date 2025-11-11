@@ -153,7 +153,7 @@ LOGOUT_REDIRECT_URL = '/informes/login/'
 
 # API EOSDA para datos satelitales
 EOSDA_API_KEY = os.getenv('EOSDA_API_KEY', '')
-EOSDA_BASE_URL = 'https://api-connect.eos.com/api'
+EOSDA_BASE_URL = 'https://api-connect.eos.com'  # Sin /api al final para Field Management
 
 # Configuración de informes
 INFORMES_PDF_STORAGE = MEDIA_ROOT / 'informes' / 'pdfs'

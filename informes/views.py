@@ -1516,3 +1516,280 @@ def estado_sincronizacion_eosda(request):
         logger.error(f"Error mostrando estado sincronización: {str(e)}")
         messages.error(request, f"Error cargando estado: {str(e)}")
         return redirect('informes:estado_sistema')
+
+
+# ==================== SPRINT 3: CONFIGURACIÓN DE REPORTES ====================
+
+@login_required
+def configurar_reporte(request, parcela_id):
+    """
+    Vista para configurar opciones de reporte personalizadas por parcela
+    Permite seleccionar plan, índices, y calcular costo estimado
+    """
+    from .models import ConfiguracionReporte, PlanReporte
+    
+    parcela = get_object_or_404(Parcela, id=parcela_id, propietario=request.user)
+    
+    # Obtener o crear configuración existente
+    configuracion, creada = ConfiguracionReporte.objects.get_or_create(
+        usuario=request.user,
+        parcela=parcela,
+        defaults={
+            'plan': PlanReporte.BASICO_6M,
+            'periodo_meses': 6,
+            'incluir_ndvi': True,
+            'incluir_ndmi': False,
+            'incluir_savi': False,
+            'incluir_imagenes': False
+        }
+    )
+    
+    if request.method == 'POST':
+        try:
+            # Actualizar configuración
+            configuracion.plan = request.POST.get('plan', PlanReporte.BASICO_6M)
+            configuracion.periodo_meses = int(request.POST.get('periodo_meses', 6))
+            configuracion.incluir_ndvi = request.POST.get('incluir_ndvi') == 'on'
+            configuracion.incluir_ndmi = request.POST.get('incluir_ndmi') == 'on'
+            configuracion.incluir_savi = request.POST.get('incluir_savi') == 'on'
+            configuracion.incluir_imagenes = request.POST.get('incluir_imagenes') == 'on'
+            configuracion.incluir_tiles = request.POST.get('incluir_tiles') == 'on'
+            
+            # Calcular costo automáticamente
+            configuracion.costo_estimado = configuracion.calcular_costo()
+            configuracion.save()
+            
+            messages.success(request, f'✅ Configuración guardada. Costo estimado: ${configuracion.costo_estimado}')
+            return redirect('informes:detalle_parcela', parcela_id=parcela.id)
+            
+        except Exception as e:
+            logger.error(f"Error guardando configuración: {str(e)}")
+            messages.error(request, f"Error: {str(e)}")
+    
+    # Preparar datos para el template
+    contexto = {
+        'parcela': parcela,
+        'configuracion': configuracion,
+        'planes': PlanReporte.choices,
+        'plan_actual': configuracion.plan,
+        'indices_activos': configuracion.indices_seleccionados,
+        'costo_actual': configuracion.costo_estimado,
+        
+        # Información de precios para JavaScript
+        'precios': {
+            'base': {
+                PlanReporte.BASICO_6M: 50,
+                PlanReporte.ESTANDAR_1Y: 80,
+                PlanReporte.AVANZADO_2Y: 140,
+                PlanReporte.PERSONALIZADO: 0
+            },
+            'addon_indice': 15,
+            'addon_imagen': 25,
+            'addon_tiles': 10
+        }
+    }
+    
+    return render(request, 'informes/configuracion_reporte.html', contexto)
+
+
+@login_required
+def calcular_costo_ajax(request):
+    """
+    AJAX endpoint para calcular costo en tiempo real mientras el usuario configura
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    try:
+        from .models import PlanReporte
+        
+        data = json.loads(request.body)
+        
+        plan = data.get('plan', PlanReporte.BASICO_6M)
+        periodo_meses = int(data.get('periodo_meses', 6))
+        incluir_ndvi = data.get('incluir_ndvi', False)
+        incluir_ndmi = data.get('incluir_ndmi', False)
+        incluir_savi = data.get('incluir_savi', False)
+        incluir_imagenes = data.get('incluir_imagenes', False)
+        incluir_tiles = data.get('incluir_tiles', False)
+        
+        # Calcular costo base según plan
+        costos_base = {
+            PlanReporte.BASICO_6M: 50,
+            PlanReporte.ESTANDAR_1Y: 80,
+            PlanReporte.AVANZADO_2Y: 140,
+            PlanReporte.PERSONALIZADO: 0
+        }
+        
+        costo_total = costos_base.get(plan, 0)
+        desglose = {'base': costo_total, 'indices': 0, 'imagenes': 0, 'tiles': 0}
+        
+        # Si es personalizado, calcular por componentes
+        if plan == PlanReporte.PERSONALIZADO:
+            # Costo base por periodo
+            costo_total = periodo_meses * 5  # $5/mes base
+            desglose['base'] = costo_total
+            
+            # Addons de índices
+            indices_count = sum([incluir_ndvi, incluir_ndmi, incluir_savi])
+            if indices_count > 0:
+                costo_indices = indices_count * 15
+                costo_total += costo_indices
+                desglose['indices'] = costo_indices
+            
+            # Addon de imágenes
+            if incluir_imagenes:
+                costo_imagenes = 25 * (periodo_meses // 3)  # Por trimestre
+                costo_total += costo_imagenes
+                desglose['imagenes'] = costo_imagenes
+            
+            # Addon de tiles
+            if incluir_tiles:
+                costo_tiles = 10
+                costo_total += costo_tiles
+                desglose['tiles'] = costo_tiles
+        
+        # Estimación de requests
+        requests_estimados = 0
+        if incluir_ndvi or incluir_ndmi or incluir_savi:
+            requests_estimados += periodo_meses  # 1 request/mes con método optimizado
+        if incluir_imagenes:
+            requests_estimados += periodo_meses * 2  # 2 requests/mes para imágenes
+        
+        return JsonResponse({
+            'costo_total': float(costo_total),
+            'desglose': desglose,
+            'requests_estimados': requests_estimados,
+            'ahorro_cache': round(requests_estimados * 0.5)  # 50% ahorro estimado con caché
+        })
+        
+    except Exception as e:
+        logger.error(f"Error calculando costo: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+# ==================== SPRINT 4: DASHBOARD DE ESTADÍSTICAS ====================
+
+@login_required
+def dashboard_estadisticas(request):
+    """
+    Dashboard con métricas de uso de EOSDA:
+    - Requests consumidos por periodo
+    - Tasa de acierto de caché
+    - Distribución por tipo de operación
+    - Costos estimados
+    """
+    from .models import EstadisticaUsoEOSDA, CacheDatosEOSDA
+    from django.db.models import Count, Sum, Avg
+    from django.db.models.functions import TruncDate
+    
+    try:
+        # Filtro de fechas
+        dias = int(request.GET.get('dias', 30))
+        fecha_desde = timezone.now() - timedelta(days=dias)
+        
+        # Estadísticas generales del usuario
+        stats_generales = EstadisticaUsoEOSDA.estadisticas_usuario(request.user)
+        
+        # Estadísticas filtradas por periodo
+        stats_periodo = EstadisticaUsoEOSDA.objects.filter(
+            usuario=request.user,
+            creado_en__gte=fecha_desde
+        )
+        
+        # Requests por día
+        requests_por_dia = stats_periodo.values(
+            fecha=TruncDate('creado_en')
+        ).annotate(
+            total_requests=Sum('requests_consumidos'),
+            desde_cache=Count('id', filter=Q(desde_cache=True)),
+            desde_api=Count('id', filter=Q(desde_cache=False))
+        ).order_by('fecha')
+        
+        # Distribución por tipo de operación
+        por_tipo = stats_periodo.values('tipo_operacion').annotate(
+            total=Count('id'),
+            requests=Sum('requests_consumidos'),
+            exitosos=Count('id', filter=Q(exitoso=True))
+        ).order_by('-total')
+        
+        # Top parcelas consultadas
+        top_parcelas = stats_periodo.filter(
+            parcela__isnull=False
+        ).values(
+            'parcela__nombre',
+            'parcela__id'
+        ).annotate(
+            total_consultas=Count('id'),
+            total_requests=Sum('requests_consumidos')
+        ).order_by('-total_consultas')[:5]
+        
+        # Estado del caché
+        cache_stats = {
+            'total_registros': CacheDatosEOSDA.objects.filter(
+                valido_hasta__gte=timezone.now()
+            ).count(),
+            'mas_usado': CacheDatosEOSDA.objects.filter(
+                valido_hasta__gte=timezone.now()
+            ).order_by('-veces_usado').first(),
+            'tamaño_promedio': CacheDatosEOSDA.objects.filter(
+                valido_hasta__gte=timezone.now()
+            ).aggregate(promedio=Avg('num_escenas'))['promedio'] or 0
+        }
+        
+        # Calcular ahorro con caché
+        total_operaciones = stats_generales['total_operaciones']
+        operaciones_cache = stats_generales['desde_cache']
+        
+        # Sin caché habríamos consumido: total_operaciones requests
+        # Con caché consumimos: total_requests
+        requests_sin_cache = total_operaciones * 1  # Asumiendo 1 request por operación sin caché
+        ahorro_porcentaje = 0
+        if requests_sin_cache > 0:
+            ahorro_porcentaje = round(
+                ((requests_sin_cache - stats_generales['total_requests']) / requests_sin_cache) * 100,
+                1
+            )
+        
+        # Preparar datos para gráficos (formato Chart.js)
+        graficos = {
+            'requests_timeline': {
+                'labels': [r['fecha'].strftime('%d/%m') for r in requests_por_dia],
+                'datasets': [
+                    {
+                        'label': 'Desde API',
+                        'data': [r['desde_api'] for r in requests_por_dia],
+                        'backgroundColor': 'rgba(255, 99, 132, 0.5)'
+                    },
+                    {
+                        'label': 'Desde Caché',
+                        'data': [r['desde_cache'] for r in requests_por_dia],
+                        'backgroundColor': 'rgba(75, 192, 192, 0.5)'
+                    }
+                ]
+            },
+            'por_tipo': {
+                'labels': [t['tipo_operacion'] for t in por_tipo],
+                'data': [t['total'] for t in por_tipo],
+                'requests': [t['requests'] for t in por_tipo]
+            }
+        }
+        
+        contexto = {
+            'stats_generales': stats_generales,
+            'requests_por_dia': list(requests_por_dia),
+            'por_tipo': list(por_tipo),
+            'top_parcelas': list(top_parcelas),
+            'cache_stats': cache_stats,
+            'ahorro_porcentaje': ahorro_porcentaje,
+            'graficos_json': json.dumps(graficos),
+            'dias_filtro': dias,
+            'periodo_opciones': [7, 30, 90, 180, 365]
+        }
+        
+        return render(request, 'informes/dashboard_estadisticas.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en dashboard estadísticas: {str(e)}")
+        messages.error(request, f"Error cargando estadísticas: {str(e)}")
+        return redirect('informes:dashboard')
