@@ -424,14 +424,70 @@ class EosdaAPIService:
     def _obtener_datos_climaticos_por_field_id(self, field_id: str, 
                                              fecha_inicio: date, fecha_fin: date) -> List[Dict]:
         """
-        Obtiene datos climáticos usando field_id (placeholder por ahora)
+        Obtiene datos climáticos históricos usando EOSDA Weather API
+        Endpoint: /weather/historical-high-accuracy/{field_id}
+        Retorna: temperatura_min, temperatura_max, rainfall por día
         """
         try:
-            # Implementar Weather API cuando esté disponible
-            logger.info(f"Datos climáticos no implementados aún para field_id: {field_id}")
+            # Endpoint de Weather API según documentación oficial
+            url = f"{self.base_url}/weather/historical-high-accuracy/{field_id}"
+            
+            # Payload con rango de fechas
+            payload = {
+                "params": {
+                    "date_start": fecha_inicio.isoformat(),
+                    "date_end": fecha_fin.isoformat()
+                }
+            }
+            
+            logger.info(f"🌡️ Solicitando datos climáticos históricos para field {field_id}")
+            logger.info(f"   Rango: {fecha_inicio} a {fecha_fin}")
+            
+            response = self.session.post(
+                url,
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                datos_raw = response.json()
+                logger.info(f"   ✅ Datos climáticos: {len(datos_raw)} días")
+                
+                # Procesar datos al formato esperado
+                datos_procesados = []
+                for dia in datos_raw:
+                    try:
+                        fecha_dato = datetime.fromisoformat(dia['date']).date()
+                        
+                        # Calcular temperatura promedio
+                        temp_min = dia.get('temperature_min')
+                        temp_max = dia.get('temperature_max')
+                        temp_promedio = None
+                        if temp_min is not None and temp_max is not None:
+                            temp_promedio = (temp_min + temp_max) / 2
+                        
+                        datos_procesados.append({
+                            'fecha': fecha_dato,
+                            'temperatura_promedio': temp_promedio,
+                            'temperatura_maxima': temp_max,
+                            'temperatura_minima': temp_min,
+                            'precipitacion_total': dia.get('rainfall', 0)
+                        })
+                    except Exception as e:
+                        logger.warning(f"   ⚠️ Error procesando día {dia.get('date')}: {e}")
+                        continue
+                
+                return datos_procesados
+            else:
+                logger.warning(f"   ⚠️ Weather API retornó status {response.status_code}")
+                logger.debug(f"   Response: {response.text[:200]}")
+                return []
+                
+        except requests.exceptions.Timeout:
+            logger.warning(f"   ⏱️ Timeout obteniendo datos climáticos para field {field_id}")
             return []
         except Exception as e:
-            logger.error(f"Error en datos climáticos para field_id {field_id}: {str(e)}")
+            logger.error(f"   ❌ Error en datos climáticos para field {field_id}: {str(e)}")
             return []
     
     def _obtener_indice_temporal(self, geojson: Dict, indice: str, 
@@ -983,6 +1039,45 @@ class EosdaAPIService:
         )
         
         if datos_cache:
+            # Verificar si el caché tiene datos climáticos
+            tiene_datos_clima = datos_cache.get('datos_clima') and len(datos_cache.get('datos_clima', [])) > 0
+            
+            if not tiene_datos_clima:
+                # Caché existe pero sin datos climáticos - obtenerlos ahora
+                logger.info(f"🌡️ Caché sin datos climáticos - obteniendo Weather data para field {field_id}...")
+                try:
+                    datos_clima = self._obtener_datos_climaticos_por_field_id(
+                        field_id=field_id,
+                        fecha_inicio=fecha_inicio,
+                        fecha_fin=fecha_fin
+                    )
+                    
+                    # Actualizar caché con datos climáticos
+                    if datos_clima:
+                        # Convertir fechas a string para serialización
+                        datos_clima_serializables = []
+                        for dato in datos_clima:
+                            dato_serializable = dato.copy()
+                            if isinstance(dato_serializable.get('fecha'), date):
+                                dato_serializable['fecha'] = dato_serializable['fecha'].isoformat()
+                            datos_clima_serializables.append(dato_serializable)
+                        
+                        datos_cache['datos_clima'] = datos_clima_serializables
+                        
+                        # Actualizar el caché en base de datos
+                        cache_obj = CacheDatosEOSDA.objects.filter(
+                            field_id=field_id,
+                            fecha_inicio=fecha_inicio,
+                            fecha_fin=fecha_fin
+                        ).first()
+                        
+                        if cache_obj:
+                            cache_obj.datos = datos_cache
+                            cache_obj.save()
+                            logger.info(f"   ✅ Caché actualizado con {len(datos_clima)} días de datos climáticos")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Error obteniendo datos climáticos: {e}")
+            
             tiempo_respuesta = time.time() - tiempo_inicio
             
             # Registrar uso desde caché (0 requests consumidos)
@@ -1086,10 +1181,18 @@ class EosdaAPIService:
                 logger.warning(f"   ⚠️ Error obteniendo datos climáticos: {e}")
                 datos_clima = []
             
+            # Convertir fechas a string para serialización JSON
+            datos_clima_serializables = []
+            for dato in datos_clima:
+                dato_serializable = dato.copy()
+                if isinstance(dato_serializable.get('fecha'), date):
+                    dato_serializable['fecha'] = dato_serializable['fecha'].isoformat()
+                datos_clima_serializables.append(dato_serializable)
+            
             # 5. GUARDAR EN CACHÉ
             datos_formateados = {
                 'resultados': resultados,
-                'datos_clima': datos_clima,  # Agregar datos climáticos
+                'datos_clima': datos_clima_serializables,  # Agregar datos climáticos serializables
                 'field_id': field_id,
                 'indices': indices,
                 'fecha_consulta': datetime.now().isoformat(),

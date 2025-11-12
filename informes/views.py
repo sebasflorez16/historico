@@ -1314,25 +1314,57 @@ def obtener_datos_historicos(request, parcela_id):
             except Exception as e:
                 logger.error(f"Error guardando datos de {month}/{year}: {str(e)}")
         
-        # Procesar datos climáticos si existen
-        for dato in datos_satelitales.get('datos_clima', []):
-            try:
-                fecha_dato = dato.get('fecha')
-                if isinstance(fecha_dato, str):
-                    fecha_dato = datetime.fromisoformat(fecha_dato).date()
-                
-                IndiceMensual.objects.filter(
-                    parcela=parcela,
-                    año=fecha_dato.year,
-                    mes=fecha_dato.month
-                ).update(
-                    temperatura_promedio=dato.get('temperatura_promedio'),
-                    temperatura_maxima=dato.get('temperatura_maxima'),
-                    temperatura_minima=dato.get('temperatura_minima'),
-                    precipitacion_total=dato.get('precipitacion_total')
-                )
-            except Exception as e:
-                logger.error(f"Error procesando dato climático: {str(e)}")
+        # Procesar datos climáticos si existen (vienen por día, agrupar por mes)
+        if datos_satelitales.get('datos_clima'):
+            datos_clima_por_mes = defaultdict(lambda: {
+                'temp_promedio': [], 'temp_max': [], 'temp_min': [], 'precipitacion': []
+            })
+            
+            for dato in datos_satelitales.get('datos_clima', []):
+                try:
+                    fecha_dato = dato.get('fecha')
+                    if isinstance(fecha_dato, str):
+                        fecha_dato = datetime.fromisoformat(fecha_dato).date()
+                    
+                    clave_mes = (fecha_dato.year, fecha_dato.month)
+                    
+                    if dato.get('temperatura_promedio') is not None:
+                        datos_clima_por_mes[clave_mes]['temp_promedio'].append(dato['temperatura_promedio'])
+                    if dato.get('temperatura_maxima') is not None:
+                        datos_clima_por_mes[clave_mes]['temp_max'].append(dato['temperatura_maxima'])
+                    if dato.get('temperatura_minima') is not None:
+                        datos_clima_por_mes[clave_mes]['temp_min'].append(dato['temperatura_minima'])
+                    if dato.get('precipitacion_total') is not None:
+                        datos_clima_por_mes[clave_mes]['precipitacion'].append(dato['precipitacion_total'])
+                        
+                except Exception as e:
+                    logger.error(f"Error procesando dato climático: {str(e)}")
+            
+            # Actualizar registros mensuales con datos climáticos
+            for (year, month), datos in datos_clima_por_mes.items():
+                try:
+                    temp_prom = sum(datos['temp_promedio']) / len(datos['temp_promedio']) if datos['temp_promedio'] else None
+                    temp_max = max(datos['temp_max']) if datos['temp_max'] else None
+                    temp_min = min(datos['temp_min']) if datos['temp_min'] else None
+                    precip_total = sum(datos['precipitacion']) if datos['precipitacion'] else None
+                    
+                    registros_actualizados = IndiceMensual.objects.filter(
+                        parcela=parcela,
+                        año=year,
+                        mes=month
+                    ).update(
+                        temperatura_promedio=temp_prom,
+                        temperatura_maxima=temp_max,
+                        temperatura_minima=temp_min,
+                        precipitacion_total=precip_total
+                    )
+                    
+                    if registros_actualizados > 0:
+                        logger.info(f"   🌡️ Datos climáticos actualizados para {month:02d}/{year}: "
+                                   f"Temp={temp_prom:.1f if temp_prom else 'N/A'}°C, "
+                                   f"Precip={precip_total:.1f if precip_total else 'N/A'}mm")
+                except Exception as e:
+                    logger.error(f"Error actualizando datos climáticos de {month}/{year}: {str(e)}")
         
         logger.info(f"Datos históricos procesados para {parcela.nombre}: {indices_creados} nuevos registros, {datos_procesados} datos procesados")
         
