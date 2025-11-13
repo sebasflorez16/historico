@@ -138,6 +138,7 @@
                                 <th>Nubosidad</th>
                                 <th>Fuente</th>
                                 <th>Calidad</th>
+                                <th>Imágenes</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -216,6 +217,25 @@
                                             <i class="fas fa-question"></i> N/A
                                         </span>
                                     {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <select class="form-select form-select-sm indice-selector" style="width: 100px;" data-registro-id="{{ indice.id }}">
+                                            <option value="NDVI">NDVI</option>
+                                            <option value="NDMI">NDMI</option>
+                                            <option value="SAVI">SAVI</option>
+                                        </select>
+                                        <button class="btn btn-sm btn-primary descargar-imagen" data-registro-id="{{ indice.id }}" title="Descargar imagen">
+                                            📷
+                                        </button>
+                                        <span class="estado-imagen" data-registro-id="{{ indice.id }}">
+                                            {% if indice.imagen_ndvi or indice.imagen_ndmi or indice.imagen_savi %}
+                                                <small class="text-success">✅</small>
+                                            {% else %}
+                                                <small class="text-muted">📥</small>
+                                            {% endif %}
+                                        </span>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -356,6 +376,70 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     {% endif %}
+    
+    // Función para descargar imagen satelital
+    function descargarImagen(registroId, indice) {
+        const boton = document.querySelector(`button[data-registro-id="${registroId}"]`);
+        const estadoIcono = document.querySelector(`.estado-imagen[data-registro-id="${registroId}"] small`);
+        const textoOriginal = boton.innerHTML;
+        
+        // Deshabilitar botón y mostrar spinner
+        boton.disabled = true;
+        boton.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        // Realizar petición AJAX
+        fetch(`{% url 'informes:descargar_imagen_indice' 0 %}`.replace('0', registroId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: `indice=${indice}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.existe) {
+                    // Imagen ya existía
+                    alert(`✅ Imagen ${indice} ya descargada.\n\nFecha: ${data.fecha || 'N/A'}\nNubosidad: ${data.nubosidad || 'N/A'}%`);
+                } else {
+                    // Imagen descargada exitosamente
+                    alert(`✅ Imagen ${indice} descargada exitosamente.\n\nFecha: ${data.fecha}\nNubosidad: ${data.nubosidad}%`);
+                    estadoIcono.className = 'text-success';
+                    estadoIcono.textContent = '✅';
+                }
+                
+                // Abrir imagen en nueva pestaña
+                if (data.url) {
+                    window.open(data.url, '_blank');
+                }
+            } else {
+                alert(`❌ Error: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Error descargando imagen. Por favor, intente nuevamente.');
+        })
+        .finally(() => {
+            // Rehabilitar botón
+            boton.disabled = false;
+            boton.innerHTML = textoOriginal;
+        });
+    }
+    
+    // Event listeners para botones de descarga
+    document.querySelectorAll('.descargar-imagen').forEach(boton => {
+        boton.addEventListener('click', function() {
+            const registroId = this.dataset.registroId;
+            const selector = document.querySelector(`.indice-selector[data-registro-id="${registroId}"]`);
+            const indice = selector.value;
+            
+            if (confirm(`¿Descargar imagen ${indice} para este período?`)) {
+                descargarImagen(registroId, indice);
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

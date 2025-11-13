@@ -576,6 +576,43 @@ class IndiceMensual(models.Model):
         help_text="Porcentaje promedio de nubosidad durante el mes"
     )
     
+    # Imágenes satelitales descargadas desde Field Imagery API
+    imagen_ndvi = models.ImageField(
+        upload_to='imagenes_satelitales/%Y/%m/ndvi/',
+        null=True, blank=True,
+        verbose_name="Imagen NDVI",
+        help_text="Imagen satelital del índice NDVI"
+    )
+    imagen_ndmi = models.ImageField(
+        upload_to='imagenes_satelitales/%Y/%m/ndmi/',
+        null=True, blank=True,
+        verbose_name="Imagen NDMI",
+        help_text="Imagen satelital del índice NDMI"
+    )
+    imagen_savi = models.ImageField(
+        upload_to='imagenes_satelitales/%Y/%m/savi/',
+        null=True, blank=True,
+        verbose_name="Imagen SAVI",
+        help_text="Imagen satelital del índice SAVI"
+    )
+    
+    # Metadatos de las imágenes
+    view_id_imagen = models.CharField(
+        max_length=50, null=True, blank=True,
+        verbose_name="View ID de la Imagen",
+        help_text="ID de la vista satelital usada para las imágenes"
+    )
+    fecha_imagen = models.DateField(
+        null=True, blank=True,
+        verbose_name="Fecha de la Imagen",
+        help_text="Fecha de captura de la imagen satelital"
+    )
+    nubosidad_imagen = models.FloatField(
+        null=True, blank=True,
+        verbose_name="Nubosidad de la Imagen (%)",
+        help_text="Porcentaje de nubosidad de la imagen satelital descargada"
+    )
+    
     # Metadatos de la consulta
     fecha_consulta_api = models.DateTimeField(
         auto_now_add=True,

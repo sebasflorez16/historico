@@ -4,7 +4,6 @@ URLs para la aplicación de informes
 
 from django.urls import path
 from . import views
-from .views_geocoding import geocode_proxy
 
 app_name = 'informes'
 
@@ -50,7 +49,9 @@ urlpatterns = [
     path('parcelas/<int:parcela_id>/datos-guardados/', views.ver_datos_guardados, name='ver_datos_guardados'),
     path('parcelas/<int:parcela_id>/sincronizar-eosda/', views.sincronizar_con_eosda, name='sincronizar_con_eosda'),
     
+    # Imágenes satelitales
+    path('registro/<int:registro_id>/descargar-imagen/', views.descargar_imagen_indice, name='descargar_imagen_indice'),
+    
     # API endpoints
     path('api/parcelas/<int:parcela_id>/datos/', views.api_datos_parcela, name='api_datos_parcela'),
-    path('api/geocode/', geocode_proxy, name='geocode_proxy'),  # Proxy para evitar CORS
 ]

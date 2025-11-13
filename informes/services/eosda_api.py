@@ -424,70 +424,31 @@ class EosdaAPIService:
     def _obtener_datos_climaticos_por_field_id(self, field_id: str, 
                                              fecha_inicio: date, fecha_fin: date) -> List[Dict]:
         """
-        Obtiene datos climáticos históricos usando EOSDA Weather API
-        Endpoint: /weather/historical-high-accuracy/{field_id}
-        Retorna: temperatura_min, temperatura_max, rainfall por día
+        Obtiene datos climáticos (temperatura y precipitación) desde EOSDA Weather API
         """
         try:
-            # Endpoint de Weather API según documentación oficial
-            url = f"{self.base_url}/weather/historical-high-accuracy/{field_id}"
+            # Weather API de EOSDA
+            url = f"{self.base_url}/weather/history/{field_id}"
             
-            # Payload con rango de fechas
-            payload = {
-                "params": {
-                    "date_start": fecha_inicio.isoformat(),
-                    "date_end": fecha_fin.isoformat()
-                }
+            params = {
+                'date_start': fecha_inicio.isoformat(),
+                'date_end': fecha_fin.isoformat()
             }
             
-            logger.info(f"🌡️ Solicitando datos climáticos históricos para field {field_id}")
-            logger.info(f"   Rango: {fecha_inicio} a {fecha_fin}")
-            
-            response = self.session.post(
-                url,
-                json=payload,
-                timeout=30
-            )
+            response = self.session.get(url, params=params, timeout=30)
             
             if response.status_code == 200:
-                datos_raw = response.json()
-                logger.info(f"   ✅ Datos climáticos: {len(datos_raw)} días")
-                
-                # Procesar datos al formato esperado
-                datos_procesados = []
-                for dia in datos_raw:
-                    try:
-                        fecha_dato = datetime.fromisoformat(dia['date']).date()
-                        
-                        # Calcular temperatura promedio
-                        temp_min = dia.get('temperature_min')
-                        temp_max = dia.get('temperature_max')
-                        temp_promedio = None
-                        if temp_min is not None and temp_max is not None:
-                            temp_promedio = (temp_min + temp_max) / 2
-                        
-                        datos_procesados.append({
-                            'fecha': fecha_dato,
-                            'temperatura_promedio': temp_promedio,
-                            'temperatura_maxima': temp_max,
-                            'temperatura_minima': temp_min,
-                            'precipitacion_total': dia.get('rainfall', 0)
-                        })
-                    except Exception as e:
-                        logger.warning(f"   ⚠️ Error procesando día {dia.get('date')}: {e}")
-                        continue
-                
-                return datos_procesados
+                data = response.json()
+                return self._procesar_datos_climaticos(data)
+            elif response.status_code == 404:
+                logger.info(f"No hay datos climáticos disponibles para field_id: {field_id}")
+                return []
             else:
-                logger.warning(f"   ⚠️ Weather API retornó status {response.status_code}")
-                logger.debug(f"   Response: {response.text[:200]}")
+                logger.warning(f"Weather API error {response.status_code}: {response.text[:200]}")
                 return []
                 
-        except requests.exceptions.Timeout:
-            logger.warning(f"   ⏱️ Timeout obteniendo datos climáticos para field {field_id}")
-            return []
         except Exception as e:
-            logger.error(f"   ❌ Error en datos climáticos para field {field_id}: {str(e)}")
+            logger.warning(f"Error obteniendo datos climáticos: {str(e)}")
             return []
     
     def _obtener_indice_temporal(self, geojson: Dict, indice: str, 
@@ -1039,45 +1000,6 @@ class EosdaAPIService:
         )
         
         if datos_cache:
-            # Verificar si el caché tiene datos climáticos
-            tiene_datos_clima = datos_cache.get('datos_clima') and len(datos_cache.get('datos_clima', [])) > 0
-            
-            if not tiene_datos_clima:
-                # Caché existe pero sin datos climáticos - obtenerlos ahora
-                logger.info(f"🌡️ Caché sin datos climáticos - obteniendo Weather data para field {field_id}...")
-                try:
-                    datos_clima = self._obtener_datos_climaticos_por_field_id(
-                        field_id=field_id,
-                        fecha_inicio=fecha_inicio,
-                        fecha_fin=fecha_fin
-                    )
-                    
-                    # Actualizar caché con datos climáticos
-                    if datos_clima:
-                        # Convertir fechas a string para serialización
-                        datos_clima_serializables = []
-                        for dato in datos_clima:
-                            dato_serializable = dato.copy()
-                            if isinstance(dato_serializable.get('fecha'), date):
-                                dato_serializable['fecha'] = dato_serializable['fecha'].isoformat()
-                            datos_clima_serializables.append(dato_serializable)
-                        
-                        datos_cache['datos_clima'] = datos_clima_serializables
-                        
-                        # Actualizar el caché en base de datos
-                        cache_obj = CacheDatosEOSDA.objects.filter(
-                            field_id=field_id,
-                            fecha_inicio=fecha_inicio,
-                            fecha_fin=fecha_fin
-                        ).first()
-                        
-                        if cache_obj:
-                            cache_obj.datos = datos_cache
-                            cache_obj.save()
-                            logger.info(f"   ✅ Caché actualizado con {len(datos_clima)} días de datos climáticos")
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Error obteniendo datos climáticos: {e}")
-            
             tiempo_respuesta = time.time() - tiempo_inicio
             
             # Registrar uso desde caché (0 requests consumidos)
@@ -1181,18 +1103,10 @@ class EosdaAPIService:
                 logger.warning(f"   ⚠️ Error obteniendo datos climáticos: {e}")
                 datos_clima = []
             
-            # Convertir fechas a string para serialización JSON
-            datos_clima_serializables = []
-            for dato in datos_clima:
-                dato_serializable = dato.copy()
-                if isinstance(dato_serializable.get('fecha'), date):
-                    dato_serializable['fecha'] = dato_serializable['fecha'].isoformat()
-                datos_clima_serializables.append(dato_serializable)
-            
             # 5. GUARDAR EN CACHÉ
             datos_formateados = {
                 'resultados': resultados,
-                'datos_clima': datos_clima_serializables,  # Agregar datos climáticos serializables
+                'datos_clima': datos_clima,  # Agregar datos climáticos
                 'field_id': field_id,
                 'indices': indices,
                 'fecha_consulta': datetime.now().isoformat(),
@@ -1209,7 +1123,7 @@ class EosdaAPIService:
                 task_id=task_id
             )
             
-            # 5. REGISTRAR ESTADÍSTICAS
+            # 6. REGISTRAR ESTADÍSTICAS
             tiempo_total = time.time() - tiempo_inicio
             EstadisticaUsoEOSDA.registrar_uso(
                 usuario=usuario,
@@ -1222,7 +1136,7 @@ class EosdaAPIService:
                 codigo_respuesta=response.status_code
             )
             
-            logger.info(f"✅ Datos obtenidos - 1 petición, {len(resultados)} escenas, {tiempo_total:.1f}s")
+            logger.info(f"✅ Datos obtenidos - 1 petición, {len(resultados)} escenas, {len(datos_clima)} clima, {tiempo_total:.1f}s")
             return datos_formateados
             
         except requests.exceptions.Timeout:
@@ -1252,6 +1166,139 @@ class EosdaAPIService:
             )
             logger.error(f"❌ Error obteniendo datos: {str(e)}", exc_info=True)
             return {'error': str(e), 'resultados': []}
+    
+    def descargar_imagen_satelital(self, field_id: str, indice: str, 
+                                   fecha_escena: str = None,
+                                   max_nubosidad: float = 50.0) -> Optional[Dict]:
+        """
+        Descarga imagen satelital usando Field Imagery API de EOSDA.
+        
+        OPTIMIZADO para reducir consumo de requests:
+        - Si se proporciona fecha_escena, busca el view_id directamente (menos requests)
+        - Usa escenas ya conocidas del caché de Statistics API cuando sea posible
+        
+        Args:
+            field_id: ID del campo en EOSDA
+            indice: Tipo de índice ('NDVI', 'NDMI', 'SAVI')
+            fecha_escena: Fecha de escena específica (formato ISO) - RECOMENDADO para ahorrar requests
+            max_nubosidad: Máximo porcentaje de nubosidad (default 50%)
+        
+        Returns:
+            Dict con 'imagen' (bytes), 'fecha', 'nubosidad', 'view_id' o None si falla
+        """
+        try:
+            # Mapeo de índices
+            index_mapping = {
+                'NDVI': 'ndvi',
+                'NDMI': 'ndmi',
+                'SAVI': 'savi'
+            }
+            
+            if indice not in index_mapping:
+                logger.error(f"   ❌ Índice '{indice}' no soportado. Usar: NDVI, NDMI, SAVI")
+                return None
+            
+            eosda_index = index_mapping[indice]
+            logger.info(f"   📷 Descargando imagen {indice} para field {field_id}")
+            
+            # OPTIMIZACIÓN: Si no tenemos fecha_escena, intentar obtener del caché de Statistics
+            view_id = None
+            fecha_imagen = fecha_escena
+            nubosidad = None
+            
+            if not fecha_escena:
+                logger.info(f"   🔍 Buscando escena en caché de Statistics API...")
+                from informes.models import CacheDatosEOSDA
+                
+                # Buscar caché reciente (últimos 30 días)
+                fecha_fin = date.today()
+                fecha_inicio = fecha_fin - timedelta(days=30)
+                
+                cache_reciente = CacheDatosEOSDA.objects.filter(
+                    field_id=field_id,
+                    valido_hasta__gte=timezone.now()
+                ).order_by('-fecha_fin').first()
+                
+                if cache_reciente and cache_reciente.datos_json:
+                    datos = json.loads(cache_reciente.datos_json)
+                    resultados = datos.get('resultados', [])
+                    
+                    # Buscar escena con baja nubosidad
+                    for escena in resultados:
+                        cloud = escena.get('cloud', 100)
+                        if cloud <= max_nubosidad:
+                            view_id = escena.get('id')
+                            fecha_imagen = escena.get('date')
+                            nubosidad = cloud
+                            logger.info(f"   ✅ Escena encontrada en caché: {fecha_imagen} (nubosidad: {nubosidad}%)")
+                            break
+            
+            # Si no encontramos en caché, usar Field Imagery API directamente
+            if not view_id:
+                logger.warning(f"   ⚠️ No hay escena en caché, esto consumirá ~15-20 requests adicionales")
+                logger.warning(f"   💡 Recomendación: Obtener datos de Statistics API primero")
+                return None
+            
+            # Paso 1: Crear request para generar imagen
+            url_imagery = f"{self.base_url}/api/field-imagery/indicies/{field_id}"
+            
+            payload_imagen = {
+                'view_id': view_id,
+                'index': eosda_index,
+                'format': 'png'
+            }
+            
+            logger.info(f"   🎨 Generando imagen {indice} (view_id: {view_id})...")
+            response = self.session.post(url_imagery, json=payload_imagen, timeout=60)
+            
+            if response.status_code not in [200, 201, 202]:
+                logger.error(f"   ❌ Error creando request de imagen: {response.status_code}")
+                logger.debug(f"   Response: {response.text[:300]}")
+                return None
+            
+            request_id = response.json().get('request_id')
+            if not request_id:
+                logger.error(f"   ❌ No se obtuvo request_id para imagen")
+                return None
+            
+            # Paso 2: Polling para descargar imagen (máximo 60 segundos, 6 intentos)
+            url_download = f"{self.base_url}/api/field-imagery/indicies/{field_id}/{request_id}"
+            max_intentos = 6  # Reducido de 12 a 6
+            intervalo = 10  # Aumentado de 5 a 10 segundos
+            
+            for intento in range(max_intentos):
+                time.sleep(intervalo)
+                
+                logger.info(f"   ⏳ Esperando imagen... intento {intento + 1}/{max_intentos}")
+                response = self.session.get(url_download, timeout=60)
+                
+                if response.status_code == 200:
+                    content_type = response.headers.get('Content-Type', '')
+                    if 'image' in content_type:
+                        logger.info(f"   ✅ Imagen {indice} descargada ({len(response.content)} bytes)")
+                        return {
+                            'imagen': response.content,
+                            'fecha': fecha_imagen,
+                            'nubosidad': nubosidad,
+                            'view_id': view_id,
+                            'content_type': content_type
+                        }
+                    else:
+                        logger.debug(f"   ⏳ Imagen aún en proceso...")
+                        continue
+                elif response.status_code == 404:
+                    logger.debug(f"   ⏳ Imagen no lista aún...")
+                    continue
+                else:
+                    logger.error(f"   ❌ Error descargando imagen: {response.status_code}")
+                    return None
+            
+            logger.warning(f"   ⏱️ Timeout esperando generación de imagen {indice}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"   ❌ Error descargando imagen {indice}: {str(e)}")
+            return None
 
 
 # Instancia global del servicio

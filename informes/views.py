@@ -1559,3 +1559,168 @@ def estado_sincronizacion_eosda(request):
         logger.error(f"Error mostrando estado sincronización: {str(e)}")
         messages.error(request, f"Error cargando estado: {str(e)}")
         return redirect('informes:estado_sistema')
+
+
+@login_required
+def descargar_imagen_indice(request, registro_id):
+    """
+    Vista AJAX para descargar imagen satelital desde Field Imagery API de EOSDA.
+    
+    Verifica si la imagen ya existe localmente, si no la descarga desde EOSDA.
+    Retorna URL de la imagen o mensaje de error.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        from .services.eosda_api import EosdaAPIService
+        from django.core.files.base import ContentFile
+        import os
+        
+        # Obtener registro mensual
+        registro = get_object_or_404(IndiceMensual, id=registro_id)
+        
+        # Obtener tipo de índice solicitado
+        indice = request.POST.get('indice', '').upper()
+        if indice not in ['NDVI', 'NDMI', 'SAVI']:
+            return JsonResponse({
+                'success': False, 
+                'error': f'Índice no válido: {indice}. Usar NDVI, NDMI o SAVI'
+            }, status=400)
+        
+        # Verificar si la imagen ya existe localmente
+        campo_imagen = f'imagen_{indice.lower()}'
+        imagen_existente = getattr(registro, campo_imagen, None)
+        
+        if imagen_existente and imagen_existente.name:
+            # Imagen ya descargada, retornar URL
+            logger.info(f"✅ Imagen {indice} ya existe para registro {registro_id}")
+            return JsonResponse({
+                'success': True,
+                'existe': True,
+                'url': imagen_existente.url,
+                'fecha': registro.fecha_imagen.isoformat() if registro.fecha_imagen else None,
+                'nubosidad': registro.nubosidad_imagen
+            })
+        
+        # Verificar que la parcela tenga field_id de EOSDA
+        if not registro.parcela.eosda_field_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'La parcela no está sincronizada con EOSDA'
+            }, status=400)
+        
+        # OPTIMIZACIÓN: Buscar escena en caché de Statistics API para evitar búsquedas costosas
+        from .models_configuracion import CacheDatosEOSDA
+        import json as json_lib
+        
+        view_id_cache = None
+        fecha_escena = None
+        nubosidad_escena = None
+        
+        # Buscar en caché de Statistics que contenga el período del registro
+        fecha_registro = date(registro.año, registro.mes, 1)
+        
+        cache_valido = CacheDatosEOSDA.objects.filter(
+            field_id=registro.parcela.eosda_field_id,
+            fecha_inicio__lte=fecha_registro,
+            fecha_fin__gte=fecha_registro,
+            valido_hasta__gte=timezone.now()
+        ).first()
+        
+        if cache_valido and cache_valido.datos_json:
+            try:
+                datos_cache = json_lib.loads(cache_valido.datos_json)
+                resultados = datos_cache.get('resultados', [])
+                
+                # Buscar mejor escena para ese mes
+                for escena in resultados:
+                    escena_fecha = escena.get('date', '')
+                    if escena_fecha.startswith(f"{registro.año}-{registro.mes:02d}"):
+                        cloud = escena.get('cloud', 100)
+                        if cloud <= 50 and (nubosidad_escena is None or cloud < nubosidad_escena):
+                            view_id_cache = escena.get('id')
+                            fecha_escena = escena_fecha
+                            nubosidad_escena = cloud
+                
+                if view_id_cache:
+                    logger.info(f"✅ Escena encontrada en caché: {fecha_escena} (nubosidad: {nubosidad_escena}%)")
+            except Exception as e:
+                logger.warning(f"⚠️ Error leyendo caché: {str(e)}")
+        
+        if not view_id_cache:
+            return JsonResponse({
+                'success': False,
+                'error': (
+                    f'⚠️ Sin datos de Statistics API para {registro.año}-{registro.mes:02d}.\n\n'
+                    f'📋 Flujo correcto:\n'
+                    f'1️⃣ Obtener Datos Históricos (Statistics API)\n'
+                    f'2️⃣ Descargar imágenes específicas\n\n'
+                    f'💡 Esto ahorra ~10-15 requests por imagen.\n\n'
+                    f'Haz clic en "Actualizar Datos" en la parte superior.'
+                ),
+                'requiere_statistics': True
+            }, status=400)
+        
+        # Descargar imagen usando view_id del caché (OPTIMIZADO: solo 1 POST + ~6 GET = ~7 requests)
+        logger.info(f"📷 Descargando imagen {indice} para registro {registro_id} usando caché")
+        eosda_service = EosdaAPIService()
+        
+        resultado = eosda_service.descargar_imagen_satelital(
+            field_id=registro.parcela.eosda_field_id,
+            indice=indice,
+            fecha_escena=fecha_escena,  # Usar fecha del caché
+            max_nubosidad=50.0
+        )
+        
+        if not resultado:
+            return JsonResponse({
+                'success': False,
+                'error': f'No se pudo descargar imagen {indice}. Verifique que hay escenas disponibles con baja nubosidad.'
+            }, status=500)
+        
+        # Guardar imagen en el modelo
+        nombre_archivo = f"{registro.parcela.nombre}_{registro.año}_{registro.mes:02d}_{indice}.png"
+        nombre_archivo = nombre_archivo.replace(' ', '_').replace('/', '_')
+        
+        content_file = ContentFile(resultado['imagen'])
+        
+        # Guardar en el campo correspondiente
+        if indice == 'NDVI':
+            registro.imagen_ndvi.save(nombre_archivo, content_file, save=False)
+        elif indice == 'NDMI':
+            registro.imagen_ndmi.save(nombre_archivo, content_file, save=False)
+        elif indice == 'SAVI':
+            registro.imagen_savi.save(nombre_archivo, content_file, save=False)
+        
+        # Actualizar metadatos
+        registro.view_id_imagen = resultado.get('view_id')
+        registro.fecha_imagen = resultado.get('fecha')
+        registro.nubosidad_imagen = resultado.get('nubosidad')
+        registro.save()
+        
+        logger.info(f"✅ Imagen {indice} guardada para registro {registro_id}")
+        
+        # Obtener URL de la imagen guardada
+        imagen_guardada = getattr(registro, campo_imagen)
+        
+        return JsonResponse({
+            'success': True,
+            'existe': False,
+            'url': imagen_guardada.url if imagen_guardada else None,
+            'fecha': resultado.get('fecha'),
+            'nubosidad': resultado.get('nubosidad'),
+            'view_id': resultado.get('view_id')
+        })
+        
+    except IndiceMensual.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Registro no encontrado'
+        }, status=404)
+    except Exception as e:
+        logger.error(f"❌ Error descargando imagen para registro {registro_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Error interno: {str(e)}'
+        }, status=500)
