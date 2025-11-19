@@ -120,9 +120,26 @@ def dashboard(request):
         # Últimos informes generados
         informes_recientes = Informe.objects.order_by('-fecha_generacion')[:5]
         
-        # Verificar conectividad de EOSDA
-        # conectividad_eosda = eosda_service.verificar_conectividad()
-        conectividad_eosda = {'status': 'offline', 'message': 'Servicio temporalmente deshabilitado'}
+        # Verificar conectividad de EOSDA - Verificación real
+        from .services.eosda_api import eosda_service
+        try:
+            conectividad_raw = eosda_service.verificar_conectividad()
+            if conectividad_raw.get('conexion_exitosa', False):
+                conectividad_eosda = {
+                    'status': 'online',
+                    'message': f'API EOSDA operativa - {conectividad_raw.get("tiempo_respuesta", "N/A")}ms'
+                }
+            else:
+                conectividad_eosda = {
+                    'status': 'offline',
+                    'message': f'EOSDA: {conectividad_raw.get("mensaje", "Error de conexión")}'
+                }
+        except Exception as e:
+            logger.error(f"Error verificando EOSDA: {str(e)}")
+            conectividad_eosda = {
+                'status': 'offline',
+                'message': f'Error: {str(e)[:50]}'
+            }
         
         # Verificar estado del email
         from .services.email_service import email_service

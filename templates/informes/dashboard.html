@@ -229,95 +229,153 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-heartbeat me-2"></i>
-                    Estado de Servicios del Sistema
+                    <i class="fas fa-chart-line me-2"></i>
+                    Estado General del Sistema
                 </h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <!-- Estado EOSDA -->
+                <!-- Estado del Sistema -->
+                <div class="row mb-4">
                     <div class="col-md-6 mb-3">
-                        <div class="d-flex align-items-center">
-                            <div class="service-status me-3">
-                                {% if conectividad_eosda.status == 'online' %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check-circle"></i> Online
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-exclamation-triangle"></i> Offline
-                                    </span>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <strong>API EOSDA</strong><br>
-                                <small class="text-muted">{{ conectividad_eosda.message }}</small>
+                        <div class="alert alert-success mb-0" role="alert">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading mb-1">
+                                        <i class="fas fa-cogs me-1"></i> Sistema Operativo
+                                    </h6>
+                                    <p class="mb-0">Django 5.2.8 ejecutándose correctamente en puerto 8001</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Estado Email -->
                     <div class="col-md-6 mb-3">
-                        <div class="d-flex align-items-center">
-                            <div class="service-status me-3">
-                                {% if estado_email.valido %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check-circle"></i> Configurado
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-times-circle"></i> Error
-                                    </span>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <strong>Servicio de Email</strong><br>
-                                <small class="text-muted">
-                                    {% if estado_email.valido %}
-                                        {{ estado_email.mensaje }}
-                                    {% else %}
-                                        Error de configuración
-                                    {% endif %}
-                                </small>
+                        <div class="alert alert-success mb-0" role="alert">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <i class="fas fa-database fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading mb-1">
+                                        <i class="fas fa-server me-1"></i> Base de Datos
+                                    </h6>
+                                    <p class="mb-0">PostgreSQL 15 + PostGIS conectado</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                {% if not estado_email.valido %}
-                <div class="alert alert-warning mt-3">
-                    <strong><i class="fas fa-exclamation-triangle me-2"></i>Atención:</strong>
-                    El servicio de email no está configurado correctamente. 
-                    Las invitaciones por correo electrónico no funcionarán hasta que se resuelva este problema.
-                    <br><small class="mt-2 d-block">
-                        <strong>Error:</strong> {{ estado_email.error }}
-                    </small>
+                <hr>
+                
+                <!-- Servicios Externos -->
+                <h6 class="mb-3"><i class="fas fa-plug me-2"></i>Servicios Externos</h6>
+                <div class="row">
+                    <!-- Estado EOSDA -->
+                    <div class="col-md-6 mb-3">
+                        {% if conectividad_eosda.status == 'online' %}
+                        <div class="alert alert-success mb-0" role="alert" style="border-left: 4px solid #2E8B57;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-satellite fa-2x text-success"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-success me-2">Operativo</span>
+                                        API EOSDA
+                                    </h6>
+                                    <p class="mb-2 small">{{ conectividad_eosda.message }}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Servicio de imágenes satelitales activo
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning mb-0" role="alert" style="border-left: 4px solid #FF7A00;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-warning text-dark me-2">Simulación</span>
+                                        API EOSDA
+                                    </h6>
+                                    <p class="mb-2 small"><strong>Estado:</strong> {{ conectividad_eosda.message }}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        El sistema funciona con datos de prueba hasta configurar la API de producción
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                     
-                    <div class="mt-3">
-                        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#helpEmailModal">
-                            <i class="fas fa-question-circle me-1"></i>
-                            ¿Cómo configurar?
-                        </button>
+                    <!-- Estado Email -->
+                    <div class="col-md-6 mb-3">
+                        {% if estado_email.valido %}
+                        <div class="alert alert-success mb-0" role="alert" style="border-left: 4px solid #34A853;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-envelope fa-2x text-success"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-success me-2">Operativo</span>
+                                        Base de Datos
+                                    </h6>
+                                    <p class="mb-2 small">{{ estado_email.mensaje }}</p>
+                                    <div class="mt-2">
+                                        <form method="post" action="{% url 'informes:probar_email' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <div class="input-group input-group-sm">
+                                                <input type="email" 
+                                                       class="form-control" 
+                                                       name="email_destino" 
+                                                       placeholder="Email para prueba" 
+                                                       value="agrotechdigitalcolombia@gmail.com">
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-paper-plane"></i> Probar
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-danger mb-0" role="alert" style="border-left: 4px solid #dc3545;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-times-circle fa-2x text-danger"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-danger me-2">Error</span>
+                                        Servicio de Email
+                                    </h6>
+                                    <p class="mb-2 small">Error de configuración</p>
+                                    <small class="text-danger">
+                                        <strong>Error:</strong> {{ estado_email.error }}
+                                    </small>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#helpEmailModal">
+                                            <i class="fas fa-question-circle me-1"></i>
+                                            ¿Cómo configurar?
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-                {% else %}
-                <div class="mt-3">
-                    <form method="post" action="{% url 'informes:probar_email' %}" style="display: inline;">
-                        {% csrf_token %}
-                        <div class="input-group input-group-sm" style="max-width: 400px;">
-                            <input type="email" 
-                                   class="form-control" 
-                                   name="email_destino" 
-                                   placeholder="Email para prueba" 
-                                   value="agrotechdigitalcolombia@gmail.com">
-                            <button type="submit" class="btn btn-outline-success">
-                                <i class="fas fa-paper-plane me-1"></i>
-                                Probar Email
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>

@@ -6,59 +6,276 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
+    /* ========================================
+       🌿 DETALLE PARCELA - NEUMÓRFICO LUMINOSO
+       ======================================== */
+    
     .parcela-header {
-        background: linear-gradient(135deg, #4a5d23 0%, #6b8f47 100%);
-        color: white;
-        padding: 30px;
-        border-radius: 10px;
-        margin-bottom: 30px;
+        background: var(--neuro-bg-secondary);
+        color: var(--agrotech-green);
+        padding: 40px;
+        border-radius: 32px;
+        margin-bottom: 40px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s ease;
     }
     
-    .info-card {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    .parcela-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
+    }
+    
+    .parcela-header:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .parcela-header h1 {
+        font-size: 2.2rem;
+        font-weight: 800;
         margin-bottom: 20px;
-        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .parcela-header h1 i {
+        padding: 16px;
+        background: var(--neuro-bg-primary);
+        border-radius: 20px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        color: var(--agrotech-orange);
+    }
+    
+    .parcela-header p {
+        margin-bottom: 12px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .parcela-header strong {
+        color: var(--agrotech-green);
+    }
+    
+    /* Cards de información neumórficos */
+    .info-card {
+        background: var(--neuro-bg-secondary);
+        border-radius: 28px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        margin-bottom: 30px;
+        overflow: visible;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .info-card::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: 20px;
+        right: 20px;
+        height: 5px;
+        background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
+        border-radius: 28px 28px 0 0;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .info-card:hover::before {
+        opacity: 1;
     }
     
     .info-card-header {
-        background: #4a5d23;
-        color: white;
-        padding: 15px 20px;
-        font-weight: 600;
+        background: linear-gradient(145deg, 
+            rgba(46, 139, 87, 0.08), 
+            rgba(255, 122, 0, 0.08));
+        color: var(--agrotech-green);
+        padding: 24px 28px;
+        font-weight: 800;
+        border-radius: 28px 28px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.3rem;
+    }
+    
+    .info-card-header i {
+        color: var(--agrotech-orange);
+        font-size: 1.4rem;
     }
     
     .info-card-body {
-        padding: 20px;
+        padding: 32px;
     }
     
+    /* Cajas de estadísticas neumórficas */
     .stat-box {
         text-align: center;
-        padding: 20px;
-        border-radius: 8px;
-        background: #f8f9fa;
-        margin-bottom: 15px;
+        padding: 28px;
+        border-radius: 24px;
+        background: var(--neuro-bg-primary);
+        margin-bottom: 20px;
+        box-shadow: inset -4px -4px 8px rgba(255, 255, 255, 0.7),
+                    inset 4px 4px 8px rgba(46, 139, 87, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-box:hover {
+        transform: scale(1.05);
+        box-shadow: inset -6px -6px 12px rgba(255, 255, 255, 0.8),
+                    inset 6px 6px 12px rgba(46, 139, 87, 0.15);
     }
     
     .stat-number {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #4a5d23;
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--agrotech-green);
         display: block;
+        margin-bottom: 8px;
+        text-shadow: 0 2px 4px rgba(46, 139, 87, 0.2);
     }
     
     .stat-label {
-        color: #666;
-        font-size: 0.9rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #6c757d;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        display: block;
     }
     
-    .mapa-detalle {
-        height: 400px;
-        border-radius: 8px;
+    /* Grupos de botones responsive */
+    .btn-group-responsive {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .btn-group-responsive .btn {
+        flex: 1 1 auto;
+        min-width: 180px;
+    }
+    
+    /* Badge mejorado */
+    .badge {
+        padding: 10px 18px;
+        border-radius: 16px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+    }
+    
+    /* Mapa neumórfico */
+    #mapa-detalle {
+        height: 450px;
+        border-radius: 24px;
         overflow: hidden;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        transition: all 0.3s ease;
+    }
+    
+    #mapa-detalle:hover {
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    /* Responsive para detalle de parcela */
+    @media (max-width: 991px) {
+        .parcela-header h1 {
+            font-size: 1.8rem;
+        }
+        
+        .btn-group-responsive {
+            flex-direction: column;
+        }
+        
+        .btn-group-responsive .btn {
+            width: 100%;
+            min-width: 100%;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .parcela-header {
+            padding: 24px;
+            border-radius: 24px;
+        }
+        
+        .parcela-header h1 {
+            font-size: 1.5rem;
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .info-card {
+            margin-bottom: 20px;
+        }
+        
+        .info-card-header {
+            font-size: 1.1rem;
+            padding: 18px 20px;
+        }
+        
+        .info-card-body {
+            padding: 20px;
+        }
+        
+        .stat-box {
+            padding: 20px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+        }
+        
+        #mapa-detalle {
+            height: 350px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .parcela-header {
+            padding: 20px;
+            border-radius: 20px;
+        }
+        
+        .parcela-header h1 {
+            font-size: 1.3rem;
+        }
+        
+        .parcela-header h1 i {
+            padding: 12px;
+            font-size: 1.2rem;
+        }
+        
+        .info-card-header {
+            font-size: 1rem;
+            padding: 16px 18px;
+        }
+        
+        .stat-number {
+            font-size: 1.8rem;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+        }
+        
+        #mapa-detalle {
+            height: 280px;
+            border-radius: 20px;
+        }
     }
 </style>
 {% endblock %}
@@ -73,31 +290,34 @@
                 <p class="mb-2"><strong>Propietario:</strong> {{ parcela.propietario }}</p>
                 <p class="mb-0"><strong>Tipo de Cultivo:</strong> {{ parcela.tipo_cultivo|default:"No especificado" }}</p>
             </div>
-            <div class="col-md-4 text-end">
-                <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-light me-2">
-                    <i class="fas fa-arrow-left"></i> Volver
-                </a>
-                <div class="btn-group" role="group">
+            <div class="col-md-4">
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-light">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+                
+                <div class="btn-group-responsive">
                     {% if parcela.eosda_sincronizada %}
                         <a href="{% url 'informes:obtener_datos_historicos' parcela.id %}" class="btn btn-success" 
                            title="Obtener datos satelitales reales desde EOSDA">
                             <i class="fas fa-satellite"></i> Datos EOSDA
                         </a>
                         <span class="btn btn-outline-success" title="Sincronizada con EOSDA Field ID: {{ parcela.eosda_field_id }}">
-                            <i class="fas fa-check"></i> Sincronizada
+                            <i class="fas fa-check-circle"></i> Sincronizada
                         </span>
                     {% else %}
                         <a href="{% url 'informes:sincronizar_con_eosda' parcela.id %}" class="btn btn-warning" 
                            title="Sincronizar parcela con EOSDA primero">
-                            <i class="fas fa-sync"></i> Sincronizar EOSDA
+                            <i class="fas fa-sync-alt"></i> Sincronizar EOSDA
                         </a>
                     {% endif %}
                     <a href="{% url 'informes:ver_datos_guardados' parcela.id %}" class="btn btn-info"
                        title="Ver datos históricos guardados">
                         <i class="fas fa-database"></i> Datos Guardados
                     </a>
-                    <a href="#" class="btn btn-success">
-                        <i class="fas fa-download"></i> Generar Informe
+                    <a href="#" class="btn btn-primary">
+                        <i class="fas fa-file-download"></i> Generar Informe
                     </a>
                 </div>
             </div>
