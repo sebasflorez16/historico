@@ -1,53 +1,129 @@
-# AgroTech Histórico
+# AgroTech Histórico 🌾
 
 Sistema Django completo para análisis satelital agrícola con integración EOSDA API, generación automática de informes PDF y mapas interactivos.
 
 ## 🌱 Características Principales
 
 - **🛰️ Integración EOSDA**: Obtención automática de datos satelitales (NDVI, NDMI, SAVI)
-- **�️ PostGIS Nativo**: Campos geoespaciales optimizados para consultas ultra-rápidas
-- **�📊 Análisis Histórico**: Procesamiento de tendencias y patrones temporales
+- **🗺️ PostGIS Nativo**: Campos geoespaciales optimizados para consultas ultra-rápidas
+- **📊 Análisis Histórico**: Procesamiento de tendencias y patrones temporales
 - **📄 Informes PDF**: Generación automática con gráficos y análisis IA local
 - **🗺️ Mapas Interactivos**: Visualización geoespacial con Leaflet y folium
 - **🤖 IA Local**: Análisis automático de salud vegetal y recomendaciones
 - **📱 Interfaz Responsiva**: Dashboard moderno con Bootstrap 5
 - **⚡ Rendimiento GIS**: PostgreSQL + PostGIS para datos geoespaciales masivos
 
-## 🚀 Instalación
+## � Estructura del Proyecto
 
-### Opción A: Instalación Rápida (SQLite)
-Para pruebas rápidas y desarrollo:
+```
+historical/
+├── informes/              # Aplicación principal Django
+│   ├── models.py          # Modelos con PostGIS
+│   ├── views.py           # Vistas y lógica de negocio
+│   ├── generador_pdf.py   # Generador de informes PDF
+│   ├── services/          # Servicios (EOSDA, Weather, Email)
+│   ├── analizadores/      # Analizadores de índices satelitales
+│   └── templates/         # Templates HTML
+├── tests/                 # 🧪 Scripts de prueba
+├── scripts/               # 🔧 Scripts de utilidad y mantenimiento
+├── docs/                  # 📚 Documentación completa
+│   ├── sprints/          # Documentación de sprints
+│   ├── sistema/          # Arquitectura del sistema
+│   ├── frontend/         # Guías de diseño UI/UX
+│   ├── correcciones/     # Guías de correcciones
+│   └── instalacion/      # Guías de instalación
+├── media/                 # Archivos generados (PDFs, imágenes)
+├── static/                # Archivos estáticos
+└── manage.py              # Django management
+
+```
+
+## 🚀 Instalación Rápida
+
+### Requisitos Previos
+- Python 3.11+
+- PostgreSQL 15+ con PostGIS
+- Git
+
+### Instalación
 
 ```bash
 # 1. Clonar y configurar
 git clone <url-del-repo>
-cd agrotech_historico
+cd historical
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # En Windows: .venv\Scripts\activate
 
 # 2. Instalar dependencias
 pip install -r requirements.txt
 
-# 3. Configurar y ejecutar
+# 3. Configurar variables de entorno
 cp .env.example .env
+# Editar .env con tus credenciales
+
+# 4. Configurar base de datos
+python scripts/configurar_db.py
+
+# 5. Ejecutar migraciones
 python manage.py makemigrations
 python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
 
-# 4. Demo automática
-python demo.py --auto
+# 6. Crear superusuario
+python manage.py createsuperuser
+
+# 7. Ejecutar servidor
+python manage.py runserver
 ```
 
-### Opción B: Instalación Profesional (PostgreSQL + PostGIS) 
-**⭐ RECOMENDADO para producción y datos geoespaciales reales:**
+## 📚 Documentación
+
+La documentación está organizada por categorías en la carpeta `docs/`:
+
+- **📖 [Guía de Documentación](docs/README.md)** - Índice completo
+- **🏗️ [Arquitectura del Sistema](docs/sistema/)** - Flujos y diseño técnico
+- **🎨 [Guías de Frontend](docs/frontend/)** - Estilos y UI/UX
+- **🔧 [Correcciones y Fixes](docs/correcciones/)** - Solución de problemas
+- **📦 [Guías de Instalación](docs/instalacion/)** - PostgreSQL/PostGIS
+
+### Documentos Destacados
+
+- [FLUJO_IMAGENES_SATELITALES.md](docs/sistema/FLUJO_IMAGENES_SATELITALES.md) - Flujo completo de imágenes
+- [SISTEMA_INFORMES_IMPLEMENTADO.md](docs/sistema/SISTEMA_INFORMES_IMPLEMENTADO.md) - Sistema de informes
+- [INSTALACION_POSTGRESQL.md](docs/instalacion/INSTALACION_POSTGRESQL.md) - Setup de base de datos
+
+## 🧪 Testing
+
+Los tests están organizados en la carpeta `tests/`:
 
 ```bash
-# 1. Instalar PostgreSQL + PostGIS
-# Ver guía detallada: INSTALACION_POSTGRESQL.md
+# Test de generación de informes
+python tests/test_informe_simple.py
 
-# macOS
-brew install postgresql@15 postgis
+# Test de API EOSDA
+python tests/test_eosda_febrero_2025.py
+
+# Test de clima Open-Meteo
+python tests/test_openmeteo.py
+```
+
+Ver [tests/README.md](tests/README.md) para más información.
+
+## 🔧 Scripts de Utilidad
+
+Scripts de mantenimiento y desarrollo en la carpeta `scripts/`:
+
+```bash
+# Actualizar datos climáticos
+python scripts/actualizar_datos_clima_todas_parcelas.py
+
+# Diagnóstico de datos
+python scripts/diagnostico_datos_mensuales.py
+
+# Limpiar datos
+python scripts/limpiar_datos.py
+```
+
+Ver [scripts/README.md](scripts/README.md) para lista completa.
 
 # Ubuntu  
 sudo apt install postgresql postgresql-contrib postgis
