@@ -32,12 +32,13 @@ class EosdaAPIService:
         })
         
         # Mapeo de nombres de cultivos en español a nombres válidos de EOSDA
+        # ✅ VERIFICADO CONTRA LISTA OFICIAL DE EOSDA
         self.mapeo_cultivos = {
             'cacao': 'Cocoa',
             'café': 'Coffee',
             'cafe': 'Coffee',
-            'maíz': 'Corn',
-            'maiz': 'Corn',
+            'maíz': 'Other',  # ❌ "Corn" no es válido en EOSDA, usar "Other"
+            'maiz': 'Other',  # ❌ "Corn" no es válido en EOSDA, usar "Other"
             'arroz': 'Rice',
             'plátano': 'Plantain',
             'platano': 'Plantain',
@@ -57,9 +58,9 @@ class EosdaAPIService:
             'algodón': 'Cotton',
             'algodon': 'Cotton',
             'trigo': 'Wheat',
-            'cebada': 'Winter Barley',
+            'cebada': 'Oats',  # ❌ "Winter Barley" no es válido, usar "Oats"
             'avena': 'Oats',
-            'sorgo': 'Sorghum',
+            'sorgo': 'Other',  # ❌ "Sorghum" no es válido, usar "Other"
             'frijol': 'Beans',
             'fríjol': 'Beans',
             'girasol': 'Sunflower',

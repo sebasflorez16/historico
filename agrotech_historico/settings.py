@@ -198,8 +198,12 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False  # Usar TLS en lugar de SSL
 EMAIL_HOST_USER = 'agrotechdigitalcolombia@gmail.com'
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD', '')  # Usar app password de Gmail
-DEFAULT_FROM_EMAIL = 'AgroTech Histórico <agrotechdigitalcolombia@gmail.com>'
+DEFAULT_FROM_EMAIL = 'agrotechdigitalcolombia@gmail.com'  # Sin formato, solo email
 EMAIL_TIMEOUT = 30  # Timeout para evitar bloqueos
+
+# Email del administrador para notificaciones
+ADMIN_EMAIL = 'agrotechdigitalcolombia@gmail.com'
+ADMIN_WHATSAPP = '+57 322 308 8873'
 
 # Configuración adicional para resolver problemas SSL en desarrollo
 import ssl

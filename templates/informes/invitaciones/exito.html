@@ -172,35 +172,100 @@
                             <i class="fas fa-envelope text-success mb-2"></i>
                             <div class="small">
                                 <strong>Email de Soporte</strong><br>
-                                <a href="mailto:{{ invitacion.email_cliente }}">{{ invitacion.email_cliente }}</a>
+                                <a href="mailto:agrotechdigitalcolombia@gmail.com">agrotechdigitalcolombia@gmail.com</a>
                             </div>
                         </div>
                     </div>
                     
-                    {% if invitacion.telefono_cliente %}
                     <div class="col-md-6 mb-3">
                         <div class="p-3 bg-light rounded">
-                            <i class="fas fa-phone text-success mb-2"></i>
+                            <i class="fab fa-whatsapp text-success mb-2"></i>
                             <div class="small">
-                                <strong>Teléfono</strong><br>
-                                <a href="tel:{{ invitacion.telefono_cliente }}">{{ invitacion.telefono_cliente }}</a>
+                                <strong>WhatsApp</strong><br>
+                                <a href="https://wa.me/573223088873" target="_blank">+57 322 308 8873</a>
                             </div>
                         </div>
                     </div>
-                    {% endif %}
                 </div>
             </div>
             
+            {% if mostrar_mensaje_final %}
+            <!-- Mensaje final -->
+            <div class="mt-4 p-4 bg-success text-white rounded-3">
+                <h4 class="mb-3">
+                    <i class="fas fa-check-double me-2"></i>
+                    ¡Gracias por confiar en AgroTech Histórico!
+                </h4>
+                <p class="mb-2">
+                    Hemos recibido el registro de tu parcela y nuestro equipo ya ha sido notificado.
+                </p>
+                <p class="mb-0">
+                    <strong>Nos pondremos en contacto contigo muy pronto</strong> para iniciar el análisis satelital de tu cultivo.
+                </p>
+            </div>
+            
+            <!-- Información de cierre -->
+            <div class="mt-4 alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Esta ventana se cerrará automáticamente en <strong id="countdown">10</strong> segundos.
+            </div>
+            {% endif %}
+            
             <!-- Botón de cierre -->
             <div class="mt-4">
+                {% if not mostrar_mensaje_final %}
                 <p class="text-muted small mb-3">
                     Puedes cerrar esta ventana. Recibirás un correo de confirmación con todos los detalles.
                 </p>
-                <button onclick="window.close()" class="btn btn-outline-secondary">
-                    <i class="fas fa-times me-2"></i>Cerrar
+                {% endif %}
+                <button onclick="cerrarVentana()" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>Cerrar Ahora
                 </button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if mostrar_mensaje_final %}
+<script>
+    // Cierre automático después de 10 segundos
+    let segundos = 10;
+    const countdownElement = document.getElementById('countdown');
+    
+    const intervalo = setInterval(function() {
+        segundos--;
+        if (countdownElement) {
+            countdownElement.textContent = segundos;
+        }
+        
+        if (segundos <= 0) {
+            clearInterval(intervalo);
+            cerrarVentana();
+        }
+    }, 1000);
+    
+    function cerrarVentana() {
+        // Intentar cerrar la ventana
+        window.close();
+        
+        // Si no se puede cerrar (ventana principal), redirigir
+        setTimeout(function() {
+            window.location.href = '/informes/login/';
+        }, 100);
+    }
+</script>
+{% else %}
+<script>
+    function cerrarVentana() {
+        window.close();
+        
+        // Si no se puede cerrar, redirigir
+        setTimeout(function() {
+            window.location.href = '/informes/login/';
+        }, 100);
+    }
+</script>
+{% endif %}
 {% endblock %}

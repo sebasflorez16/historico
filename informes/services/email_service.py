@@ -18,6 +18,125 @@ class EmailService:
     """
     
     @staticmethod
+    def notificar_nueva_parcela_admin(invitacion, parcela):
+        """
+        Notificar al administrador cuando un cliente crea una parcela
+        
+        Args:
+            invitacion: Instancia de ClienteInvitacion
+            parcela: Instancia de Parcela recién creada
+            
+        Returns:
+            dict: Resultado del envío
+        """
+        try:
+            # Email del administrador
+            admin_email = getattr(
+                settings, 
+                'ADMIN_EMAIL', 
+                'agrotechdigitalcolombia@gmail.com'
+            )
+            
+            # Preparar el contexto
+            contexto = {
+                'invitacion': invitacion,
+                'parcela': parcela,
+                'cliente': invitacion.nombre_cliente,
+                'email_cliente': invitacion.email_cliente,
+                'telefono_cliente': invitacion.telefono_cliente,
+                'area_hectareas': parcela.area_hectareas,
+                'tipo_cultivo': parcela.tipo_cultivo,
+                'fecha_registro': parcela.fecha_registro,
+                'empresa': 'AgroTech Histórico',
+                'fecha_actual': timezone.now()
+            }
+            
+            # Asunto del email
+            asunto = f"🌾 Nueva Parcela Registrada - {invitacion.nombre_cliente}"
+            
+            # Mensaje de texto
+            mensaje_texto = f"""
+NUEVA PARCELA REGISTRADA - AGROTECH HISTÓRICO
+{'=' * 60}
+
+Cliente: {invitacion.nombre_cliente}
+Email: {invitacion.email_cliente or 'No proporcionado'}
+Teléfono: {invitacion.telefono_cliente or 'No proporcionado'}
+
+DATOS DE LA PARCELA:
+---
+Nombre: {parcela.nombre}
+Área: {parcela.area_hectareas:.2f} hectáreas
+Tipo de Cultivo: {parcela.tipo_cultivo or 'No especificado'}
+Fecha de Registro: {parcela.fecha_registro.strftime('%d/%m/%Y %H:%M')}
+
+INVITACIÓN:
+---
+Token: {invitacion.token}
+Costo del Servicio: ${invitacion.costo_servicio} COP
+Estado de Pago: {'PAGADO' if invitacion.pagado else 'PENDIENTE'}
+
+PRÓXIMOS PASOS:
+---
+1. Revisar los datos de la parcela en el sistema
+2. Sincronizar con EOSDA para obtener datos satelitales
+3. Contactar al cliente para confirmar el inicio del análisis
+4. Verificar el estado del pago si está pendiente
+
+Accede al sistema para gestionar esta parcela:
+http://127.0.0.1:8000/informes/parcelas/{parcela.id}/
+
+---
+Notificación automática de AgroTech Histórico
+{timezone.now().strftime('%d/%m/%Y %H:%M:%S')}
+            """
+            
+            # Intentar renderizar versión HTML si existe
+            mensaje_html = None
+            try:
+                mensaje_html = render_to_string(
+                    'informes/emails/notificacion_admin_parcela.html',
+                    contexto
+                )
+            except Exception:
+                pass  # Si no existe la plantilla, usar solo texto
+            
+            # Enviar email
+            remitente = getattr(
+                settings, 
+                'DEFAULT_FROM_EMAIL', 
+                'agrotechdigitalcolombia@gmail.com'
+            )
+            
+            resultado = send_mail(
+                subject=asunto,
+                message=mensaje_texto,
+                from_email=remitente,
+                recipient_list=[admin_email],
+                html_message=mensaje_html,
+                fail_silently=False
+            )
+            
+            if resultado:
+                logger.info(f"Notificación enviada al admin sobre nueva parcela: {parcela.nombre}")
+                return {
+                    'exito': True,
+                    'mensaje': f'Notificación enviada al administrador'
+                }
+            else:
+                return {
+                    'exito': False,
+                    'error': 'El servidor no confirmó el envío de la notificación'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error notificando al admin sobre nueva parcela: {str(e)}")
+            return {
+                'exito': False,
+                'error': f'Error enviando notificación: {str(e)}'
+            }
+    
+    @staticmethod
     def enviar_invitacion(invitacion, url_completa):
         """
         Enviar email de invitación a un cliente

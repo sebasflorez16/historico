@@ -1018,6 +1018,7 @@ def detalle_invitacion(request, invitacion_id):
 def registro_invitacion(request, token):
     """
     Vista pública para registro usando token de invitación
+    MEJORADA: Incluye confirmación doble, notificación al admin y mensaje final
     """
     try:
         # Buscar invitación por token
@@ -1044,11 +1045,20 @@ def registro_invitacion(request, token):
         # Procesar registro de parcela
         if request.method == 'POST':
             try:
+                # Verificar si es confirmación final
+                confirmacion = request.POST.get('confirmacion_final', 'false')
+                
                 # Obtener datos del formulario
                 nombre = request.POST.get('nombre')
                 tipo_cultivo = request.POST.get('tipo_cultivo', '')
                 geometria_json = request.POST.get('geometria')
                 notas = request.POST.get('notas', '')
+                telefono_contacto = request.POST.get('telefono_contacto', '')
+                
+                # Actualizar teléfono en la invitación si se proporcionó
+                if telefono_contacto and telefono_contacto != invitacion.telefono_cliente:
+                    invitacion.telefono_cliente = telefono_contacto
+                    invitacion.save()
                 
                 # Validar datos requeridos
                 if not all([nombre, geometria_json]):
@@ -1077,7 +1087,24 @@ def registro_invitacion(request, token):
                         'invitacion': invitacion
                     })
                 
-                # Crear parcela
+                # PASO 1: Si no hay confirmación, mostrar pantalla de confirmación
+                if confirmacion != 'true':
+                    # Calcular área temporal para mostrar en confirmación
+                    from django.contrib.gis.measure import Area
+                    area_m2 = geometria_postgis.area
+                    area_ha = area_m2 / 10000
+                    
+                    return render(request, 'informes/invitaciones/confirmar.html', {
+                        'invitacion': invitacion,
+                        'nombre': nombre,
+                        'tipo_cultivo': tipo_cultivo,
+                        'geometria_json': geometria_json,
+                        'notas': notas,
+                        'telefono_contacto': telefono_contacto,
+                        'area_hectareas': round(area_ha, 2)
+                    })
+                
+                # PASO 2: Confirmación recibida, crear la parcela
                 parcela = Parcela.objects.create(
                     nombre=nombre,
                     propietario=invitacion.nombre_cliente,
@@ -1102,11 +1129,26 @@ def registro_invitacion(request, token):
                         valor_final=invitacion.costo_servicio
                     )
                 
+                # MEJORA: Enviar notificación al administrador
+                try:
+                    from .services.email_service import email_service
+                    resultado_notificacion = email_service.notificar_nueva_parcela_admin(
+                        invitacion, parcela
+                    )
+                    if resultado_notificacion['exito']:
+                        logger.info(f"Notificación enviada al admin: {parcela.nombre}")
+                    else:
+                        logger.warning(f"No se pudo notificar al admin: {resultado_notificacion.get('error')}")
+                except Exception as e_notif:
+                    logger.error(f"Error enviando notificación al admin: {str(e_notif)}")
+                
                 logger.info(f"Parcela registrada por invitación: {invitacion.token} - {parcela.nombre}")
                 
+                # MEJORA: Mostrar página de éxito con mensaje final
                 return render(request, 'informes/invitaciones/exito.html', {
                     'invitacion': invitacion,
-                    'parcela': parcela
+                    'parcela': parcela,
+                    'mostrar_mensaje_final': True
                 })
                 
             except Exception as e:

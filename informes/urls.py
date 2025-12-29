@@ -4,6 +4,7 @@ URLs para la aplicación de informes
 
 from django.urls import path
 from . import views
+from . import views_eliminacion
 
 app_name = 'informes'
 
@@ -22,6 +23,7 @@ urlpatterns = [
     path('parcelas/registro-cliente/', views.registro_cliente, name='registro_cliente'),
     path('parcelas/<int:parcela_id>/', views.detalle_parcela, name='detalle_parcela'),
     path('parcelas/<int:parcela_id>/mapa/', views.mapa_parcela, name='mapa_parcela'),
+    path('parcelas/<int:parcela_id>/eliminar/', views_eliminacion.eliminar_parcela, name='eliminar_parcela'),
     
     # Sistema de invitaciones
     path('invitaciones/', views.gestionar_invitaciones, name='gestionar_invitaciones'),

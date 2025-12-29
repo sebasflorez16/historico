@@ -115,6 +115,18 @@
                             </div>
                         </div>
                         
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="telefono_contacto" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>
+                                    Teléfono de Contacto <span class="text-danger">*</span>
+                                </label>
+                                <input type="tel" class="form-control" id="telefono_contacto" name="telefono_contacto" required
+                                       placeholder="Ej: +57 300 123 4567" value="{{ invitacion.telefono_cliente }}">
+                                <small class="text-muted">Número donde podemos contactarte</small>
+                            </div>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="notas" class="form-label">
                                 <i class="fas fa-sticky-note me-1"></i>
@@ -167,6 +179,32 @@
                         <div id="exitoGeometria" class="alert alert-success mt-3" style="display: none;">
                             <i class="fas fa-check-circle me-2"></i>
                             ¡Parcela dibujada correctamente! Área aproximada: <span id="areaTexto"></span>
+                        </div>
+                        
+                        <!-- Coordenadas del polígono -->
+                        <div id="coordenadasInfo" class="card mt-3" style="display: none;">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-map-pin me-2"></i>
+                                    Coordenadas del Polígono
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Latitud</th>
+                                                <th>Longitud</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tablaCoordenadas">
+                                            <!-- Se llenará con JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="d-grid gap-2 mt-4">
@@ -243,6 +281,22 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('areaTexto').textContent = hectareas + ' hectáreas';
         document.getElementById('infoGeometria').style.display = 'none';
         document.getElementById('exitoGeometria').style.display = 'block';
+        
+        // Mostrar coordenadas
+        const coords = layer.getLatLngs()[0];
+        const tablaCoordenadas = document.getElementById('tablaCoordenadas');
+        tablaCoordenadas.innerHTML = '';
+        
+        coords.forEach((coord, index) => {
+            const row = tablaCoordenadas.insertRow();
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${coord.lat.toFixed(6)}</td>
+                <td>${coord.lng.toFixed(6)}</td>
+            `;
+        });
+        
+        document.getElementById('coordenadasInfo').style.display = 'block';
     });
     
     mapa.on('draw:edited', function (e) {
