@@ -88,6 +88,65 @@ class EosdaAPIService:
     
     # ========= FIELD MANAGEMENT API =========
     
+    def eliminar_campo_eosda(self, field_id: str) -> Dict:
+        """
+        Elimina un campo en EOSDA usando Field Management API
+        Documentación: https://doc.eos.com/docs/field-management-api/field-management/
+        Endpoint: DELETE /field-management/fields/{field_id}
+        
+        Args:
+            field_id: ID del campo en EOSDA
+            
+        Returns:
+            Dict con 'exito' y 'mensaje' o 'error'
+        """
+        if not field_id:
+            return {
+                'exito': False,
+                'error': 'No se proporcionó field_id'
+            }
+            
+        try:
+            url = f"{self.base_url}/field-management/fields/{field_id}"
+            logger.info(f"Intentando eliminar campo en EOSDA: {field_id}")
+            
+            response = self.session.delete(url, timeout=30)
+            
+            if response.status_code == 204:
+                # 204 No Content = eliminación exitosa
+                logger.info(f"✓ Campo eliminado exitosamente en EOSDA: {field_id}")
+                return {
+                    'exito': True,
+                    'mensaje': f'Campo {field_id} eliminado en EOSDA'
+                }
+            elif response.status_code == 404:
+                # El campo no existe en EOSDA (ya fue eliminado o nunca existió)
+                logger.warning(f"Campo no encontrado en EOSDA: {field_id}")
+                return {
+                    'exito': True,
+                    'mensaje': f'Campo {field_id} no existe en EOSDA (posiblemente ya eliminado)'
+                }
+            else:
+                error_msg = f"Error {response.status_code}: {response.text}"
+                logger.error(f"Error eliminando campo en EOSDA {field_id}: {error_msg}")
+                return {
+                    'exito': False,
+                    'error': error_msg
+                }
+                
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout eliminando campo en EOSDA: {field_id}")
+            return {
+                'exito': False,
+                'error': 'Timeout al conectar con EOSDA'
+            }
+        except Exception as e:
+            logger.error(f"Excepción eliminando campo en EOSDA {field_id}: {str(e)}")
+            return {
+                'exito': False,
+                'error': f'Error: {str(e)}'
+            }
+    
     def obtener_cultivos_validos(self) -> List[str]:
         """
         Obtiene la lista de tipos de cultivo válidos desde EOSDA

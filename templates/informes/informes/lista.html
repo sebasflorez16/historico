@@ -113,21 +113,30 @@
                         {% endif %}
                     </div>
                     <div class="card-footer bg-transparent">
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
                             <a href="{% url 'informes:detalle_informe' informe.id %}" 
-                               class="btn btn-outline-primary btn-sm">
+                               class="btn btn-outline-primary btn-sm flex-grow-1">
                                 <i class="fas fa-eye me-1"></i>Ver Detalle
                             </a>
                             {% if informe.archivo_pdf %}
                             <a href="{{ informe.archivo_pdf.url }}" 
                                target="_blank"
-                               class="btn btn-outline-danger btn-sm">
+                               class="btn btn-outline-danger btn-sm flex-grow-1">
                                 <i class="fas fa-download me-1"></i>Descargar PDF
                             </a>
                             {% else %}
-                            <span class="btn btn-outline-secondary btn-sm disabled">
+                            <span class="btn btn-outline-secondary btn-sm disabled flex-grow-1">
                                 <i class="fas fa-hourglass-half me-1"></i>Procesando...
                             </span>
+                            {% endif %}
+                            {% if user.is_superuser %}
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalEliminarInforme{{ informe.id }}"
+                                    title="Eliminar informe">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                             {% endif %}
                         </div>
                     </div>
@@ -193,4 +202,66 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Modales de confirmación para eliminar informes -->
+{% if user.is_superuser and informes %}
+{% for informe in informes %}
+<div class="modal fade" id="modalEliminarInforme{{ informe.id }}" tabindex="-1" aria-labelledby="modalEliminarInformeLabel{{ informe.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold" id="modalEliminarInformeLabel{{ informe.id }}">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+                    <i class="fas fa-fire-alt me-3 fs-4"></i>
+                    <div>
+                        <p class="mb-0"><strong>¡ADVERTENCIA!</strong> Esta acción <strong>NO</strong> se puede deshacer.</p>
+                    </div>
+                </div>
+                <p class="mb-3">Se eliminará el informe:</p>
+                <ul class="list-unstyled mb-3">
+                    <li><i class="fas fa-file-pdf text-danger me-2"></i> <strong>{{ informe.titulo }}</strong></li>
+                    <li><i class="fas fa-map text-danger me-2"></i> Parcela: {{ informe.parcela.nombre }}</li>
+                    <li><i class="fas fa-calendar text-danger me-2"></i> Generado: {{ informe.fecha_generacion|date:"d/m/Y H:i" }}</li>
+                    {% if informe.archivo_pdf %}
+                    <li><i class="fas fa-times text-danger me-2"></i> Archivo PDF asociado</li>
+                    {% endif %}
+                </ul>
+                <form method="post" action="{% url 'informes:eliminar_informe' informe.id %}" id="formEliminarInforme{{ informe.id }}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="confirmacion_informe{{ informe.id }}" class="form-label fw-bold">
+                            Para confirmar, escriba: <span class="text-danger">eliminar</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               name="confirmacion_informe" 
+                               id="confirmacion_informe{{ informe.id }}" 
+                               required 
+                               placeholder="eliminar"
+                               autocomplete="off">
+                        <div class="form-text">
+                            Debe escribir exactamente la palabra: <code>eliminar</code> (en minúsculas)
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash-alt me-1"></i>Eliminar Definitivamente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
 {% endblock %}

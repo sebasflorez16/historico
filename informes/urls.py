@@ -38,6 +38,7 @@ urlpatterns = [
     # Gestión de informes
     path('informes/', views.lista_informes, name='lista_informes'),
     path('informes/<int:informe_id>/', views.detalle_informe, name='detalle_informe'),
+    path('informes/<int:informe_id>/eliminar/', views_eliminacion.eliminar_informe, name='eliminar_informe'),
     
     # Sistema
     path('sistema/estado/', views.estado_sistema, name='estado_sistema'),

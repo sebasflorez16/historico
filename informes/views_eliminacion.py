@@ -58,6 +58,28 @@ def eliminar_parcela(request, parcela_id):
         area = parcela.area_hectareas
         num_informes = parcela.informes.count()
         num_indices = parcela.indices_mensuales.count()
+        eosda_field_id = parcela.eosda_field_id
+        eosda_sincronizada = parcela.eosda_sincronizada
+        
+        # Si la parcela está sincronizada con EOSDA, intentar eliminarla allí también
+        mensaje_eosda = ""
+        if eosda_sincronizada and eosda_field_id:
+            try:
+                from .services.eosda_api import eosda_service
+                
+                logger.info(f"Intentando eliminar campo en EOSDA: {eosda_field_id}")
+                resultado_eosda = eosda_service.eliminar_campo_eosda(eosda_field_id)
+                
+                if resultado_eosda.get('exito'):
+                    mensaje_eosda = f" Campo eliminado en EOSDA: {eosda_field_id}."
+                    logger.info(f"✓ Campo {eosda_field_id} eliminado en EOSDA")
+                else:
+                    mensaje_eosda = f" ⚠️ No se pudo eliminar en EOSDA: {resultado_eosda.get('error', 'Error desconocido')}"
+                    logger.warning(f"No se pudo eliminar campo en EOSDA: {resultado_eosda.get('error')}")
+                    
+            except Exception as e:
+                mensaje_eosda = f" ⚠️ Error al intentar eliminar en EOSDA: {str(e)}"
+                logger.error(f"Error eliminando campo en EOSDA: {str(e)}")
         
         # Eliminar archivos asociados si existen
         try:
@@ -80,13 +102,15 @@ def eliminar_parcela(request, parcela_id):
         logger.warning(
             f"🗑️ PARCELA ELIMINADA por {request.user.username}: "
             f"ID={parcela_id}, Nombre='{nombre_parcela}', Propietario='{propietario}', "
-            f"Área={area}ha, Informes={num_informes}, Índices={num_indices}"
+            f"Área={area}ha, Informes={num_informes}, Índices={num_indices}, "
+            f"EOSDA_ID={eosda_field_id if eosda_field_id else 'No sincronizada'}"
         )
         
         messages.success(
             request,
             f'✅ Parcela "{nombre_parcela}" eliminada exitosamente. '
             f'Se eliminaron {num_informes} informes y {num_indices} registros de índices asociados.'
+            f'{mensaje_eosda}'
         )
         
         return redirect('informes:lista_parcelas')

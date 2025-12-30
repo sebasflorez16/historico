@@ -34,8 +34,11 @@ class GeminiService:
         # Configurar Gemini
         genai.configure(api_key=self.api_key)
         
-        # Usar modelo Gemini 2.5 Flash (más económico y rápido)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        # Usar modelo Gemini 2.0 Flash (mejor para FREE TIER)
+        # Límites FREE: 1,500 solicitudes/día, 15 solicitudes/minuto
+        # Input: 1M tokens, Output: 8K tokens
+        # Nota: gemini-2.5-flash solo tiene 20 req/día en free tier
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         
         logger.info("✅ GeminiService inicializado correctamente")
     
@@ -217,12 +220,26 @@ Estructura tu respuesta EXACTAMENTE con estas secciones (usa estos títulos lite
         
         for dato in indices_mensuales:
             mes = dato.get('periodo', 'N/A')
-            ndvi = f"{dato.get('ndvi_promedio', 0):.3f}" if dato.get('ndvi_promedio') else 'N/A'
-            ndmi = f"{dato.get('ndmi_promedio', 0):.3f}" if dato.get('ndmi_promedio') else 'N/A'
-            savi = f"{dato.get('savi_promedio', 0):.3f}" if dato.get('savi_promedio') else 'N/A'
-            nubosidad = f"{dato.get('nubosidad_promedio', 0):.1f}%" if dato.get('nubosidad_promedio') else 'N/A'
-            temp = f"{dato.get('temperatura_promedio', 0):.1f}" if dato.get('temperatura_promedio') else 'N/A'
-            precip = f"{dato.get('precipitacion_total', 0):.1f}" if dato.get('precipitacion_total') else 'N/A'
+            
+            # Manejar valores None de forma segura
+            ndvi_val = dato.get('ndvi_promedio')
+            ndvi = f"{ndvi_val:.3f}" if ndvi_val is not None else 'N/A'
+            
+            ndmi_val = dato.get('ndmi_promedio')
+            ndmi = f"{ndmi_val:.3f}" if ndmi_val is not None else 'N/A'
+            
+            savi_val = dato.get('savi_promedio')
+            savi = f"{savi_val:.3f}" if savi_val is not None else 'N/A'
+            
+            nubosidad_val = dato.get('nubosidad_promedio')
+            nubosidad = f"{nubosidad_val:.1f}%" if nubosidad_val is not None else 'N/A'
+            
+            temp_val = dato.get('temperatura_promedio')
+            temp = f"{temp_val:.1f}" if temp_val is not None else 'N/A'
+            
+            precip_val = dato.get('precipitacion_total')
+            precip = f"{precip_val:.1f}" if precip_val is not None else 'N/A'
+            
             calidad = dato.get('calidad_datos', 'N/A')
             
             tabla += f"| {mes} | {ndvi} | {ndmi} | {savi} | {nubosidad} | {temp} | {precip} | {calidad} |\n"
@@ -248,7 +265,9 @@ Estructura tu respuesta EXACTAMENTE con estas secciones (usa estos títulos lite
                 if tiene_savi:
                     imagenes.append('SAVI')
                 
-                desc.append(f"- **{mes}**: Imágenes disponibles: {', '.join(imagenes)} (Nubosidad: {nubosidad:.1f}%)")
+                # Manejar nubosidad None
+                nubosidad_str = f"{nubosidad:.1f}%" if nubosidad is not None else 'N/A'
+                desc.append(f"- **{mes}**: Imágenes disponibles: {', '.join(imagenes)} (Nubosidad: {nubosidad_str})")
         
         if not desc:
             return "No hay imágenes satelitales adjuntas en este análisis."

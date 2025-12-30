@@ -148,6 +148,32 @@ LOGIN_URL = '/informes/login/'
 LOGIN_REDIRECT_URL = '/informes/'
 LOGOUT_REDIRECT_URL = '/informes/login/'
 
+# Configuración de sesiones y seguridad
+# ===============================================
+
+# Timeout de sesión por inactividad (en segundos)
+# Usuarios regulares: 30 minutos = 1800 segundos
+# Superusuarios: 15 minutos = 900 segundos (mayor seguridad)
+SESSION_COOKIE_AGE = 1800  # 30 minutos de inactividad para usuarios regulares
+SUPERUSER_SESSION_TIMEOUT = 900  # 15 minutos para superusuarios
+SESSION_TIMEOUT_WARNING = 300  # Mostrar advertencia 5 minutos antes
+
+# Expirar sesión al cerrar el navegador
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Guardar sesión en cada petición (para actualizar el timeout)
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Seguridad de cookies de sesión
+SESSION_COOKIE_SECURE = False  # Cambiar a True en producción con HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Prevenir acceso via JavaScript
+SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
+
+# Seguridad CSRF
+CSRF_COOKIE_SECURE = False  # Cambiar a True en producción con HTTPS
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 # Configuración específica de AgroTech Histórico
 # ===============================================
 

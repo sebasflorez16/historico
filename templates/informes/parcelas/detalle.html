@@ -420,6 +420,14 @@
                         <i class="fas fa-file-download me-2"></i>Generar Informe
                     </button>
                     
+                    {% if user.is_superuser %}
+                    <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#modalEliminarParcela" 
+                            style="border-radius: 12px; font-weight: 600;"
+                            title="🗑️ Eliminar parcela (solo superusuarios)">
+                        <i class="fas fa-trash-alt me-2"></i>Eliminar Parcela
+                    </button>
+                    {% endif %}
+                    
                     {% if rango_datos and rango_datos.meses > 0 %}
                     <a href="{% url 'informes:timeline_parcela' parcela.id %}" class="btn btn-lg" 
                        style="border-radius: 12px; font-weight: 600; background: linear-gradient(135deg, #2e8b57 0%, #ff7a00 100%); color: white; border: none; box-shadow: 0 4px 15px rgba(46, 139, 87, 0.4);"
@@ -696,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function() {
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles © Esri',
                 maxZoom: 19,
-                errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE4Ij5TaW4gaW1hZ2VuPC90ZXh0Pjwvc3ZnPg=='
+                errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1IiIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE4Ij5TaW4gaW1hZ2VuPC90ZXh0Pjwvc3ZnPg=='
             }).addTo(mapaDetalle);
             
             // Procesar geometría si existe
@@ -750,7 +758,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }).addTo(mapaDetalle);
                         
-                        // Ajustar vista al polígono con padding
+                        // Ajustar vista al polígono with padding
                         if (parcelaLayer.getBounds && parcelaLayer.getBounds().isValid()) {
                             mapaDetalle.fitBounds(parcelaLayer.getBounds(), { padding: [20, 20] });
                         }
@@ -1099,6 +1107,132 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<!-- Modal de confirmación para eliminar parcela -->
+{% if user.is_superuser %}
+<div class="modal fade" id="modalEliminarParcela" tabindex="-1" aria-labelledby="modalEliminarParcelaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold" id="modalEliminarParcelaLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>⚠️ Confirmar Eliminación de Parcela
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-danger d-flex align-items-center mb-4" role="alert" style="border-radius: 12px;">
+                    <i class="fas fa-fire-alt me-3 fs-3"></i>
+                    <div>
+                        <p class="mb-0"><strong>¡PELIGRO!</strong> Esta acción <strong>NO se puede deshacer</strong>. Se eliminará:</p>
+                    </div>
+                </div>
+                <ul class="list-unstyled mb-4">
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> La parcela <strong>{{ parcela.nombre }}</strong></li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> Todos los informes asociados</li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> Todos los índices mensuales guardados</li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> Todos los archivos PDF generados</li>
+                    {% if parcela.eosda_sincronizada and parcela.eosda_field_id %}
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> El campo sincronizado en EOSDA (Field ID: {{ parcela.eosda_field_id }})</li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="modal-footer" style="border-top: 2px solid #f0f0f0;">
+                <form method="post" action="{% url 'informes:eliminar_parcela' parcela.id %}" id="formEliminarParcela">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="confirmacionEliminarParcela" class="form-label fw-bold">
+                            Para confirmar, escriba el nombre exacto de la parcela:
+                        </label>
+                        <div class="input-group" style="border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <span class="input-group-text bg-light border-0" style="padding: 12px 16px;">
+                                <i class="fas fa-keyboard text-muted"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control border-0" 
+                                   name="confirmacion" 
+                                   id="confirmacionEliminarParcela" 
+                                   required 
+                                   placeholder="{{ parcela.nombre }}"
+                                   style="padding: 12px; font-size: 1rem;">
+                        </div>
+                        <div class="form-text mt-2" style="font-size: 0.9rem;">
+                            <i class="fas fa-info-circle me-1"></i>Escriba exactamente: <code style="background: #f8f9fa; padding: 2px 8px; border-radius: 4px;">{{ parcela.nombre }}</code>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-3 justify-content-end">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal" style="border-radius: 12px; font-weight: 600;">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </button>
+                        <button type="button" class="btn btn-danger px-4" id="btnConfirmarEliminarParcela" style="border-radius: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);">
+                            <i class="fas fa-trash-alt me-2"></i>Eliminar Definitivamente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnConfirmar = document.getElementById('btnConfirmarEliminarParcela');
+    const inputConfirmacion = document.getElementById('confirmacionEliminarParcela');
+    const formEliminar = document.getElementById('formEliminarParcela');
+    const nombreParcela = "{{ parcela.nombre }}";
+    
+    if (btnConfirmar && inputConfirmacion && formEliminar) {
+        btnConfirmar.addEventListener('click', function() {
+            const valorIngresado = inputConfirmacion.value.trim();
+            
+            if (valorIngresado !== nombreParcela) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Confirmación incorrecta',
+                        html: 'Debe escribir exactamente el nombre de la parcela: <br><strong>' + nombreParcela + '</strong>',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#dc3545'
+                    });
+                } else {
+                    alert('Error: Debe escribir exactamente el nombre de la parcela: ' + nombreParcela);
+                }
+                return;
+            }
+            
+            // Confirmación final
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '¿Está completamente seguro?',
+                    html: '<p>Esta acción es <strong>IRREVERSIBLE</strong></p>' +
+                          '<p>Se eliminarán <strong>TODOS</strong> los datos asociados a esta parcela.</p>' +
+                          {% if parcela.eosda_sincronizada and parcela.eosda_field_id %}
+                          '<p class="text-danger mt-3"><i class="fas fa-satellite me-2"></i>También se eliminará el campo en EOSDA</p>' +
+                          {% endif %}
+                          '<p class="mt-3">¿Desea continuar?</p>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, eliminar definitivamente',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        formEliminar.submit();
+                    }
+                });
+            } else {
+                if (confirm('¿Está COMPLETAMENTE SEGURO de que desea eliminar esta parcela?\n\nEsta acción NO se puede deshacer.')) {
+                    formEliminar.submit();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endif %}
 
 <!-- SweetAlert2 para notificaciones bonitas -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
