@@ -988,25 +988,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
             
-            // Simular progreso (aproximadamente 2 minutos)
+            // Simular progreso (más rápido: 1.5 segundos por paso = 7.5 segundos total)
             let intervalo = setInterval(() => {
                 if (pasoActual <= pasos.length) {
                     actualizarPaso(pasoActual - 1);
                     pasoActual++;
                 }
-            }, 20000); // Cada 20 segundos cambia de paso
+            }, 1500); // Cada 1.5 segundos cambia de paso
             
-            // Iniciar descarga del PDF
+            // Iniciar descarga del PDF usando window.location
             const url = '{% url "informes:generar_informe_pdf" parcela.id %}';
             
-            // Crear un iframe oculto para la descarga
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
+            // Iniciar descarga directa (NO usar iframe para PDFs)
+            window.location.href = url;
             
-            // Configurar descarga
-            iframe.onload = function() {
-                // Cuando termine la descarga
+            // Cerrar modal automáticamente después de un tiempo razonable
+            setTimeout(() => {
                 clearInterval(intervalo);
                 
                 // Completar al 100%
@@ -1022,34 +1019,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Marcar último paso como completado
                 actualizarPaso(pasos.length - 1);
                 
-                // Cerrar modal después de 2 segundos
+                // Cerrar modal después de 1.5 segundos adicionales
                 setTimeout(() => {
                     modalGenerando.hide();
-                    
-                    // Mostrar notificación de éxito con SweetAlert2 (si está disponible)
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: '¡Informe Generado!',
-                            html: `
-                                <p class="mb-3">El informe se ha generado y descargado correctamente.</p>
-                                <div class="alert alert-info mb-0">
-                                    <strong>📄 Archivo:</strong> informe_{{ parcela.nombre|slugify }}.pdf<br>
-                                    <strong>📥 Ubicación:</strong> Carpeta de Descargas<br>
-                                    <strong>🤖 Incluye:</strong> Análisis visual con Gemini AI
-                                </div>
-                            `,
-                            confirmButtonText: 'Entendido',
-                            confirmButtonColor: '#2E8B57',
-                            width: '500px'
-                        });
-                    } else {
-                        // Fallback con alert nativo
-                        alert('✅ ¡Informe generado exitosamente!\n\n' +
-                              'El PDF se ha descargado correctamente.\n' +
-                              'Busca el archivo en tu carpeta de Descargas.\n\n' +
-                              '📄 Incluye análisis visual con Gemini AI');
-                    }
                     
                     // Resetear modal para próxima vez
                     setTimeout(() => {
@@ -1075,34 +1047,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                     }, 500);
-                    
-                    // Remover iframe
-                    document.body.removeChild(iframe);
-                }, 2000);
-            };
-            
-            // Manejar errores
-            iframe.onerror = function() {
-                clearInterval(intervalo);
-                modalGenerando.hide();
-                
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error al Generar Informe',
-                        text: 'Hubo un problema al generar el informe. Por favor, intenta nuevamente.',
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#dc3545'
-                    });
-                } else {
-                    alert('❌ Error al generar el informe.\nPor favor, intenta nuevamente.');
-                }
-                
-                document.body.removeChild(iframe);
-            };
-            
-            // Iniciar descarga
-            iframe.src = url;
+                }, 1500);
+            }, 9000); // Total: 9 segundos (7.5s de pasos + 1.5s de cierre)
         });
     }
 });
