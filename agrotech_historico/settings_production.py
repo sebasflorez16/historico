@@ -17,7 +17,13 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-CHANGE-THIS-IN-PRODUCTION'
 # Debug de variables de entorno (solo para diagnóstico)
 print("=" * 60, file=sys.stderr)
 print("🔧 CONFIGURACIÓN DE PRODUCCIÓN", file=sys.stderr)
-print(f"DATABASE_URL presente: {'✅' if os.getenv('DATABASE_URL') else '❌'}", file=sys.stderr)
+db_url = os.getenv('DATABASE_URL', '')
+if db_url:
+    # Ocultar password en el log
+    db_url_safe = db_url.split('@')[-1] if '@' in db_url else 'configurada'
+    print(f"DATABASE_URL presente: ✅ ({db_url_safe})", file=sys.stderr)
+else:
+    print(f"DATABASE_URL presente: ❌ (variable vacía o no existe)", file=sys.stderr)
 print(f"DJANGO_SETTINGS_MODULE: {os.getenv('DJANGO_SETTINGS_MODULE', 'No configurado')}", file=sys.stderr)
 print("=" * 60, file=sys.stderr)
 
@@ -70,6 +76,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.auth.context_processors.messages',
+                'django.contrib.messages.context_processors.messages',  # Para admin
             ],
         },
     },
@@ -81,7 +88,7 @@ WSGI_APPLICATION = 'agrotech_historico.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 # Railway auto-genera DATABASE_URL
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 
 if DATABASE_URL:
     # Parsear DATABASE_URL y forzar el engine de PostGIS
@@ -94,8 +101,10 @@ if DATABASE_URL:
     }
     # Forzar el motor de GeoDjango PostGIS
     DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
+    print(f"✅ Base de datos configurada: {DATABASES['default']['HOST']}", file=sys.stderr)
 else:
     # Fallback para desarrollo local
+    print("⚠️  DATABASE_URL no configurada, usando configuración local", file=sys.stderr)
     DATABASES = {
         'default': {
             'ENGINE': 'django.contrib.gis.db.backends.postgis',
