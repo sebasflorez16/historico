@@ -4,6 +4,7 @@ Optimizado para GeoDjango con PostgreSQL + PostGIS
 """
 
 import os
+import sys
 import dj_database_url
 from pathlib import Path
 
@@ -12,6 +13,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-CHANGE-THIS-IN-PRODUCTION')
+
+# Debug de variables de entorno (solo para diagnóstico)
+print("=" * 60, file=sys.stderr)
+print("🔧 CONFIGURACIÓN DE PRODUCCIÓN", file=sys.stderr)
+print(f"DATABASE_URL presente: {'✅' if os.getenv('DATABASE_URL') else '❌'}", file=sys.stderr)
+print(f"DJANGO_SETTINGS_MODULE: {os.getenv('DJANGO_SETTINGS_MODULE', 'No configurado')}", file=sys.stderr)
+print("=" * 60, file=sys.stderr)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
@@ -76,14 +84,16 @@ WSGI_APPLICATION = 'agrotech_historico.wsgi.application'
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
+    # Parsear DATABASE_URL y forzar el engine de PostGIS
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
             conn_health_checks=True,
-            engine='django.contrib.gis.db.backends.postgis'  # Motor GeoDjango
         )
     }
+    # Forzar el motor de GeoDjango PostGIS
+    DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 else:
     # Fallback para desarrollo local
     DATABASES = {
