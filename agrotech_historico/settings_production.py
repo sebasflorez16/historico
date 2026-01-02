@@ -33,10 +33,19 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # Hosts permitidos
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-# Agregar dominio de Railway si existe
+# Agregar dominios de Railway
+ALLOWED_HOSTS.extend([
+    'healthcheck.railway.app',  # Railway healthcheck
+    '.railway.app',  # Todos los subdominios de railway.app
+    '.up.railway.app',  # Dominios de deploy
+])
+
+# Agregar dominio personalizado si existe
 RAILWAY_STATIC_URL = os.getenv('RAILWAY_STATIC_URL')
 if RAILWAY_STATIC_URL:
-    ALLOWED_HOSTS.append(RAILWAY_STATIC_URL.replace('https://', '').replace('http://', ''))
+    host = RAILWAY_STATIC_URL.replace('https://', '').replace('http://', '').split('/')[0]
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 # Application definition
 INSTALLED_APPS = [
