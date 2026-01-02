@@ -85,8 +85,7 @@ TEMPLATES = [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
-                'django.contrib.auth.context_processors.messages',
-                'django.contrib.messages.context_processors.messages',  # Para admin
+                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
