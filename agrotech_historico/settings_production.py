@@ -63,6 +63,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'agrotech_historico.middleware.HealthCheckMiddleware',  # Primero: marcar healthcheck
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Servir archivos estáticos
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -216,9 +217,14 @@ LOGGING = {
 
 # Security settings para producción
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    # No usar SECURE_SSL_REDIRECT porque interfiere con healthcheck
+    # El SSL redirect se maneja en el middleware personalizado
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+
+# Desactivar APPEND_SLASH para evitar redirects 301
+APPEND_SLASH = False
