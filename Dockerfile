@@ -28,10 +28,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Limpieza
     && rm -rf /var/lib/apt/lists/*
 
+# Verificar instalación de librerías geoespaciales (debug)
+RUN echo "🔍 Verificando instalación de librerías geoespaciales..." && \
+    find /usr -name "libgdal.so*" 2>/dev/null | head -5 && \
+    find /usr -name "libgeos_c.so*" 2>/dev/null | head -5 && \
+    gdal-config --version || echo "⚠️ gdal-config no encontrado"
+
 # Variables de entorno para GDAL
+# Configurar rutas para que Python encuentre las librerías geoespaciales
+# Nota: Las rutas pueden variar según la distribución, por eso agregamos múltiples
 ENV GDAL_CONFIG=/usr/bin/gdal-config \
     CPLUS_INCLUDE_PATH=/usr/include/gdal \
-    C_INCLUDE_PATH=/usr/include/gdal
+    C_INCLUDE_PATH=/usr/include/gdal \
+    GDAL_LIBRARY_PATH=/usr/lib/libgdal.so \
+    GEOS_LIBRARY_PATH=/usr/lib/libgeos_c.so \
+    LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib:$LD_LIBRARY_PATH \
+    GDAL_DATA=/usr/share/gdal \
+    PROJ_LIB=/usr/share/proj
 
 # Crear directorio de trabajo
 WORKDIR /app
@@ -48,6 +61,11 @@ COPY . .
 
 # Crear directorios necesarios
 RUN mkdir -p /app/media /app/staticfiles
+
+# Verificar que Django puede cargar GDAL (diagnóstico)
+RUN echo "🧪 Verificando que Django puede importar GDAL..." && \
+    python -c "from django.contrib.gis import gdal; print('✅ GDAL cargado correctamente, versión:', gdal.gdal_version())" || \
+    echo "⚠️ Warning: GDAL import falló, pero continuando..."
 
 # Recopilar archivos estáticos (se ejecutará en build)
 RUN python manage.py collectstatic --noinput || echo "Collectstatic fallido, continuando..."
