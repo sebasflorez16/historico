@@ -636,9 +636,32 @@ def estado_sistema(request):
     Vista para monitorear el estado del sistema
     """
     try:
-        # Verificar conectividad EOSDA
-        # estado_eosda = eosda_service.verificar_conectividad()
-        estado_eosda = {'status': 'offline', 'message': 'Servicio temporalmente deshabilitado'}
+        # Verificar conectividad EOSDA dinámicamente
+        from .services.eosda_api import EosdaAPIService
+        eosda_service = EosdaAPIService()
+        
+        try:
+            # Intentar listar campos como prueba de conectividad
+            resultado = eosda_service.listar_campos()
+            if resultado.get('exito'):
+                campos = resultado.get('fields', [])
+                estado_eosda = {
+                    'status': 'online',
+                    'message': f'{len(campos)} campos sincronizados',
+                    'total_campos': len(campos)
+                }
+            else:
+                estado_eosda = {
+                    'status': 'error',
+                    'message': f"Error: {resultado.get('error', 'Desconocido')}",
+                    'error_details': resultado.get('error')
+                }
+        except Exception as e:
+            estado_eosda = {
+                'status': 'error',
+                'message': f'Error de conexión: {str(e)[:100]}',
+                'error_details': str(e)
+            }
         
         # Verificar estado del email
         from .services.email_service import email_service
@@ -658,7 +681,7 @@ def estado_sistema(request):
         }
         
         # Estado general del sistema
-        estado_general = 'operativo' if estado_email.get('valido', False) else 'degradado'
+        estado_general = 'operativo' if estado_eosda['status'] == 'online' and estado_email.get('valido', False) else 'degradado'
         
         contexto = {
             'estado_eosda': estado_eosda,

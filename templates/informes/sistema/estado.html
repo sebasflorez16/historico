@@ -148,33 +148,43 @@
             <div class="card status-card online h-100">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-database me-2"></i>
-                        Base de Datos
+                        <i class="fas fa-envelope me-2"></i>
+                        Sistema de Email
                     </h6>
                 </div>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span>Estado:</span>
+                        {% if estado_email.valido %}
                         <span class="badge bg-success">
                             <span class="status-indicator green"></span>
                             Operativo
                         </span>
+                        {% else %}
+                        <span class="badge bg-warning">
+                            <span class="status-indicator yellow"></span>
+                            No Configurado
+                        </span>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-2">
-                        <strong>Tipo:</strong><br>
-                        <span class="text-muted">PostgreSQL 15 + PostGIS</span>
+                        <strong>Configuración:</strong><br>
+                        {% if estado_email.valido %}
+                        <span class="text-success">✓ Email configurado correctamente</span>
+                        {% else %}
+                        <span class="text-muted">Pendiente de configurar</span>
+                        {% endif %}
                     </div>
                     
-                    <div class="mb-2">
-                        <strong>Extensiones:</strong><br>
-                        <span class="text-success">Geometría espacial habilitada</span>
+                    <div class="mb-3">
+                        <strong>Email desde:</strong><br>
+                        <span class="text-muted">{{ estado_email.email_from|default:"No configurado" }}</span>
                     </div>
                     
-                    <small class="text-muted">
-                        <i class="fas fa-check-circle me-1"></i>
-                        Todas las funcionalidades GIS disponibles
-                    </small>
+                    <a href="{% url 'informes:probar_email' %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-paper-plane me-2"></i>Probar Envío
+                    </a>
                 </div>
             </div>
         </div>
