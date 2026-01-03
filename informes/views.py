@@ -78,54 +78,65 @@ def dashboard(request):
                 servicios_pagados_legacy = registros_economicos.filter(pagado=True).count()
                 
                 # NUEVAS Estadísticas financieras de informes
-                from .models import InformeGenerado
                 from datetime import datetime, timedelta
                 
-                # Totales generales
-                ingresos_pagados = InformeGenerado.objects.filter(
-                    estado_pago='pagado'
-                ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
-                
-                ingresos_parciales = InformeGenerado.objects.filter(
-                    estado_pago='parcial'
-                ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
-                
-                total_ingresos = ingresos_pagados + ingresos_parciales
-                
-                # Cuentas por cobrar (saldo pendiente)
-                informes_con_saldo = InformeGenerado.objects.filter(
-                    estado_pago__in=['pendiente', 'parcial', 'vencido']
-                ).exclude(estado_pago='cortesia')
-                
-                cuentas_por_cobrar = sum(
-                    [informe.saldo_pendiente for informe in informes_con_saldo]
-                )
-                
-                # Informes vencidos
-                ahora = timezone.now()
-                informes_vencidos = InformeGenerado.objects.filter(
-                    fecha_vencimiento__lt=ahora,
-                    estado_pago__in=['pendiente', 'parcial']
-                ).count()
-                
-                # Informes por vencer (próximos 7 días)
-                fecha_limite = ahora + timedelta(days=7)
-                informes_por_vencer = InformeGenerado.objects.filter(
-                    fecha_vencimiento__gte=ahora,
-                    fecha_vencimiento__lte=fecha_limite,
-                    estado_pago__in=['pendiente', 'parcial']
-                ).count()
-                
-                # Informes pagados vs pendientes
-                informes_pagados = InformeGenerado.objects.filter(estado_pago='pagado').count()
-                informes_pendientes = InformeGenerado.objects.filter(
-                    estado_pago__in=['pendiente', 'parcial']
-                ).count()
-                
-                # Últimos pagos registrados
-                ultimos_pagos = InformeGenerado.objects.filter(
-                    estado_pago__in=['pagado', 'parcial']
-                ).exclude(monto_pagado=0).order_by('-fecha_actualizacion')[:5]
+                # Verificar si existen los campos de pago en Informe
+                if not hasattr(Informe, 'precio_base'):
+                    # Si no existen los campos de pago, usar valores por defecto
+                    logger.warning("⚠️ Los campos de pago no existen en el modelo Informe. Usando valores por defecto.")
+                    total_ingresos = Decimal('0')
+                    cuentas_por_cobrar = Decimal('0')
+                    informes_vencidos = 0
+                    informes_por_vencer = 0
+                    informes_pagados = 0
+                    informes_pendientes = 0
+                    ultimos_pagos = []
+                else:
+                    # Totales generales
+                    ingresos_pagados = Informe.objects.filter(
+                        estado_pago='pagado'
+                    ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
+                    
+                    ingresos_parciales = Informe.objects.filter(
+                        estado_pago='parcial'
+                    ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
+                    
+                    total_ingresos = ingresos_pagados + ingresos_parciales
+                    
+                    # Cuentas por cobrar (saldo pendiente)
+                    informes_con_saldo = Informe.objects.filter(
+                        estado_pago__in=['pendiente', 'parcial', 'vencido']
+                    ).exclude(estado_pago='cortesia')
+                    
+                    cuentas_por_cobrar = sum(
+                        [informe.saldo_pendiente for informe in informes_con_saldo]
+                    )
+                    
+                    # Informes vencidos
+                    ahora = timezone.now()
+                    informes_vencidos = Informe.objects.filter(
+                        fecha_vencimiento__lt=ahora,
+                        estado_pago__in=['pendiente', 'parcial']
+                    ).count()
+                    
+                    # Informes por vencer (próximos 7 días)
+                    fecha_limite = ahora + timedelta(days=7)
+                    informes_por_vencer = Informe.objects.filter(
+                        fecha_vencimiento__gte=ahora,
+                        fecha_vencimiento__lte=fecha_limite,
+                        estado_pago__in=['pendiente', 'parcial']
+                    ).count()
+                    
+                    # Informes pagados vs pendientes
+                    informes_pagados = Informe.objects.filter(estado_pago='pagado').count()
+                    informes_pendientes = Informe.objects.filter(
+                        estado_pago__in=['pendiente', 'parcial']
+                    ).count()
+                    
+                    # Últimos pagos registrados
+                    ultimos_pagos = Informe.objects.filter(
+                        estado_pago__in=['pagado', 'parcial']
+                    ).exclude(monto_pagado=0).order_by('-fecha_actualizacion')[:5]
                 
                 # Total de hectáreas registradas
                 total_hectareas = Parcela.objects.filter(activa=True).aggregate(
