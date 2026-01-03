@@ -40,6 +40,12 @@ urlpatterns = [
     path('informes/<int:informe_id>/', views.detalle_informe, name='detalle_informe'),
     path('informes/<int:informe_id>/eliminar/', views_eliminacion.eliminar_informe, name='eliminar_informe'),
     
+    # Sistema de pagos de informes
+    path('informes/<int:informe_id>/registrar-pago/', views.registrar_pago_informe, name='registrar_pago'),
+    path('informes/<int:informe_id>/aplicar-descuento/', views.aplicar_descuento_informe, name='aplicar_descuento'),
+    path('informes/<int:informe_id>/anular-pago/', views.anular_pago_informe, name='anular_pago'),
+    path('informes/<int:informe_id>/factura/', views.generar_factura_informe, name='generar_factura'),
+    
     # Sistema
     path('sistema/estado/', views.estado_sistema, name='estado_sistema'),
     path('sistema/probar-email/', views.probar_email, name='probar_email'),

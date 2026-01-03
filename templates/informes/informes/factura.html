@@ -1,0 +1,194 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Factura {{ factura.numero }} - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .factura-container {
+        max-width: 900px;
+        margin: 30px auto;
+        background: white;
+        padding: 60px;
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    
+    .factura-header {
+        border-bottom: 4px solid #2E8B57;
+        padding-bottom: 30px;
+        margin-bottom: 40px;
+    }
+    
+    .factura-number {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #2E8B57;
+    }
+    
+    .factura-table th {
+        background: #2E8B57;
+        color: white;
+        padding: 15px;
+    }
+    
+    .factura-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .total-section {
+        background: linear-gradient(135deg, #2E8B57 0%, #3BA567 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 12px;
+        margin-top: 30px;
+    }
+    
+    .btn-print {
+        background: linear-gradient(135deg, #2E8B57, #3BA567);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    
+    @media print {
+        .btn-print, .no-print {
+            display: none !important;
+        }
+        
+        .factura-container {
+            box-shadow: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="factura-container">
+        <!-- Header -->
+        <div class="factura-header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 style="color: #2E8B57; font-weight: 800;">
+                        🌾 AgroTech Histórico
+                    </h1>
+                    <p class="mb-1">Sistema de Análisis Satelital Agrícola</p>
+                    <p class="mb-0" style="color: #666;">NIT: 900.123.456-7</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="factura-number">{{ factura.numero }}</div>
+                    <p class="mb-1"><strong>Fecha:</strong> {{ factura.fecha|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información del Cliente -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h4 style="color: #2E8B57; margin-bottom: 15px;">Cliente:</h4>
+                {% if factura.cliente %}
+                    <p class="mb-1"><strong>Nombre:</strong> {{ factura.cliente }}</p>
+                {% else %}
+                    <p class="mb-1"><strong>Propietario:</strong> {{ informe.parcela.propietario }}</p>
+                {% endif %}
+                <p class="mb-1"><strong>Parcela:</strong> {{ factura.parcela }}</p>
+            </div>
+            <div class="col-md-6">
+                <h4 style="color: #2E8B57; margin-bottom: 15px;">Informe:</h4>
+                <p class="mb-1"><strong>Período:</strong> {{ informe.fecha_inicio_analisis|date:"d/m/Y" }} - {{ informe.fecha_fin_analisis|date:"d/m/Y" }}</p>
+                <p class="mb-1"><strong>Meses:</strong> {{ informe.periodo_analisis_meses }}</p>
+            </div>
+        </div>
+        
+        <!-- Detalles de la Factura -->
+        <table class="table factura-table">
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th class="text-end">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Análisis Satelital - {{ factura.parcela }}</strong></td>
+                    <td class="text-end">${{ factura.precio_base|floatformat:0 }} COP</td>
+                </tr>
+                {% if factura.descuento_porcentaje > 0 %}
+                <tr>
+                    <td>Descuento ({{ factura.descuento_porcentaje }}%)</td>
+                    <td class="text-end" style="color: #dc3545;">-${{ factura.descuento_monto|floatformat:0 }} COP</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        
+        <!-- Totales -->
+        <div class="row">
+            <div class="col-md-6 offset-md-6">
+                <div class="total-section">
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong>Subtotal:</strong>
+                        <span>${{ factura.precio_final|floatformat:0 }} COP</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong>Pagado:</strong>
+                        <span>${{ factura.monto_pagado|floatformat:0 }} COP</span>
+                    </div>
+                    <hr style="border-color: rgba(255,255,255,0.3);">
+                    <div class="d-flex justify-content-between" style="font-size: 1.3rem;">
+                        <strong>Saldo Pendiente:</strong>
+                        <strong>${{ factura.saldo_pendiente|floatformat:0 }} COP</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Estado del Pago -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-{% if factura.estado_pago == 'Pagado' %}success{% elif factura.estado_pago == 'Pendiente' %}warning{% else %}info{% endif %}">
+                    <strong>Estado:</strong> {{ factura.estado_pago }}
+                    {% if factura.fecha_pago %}
+                    | <strong>Fecha de Pago:</strong> {{ factura.fecha_pago|date:"d/m/Y H:i" }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% if factura.metodo_pago %}
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <p><strong>Método de Pago:</strong> {{ factura.metodo_pago }}</p>
+            </div>
+            {% if factura.referencia_pago %}
+            <div class="col-md-6">
+                <p><strong>Referencia:</strong> {{ factura.referencia_pago }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Footer -->
+        <div class="text-center mt-5 pt-4" style="border-top: 2px dashed #e0e0e0;">
+            <p style="color: #666;">Gracias por confiar en AgroTech Histórico</p>
+            <p class="mb-0" style="font-size: 0.9rem; color: #999;">
+                Esta es una factura generada electrónicamente
+            </p>
+        </div>
+        
+        <!-- Botones -->
+        <div class="text-center mt-4 no-print">
+            <button onclick="window.print()" class="btn btn-print me-2">
+                <i class="fas fa-print me-2"></i>Imprimir Factura
+            </button>
+            <a href="{% url 'informes:detalle_informe' informe.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Informe
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

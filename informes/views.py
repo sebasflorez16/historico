@@ -59,6 +59,7 @@ def dashboard(request):
         if request.user.is_superuser:
             try:
                 from .models_clientes import ClienteInvitacion, RegistroEconomico
+                from decimal import Decimal
                 
                 # Estadísticas de invitaciones
                 total_invitaciones = ClienteInvitacion.objects.count()
@@ -70,11 +71,61 @@ def dashboard(request):
                     estado='utilizada'
                 ).count()
                 
-                # Estadísticas económicas
+                # Estadísticas económicas de RegistroEconomico (legacy)
                 registros_economicos = RegistroEconomico.objects.all()
-                ingresos_totales = registros_economicos.aggregate(Sum('valor_final'))['valor_final__sum'] or 0
-                servicios_pendientes = registros_economicos.filter(pagado=False).count()
-                servicios_pagados = registros_economicos.filter(pagado=True).count()
+                ingresos_totales_legacy = registros_economicos.aggregate(Sum('valor_final'))['valor_final__sum'] or 0
+                servicios_pendientes_legacy = registros_economicos.filter(pagado=False).count()
+                servicios_pagados_legacy = registros_economicos.filter(pagado=True).count()
+                
+                # NUEVAS Estadísticas financieras de informes
+                from .models import InformeGenerado
+                from datetime import datetime, timedelta
+                
+                # Totales generales
+                ingresos_pagados = InformeGenerado.objects.filter(
+                    estado_pago='pagado'
+                ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
+                
+                ingresos_parciales = InformeGenerado.objects.filter(
+                    estado_pago='parcial'
+                ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
+                
+                total_ingresos = ingresos_pagados + ingresos_parciales
+                
+                # Cuentas por cobrar (saldo pendiente)
+                informes_con_saldo = InformeGenerado.objects.filter(
+                    estado_pago__in=['pendiente', 'parcial', 'vencido']
+                ).exclude(estado_pago='cortesia')
+                
+                cuentas_por_cobrar = sum(
+                    [informe.saldo_pendiente for informe in informes_con_saldo]
+                )
+                
+                # Informes vencidos
+                ahora = timezone.now()
+                informes_vencidos = InformeGenerado.objects.filter(
+                    fecha_vencimiento__lt=ahora,
+                    estado_pago__in=['pendiente', 'parcial']
+                ).count()
+                
+                # Informes por vencer (próximos 7 días)
+                fecha_limite = ahora + timedelta(days=7)
+                informes_por_vencer = InformeGenerado.objects.filter(
+                    fecha_vencimiento__gte=ahora,
+                    fecha_vencimiento__lte=fecha_limite,
+                    estado_pago__in=['pendiente', 'parcial']
+                ).count()
+                
+                # Informes pagados vs pendientes
+                informes_pagados = InformeGenerado.objects.filter(estado_pago='pagado').count()
+                informes_pendientes = InformeGenerado.objects.filter(
+                    estado_pago__in=['pendiente', 'parcial']
+                ).count()
+                
+                # Últimos pagos registrados
+                ultimos_pagos = InformeGenerado.objects.filter(
+                    estado_pago__in=['pagado', 'parcial']
+                ).exclude(monto_pagado=0).order_by('-fecha_actualizacion')[:5]
                 
                 # Total de hectáreas registradas
                 total_hectareas = Parcela.objects.filter(activa=True).aggregate(
@@ -82,13 +133,23 @@ def dashboard(request):
                 )['area_hectareas__sum'] or 0
                 
                 estadisticas_economicas = {
+                    # Legacy (RegistroEconomico)
                     'total_invitaciones': total_invitaciones,
                     'invitaciones_pendientes': invitaciones_pendientes,
                     'invitaciones_completadas': invitaciones_completadas,
-                    'ingresos_totales': ingresos_totales,
-                    'servicios_pendientes': servicios_pendientes,
-                    'servicios_pagados': servicios_pagados,
-                    'total_hectareas': round(total_hectareas, 2)
+                    'ingresos_totales': ingresos_totales_legacy,
+                    'servicios_pendientes': servicios_pendientes_legacy,
+                    'servicios_pagados': servicios_pagados_legacy,
+                    'total_hectareas': round(total_hectareas, 2),
+                    
+                    # Nuevas estadísticas de InformeGenerado
+                    'total_ingresos_informes': float(total_ingresos),
+                    'cuentas_por_cobrar': float(cuentas_por_cobrar),
+                    'informes_vencidos': informes_vencidos,
+                    'informes_por_vencer': informes_por_vencer,
+                    'informes_pagados': informes_pagados,
+                    'informes_pendientes': informes_pendientes,
+                    'ultimos_pagos': ultimos_pagos,
                 }
             except Exception as e:
                 logger.error(f"Error cargando estadísticas económicas: {str(e)}")
@@ -100,7 +161,14 @@ def dashboard(request):
                     'ingresos_totales': 0,
                     'servicios_pendientes': 0,
                     'servicios_pagados': 0,
-                    'total_hectareas': 0
+                    'total_hectareas': 0,
+                    'total_ingresos_informes': 0,
+                    'cuentas_por_cobrar': 0,
+                    'informes_vencidos': 0,
+                    'informes_por_vencer': 0,
+                    'informes_pagados': 0,
+                    'informes_pendientes': 0,
+                    'ultimos_pagos': [],
                 }
         
         # Parcelas recientes
@@ -1930,9 +1998,43 @@ def generar_informe_pdf(request, parcela_id):
             if not os.path.exists(ruta_pdf):
                 raise FileNotFoundError(f"El PDF no se generó correctamente en {ruta_pdf}")
             
-            # Crear registro de informe en BD
-            from datetime import timedelta
-            titulo_informe = f"Informe - {parcela.nombre}"[:290]  # Limitar a 290 caracteres
+            # Determinar precio base del informe
+            precio_base = Decimal('0.00')
+            cliente_invitacion = None
+            fecha_vencimiento_calculada = None
+            
+            # Verificar si la parcela tiene invitación asociada
+            if hasattr(parcela, 'invitacion_cliente'):
+                invitacion = parcela.invitacion_cliente
+                cliente_invitacion = invitacion
+                precio_base = invitacion.costo_servicio
+                logger.info(f"Precio asignado desde invitación: ${precio_base} COP")
+            else:
+                # Calcular precio según configuración
+                from .models_configuracion import ConfiguracionReporte
+                config = ConfiguracionReporte.objects.filter(
+                    parcela=parcela
+                ).order_by('-creado_en').first()
+                
+                if config:
+                    precio_base = config.costo_estimado
+                    logger.info(f"Precio asignado desde configuración: ${precio_base} COP")
+                else:
+                    # Precio por defecto según tipo de análisis
+                    if meses_atras <= 6:
+                        precio_base = Decimal('200000.00')  # Plan básico
+                    elif meses_atras <= 12:
+                        precio_base = Decimal('320000.00')  # Plan estándar
+                    else:
+                        precio_base = Decimal('560000.00')  # Plan avanzado
+                    logger.info(f"Precio por defecto según período: ${precio_base} COP")
+            
+            # Calcular fecha de vencimiento (30 días desde hoy)
+            if precio_base > 0:
+                fecha_vencimiento_calculada = (datetime.now() + timedelta(days=30)).date()
+            
+            # Crear registro de informe en BD con datos de pago
+            titulo_informe = f"Informe - {parcela.nombre}"[:290]
             informe = Informe.objects.create(
                 parcela=parcela,
                 periodo_analisis_meses=meses_atras,
@@ -1940,8 +2042,14 @@ def generar_informe_pdf(request, parcela_id):
                 fecha_fin_analisis=datetime.now().date(),
                 titulo=titulo_informe,
                 resumen_ejecutivo=f"Informe generado con {indices_count} meses de datos satelitales.",
-                archivo_pdf=ruta_pdf
+                archivo_pdf=ruta_pdf,
+                # Campos de pago
+                precio_base=precio_base,
+                cliente=cliente_invitacion,
+                fecha_vencimiento=fecha_vencimiento_calculada
             )
+            
+            logger.info(f"Informe creado con precio_base=${precio_base}, estado={informe.estado_pago}")
             
             # Enviar archivo para descarga
             from django.http import FileResponse
@@ -1953,9 +2061,16 @@ def generar_informe_pdf(request, parcela_id):
             
             # Log de éxito
             logger.info(f"Informe PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")
-            messages.success(request, 
-                           f'¡Informe generado exitosamente! '
-                                                     f'Analizados {indices_count} registros mensuales.')
+            
+            if precio_base > 0:
+                messages.success(request, 
+                               f'¡Informe generado exitosamente! '
+                               f'Analizados {indices_count} registros mensuales. '
+                               f'Precio: ${precio_base:,.0f} COP - Estado: {informe.get_estado_pago_display()}')
+            else:
+                messages.success(request, 
+                               f'¡Informe generado exitosamente! '
+                               f'Analizados {indices_count} registros mensuales.')
             
             return response
             
@@ -2078,3 +2193,191 @@ def timeline_api(request, parcela_id):
             'error': True,
             'mensaje': f'Error obteniendo datos del timeline: {str(e)}'
         }, status=500)
+
+
+# =====================================================
+# VISTAS DEL SISTEMA CONTABLE
+# =====================================================
+
+@login_required
+def registrar_pago_informe(request, informe_id):
+    """
+    Vista para registrar pagos de informes
+    """
+    from .forms import RegistrarPagoForm
+    
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        # Verificar permisos
+        if not request.user.is_superuser and informe.parcela.propietario != request.user.username:
+            messages.error(request, 'No tiene permisos para registrar pagos de este informe.')
+            return redirect('informes:detalle_informe', informe_id=informe_id)
+        
+        if request.method == 'POST':
+            form = RegistrarPagoForm(request.POST, informe=informe)
+            
+            if form.is_valid():
+                monto = form.cleaned_data['monto']
+                metodo = form.cleaned_data['metodo_pago']
+                referencia = form.cleaned_data.get('referencia_pago', '')
+                notas = form.cleaned_data.get('notas', '')
+                
+                # Registrar pago
+                if monto >= informe.saldo_pendiente:
+                    # Pago completo
+                    informe.marcar_como_pagado(
+                        monto=monto,
+                        metodo=metodo,
+                        referencia=referencia,
+                        notas=notas
+                    )
+                    messages.success(request, f'✅ Pago completo registrado. Informe marcado como pagado.')
+                else:
+                    # Pago parcial
+                    informe.registrar_pago_parcial(
+                        monto=monto,
+                        metodo=metodo,
+                        referencia=referencia,
+                        notas=notas
+                    )
+                    messages.success(request, 
+                                   f'✅ Pago parcial de ${monto:,.2f} COP registrado. '
+                                   f'Saldo pendiente: ${informe.saldo_pendiente:,.2f} COP')
+                
+                logger.info(f"Pago registrado para informe {informe_id}: ${monto} COP")
+                return redirect('informes:detalle_informe', informe_id=informe_id)
+        else:
+            form = RegistrarPagoForm(informe=informe)
+        
+        contexto = {
+            'form': form,
+            'informe': informe,
+        }
+        
+        return render(request, 'informes/informes/registrar_pago.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error registrando pago para informe {informe_id}: {str(e)}")
+        messages.error(request, f'Error registrando pago: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+def aplicar_descuento_informe(request, informe_id):
+    """
+    Vista para aplicar descuentos a informes
+    """
+    from .forms import AplicarDescuentoForm
+    
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        # Verificar permisos (solo superusuarios pueden dar descuentos)
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo los administradores pueden aplicar descuentos.')
+            return redirect('informes:detalle_informe', informe_id=informe_id)
+        
+        if request.method == 'POST':
+            form = AplicarDescuentoForm(request.POST, informe=informe)
+            
+            if form.is_valid():
+                porcentaje = form.cleaned_data['porcentaje']
+                notas = form.cleaned_data['notas']
+                
+                # Aplicar descuento
+                precio_anterior = informe.precio_final
+                nuevo_precio = informe.aplicar_descuento(
+                    porcentaje=porcentaje,
+                    notas=notas
+                )
+                
+                descuento_monto = precio_anterior - nuevo_precio
+                
+                messages.success(request, 
+                               f'✅ Descuento del {porcentaje}% aplicado. '
+                               f'Descuento: ${descuento_monto:,.2f} COP. '
+                               f'Nuevo precio: ${nuevo_precio:,.2f} COP')
+                
+                logger.info(f"Descuento aplicado a informe {informe_id}: {porcentaje}%")
+                return redirect('informes:detalle_informe', informe_id=informe_id)
+        else:
+            form = AplicarDescuentoForm(informe=informe)
+        
+        contexto = {
+            'form': form,
+            'informe': informe,
+        }
+        
+        return render(request, 'informes/informes/aplicar_descuento.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error aplicando descuento a informe {informe_id}: {str(e)}")
+        messages.error(request, f'Error aplicando descuento: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+def anular_pago_informe(request, informe_id):
+    """
+    Vista para anular el pago de un informe
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        # Solo superusuarios pueden anular pagos
+        if not request.user.is_superuser:
+            messages.error(request, 'Solo los administradores pueden anular pagos.')
+            return redirect('informes:detalle_informe', informe_id=informe_id)
+        
+        if request.method == 'POST':
+            motivo = request.POST.get('motivo', 'Anulación administrativa')
+            
+            # Anular pago
+            informe.anular_pago(motivo=motivo)
+            
+            messages.warning(request, f'⚠️ Pago anulado. Motivo: {motivo}')
+            logger.info(f"Pago anulado para informe {informe_id}: {motivo}")
+            
+            return redirect('informes:detalle_informe', informe_id=informe_id)
+        
+        contexto = {
+            'informe': informe,
+        }
+        
+        return render(request, 'informes/informes/anular_pago.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error anulando pago de informe {informe_id}: {str(e)}")
+        messages.error(request, f'Error anulando pago: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+def generar_factura_informe(request, informe_id):
+    """
+    Vista para generar y descargar factura de un informe
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        # Verificar permisos
+        if not request.user.is_superuser and informe.parcela.propietario != request.user.username:
+            messages.error(request, 'No tiene permisos para ver la factura de este informe.')
+            return redirect('informes:detalle_informe', informe_id=informe_id)
+        
+        # Generar datos de factura
+        factura_data = informe.generar_factura_data()
+        
+        # Renderizar template de factura
+        contexto = {
+            'factura': factura_data,
+            'informe': informe,
+        }
+        
+        return render(request, 'informes/informes/factura.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error generando factura para informe {informe_id}: {str(e)}")
+        messages.error(request, f'Error generando factura: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)

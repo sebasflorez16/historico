@@ -1,0 +1,117 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Anular Pago - {{ informe.titulo }} - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .anular-card {
+        max-width: 600px;
+        margin: 50px auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(220, 53, 69, 0.2);
+        border: 3px solid #dc3545;
+    }
+    
+    .anular-header {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        padding: 30px;
+        border-radius: 17px 17px 0 0;
+    }
+    
+    .anular-body {
+        padding: 40px;
+    }
+    
+    .info-item {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px dashed #e0e0e0;
+    }
+    
+    .btn-danger-custom {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border: none;
+        padding: 14px 40px;
+        border-radius: 12px;
+        font-weight: 600;
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
+    }
+    
+    .btn-danger-custom:hover {
+        background: linear-gradient(135deg, #c82333, #bd2130);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 24px rgba(220, 53, 69, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="anular-card">
+        <div class="anular-header text-center">
+            <h2><i class="fas fa-exclamation-triangle me-2"></i>Anular Pago</h2>
+            <p class="mb-0">⚠️ Esta acción no se puede deshacer</p>
+        </div>
+        
+        <div class="anular-body">
+            <div class="alert alert-danger mb-4">
+                <strong>Advertencia:</strong> Al anular el pago, se restablecerá el estado del informe a pendiente y se eliminará toda la información de pago registrada.
+            </div>
+            
+            <h5 class="mb-3">Información del Pago Actual:</h5>
+            
+            <div class="info-item">
+                <strong>Informe:</strong> {{ informe.titulo }}
+            </div>
+            
+            <div class="info-item">
+                <strong>Precio Final:</strong> ${{ informe.precio_final|floatformat:0 }} COP
+            </div>
+            
+            <div class="info-item">
+                <strong>Monto Pagado:</strong> ${{ informe.monto_pagado|floatformat:0 }} COP
+            </div>
+            
+            <div class="info-item">
+                <strong>Estado Actual:</strong> {{ informe.get_estado_pago_display }}
+            </div>
+            
+            {% if informe.metodo_pago %}
+            <div class="info-item">
+                <strong>Método de Pago:</strong> {{ informe.metodo_pago }}
+            </div>
+            {% endif %}
+            
+            {% if informe.referencia_pago %}
+            <div class="info-item">
+                <strong>Referencia:</strong> {{ informe.referencia_pago }}
+            </div>
+            {% endif %}
+            
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label for="motivo" class="form-label fw-bold">
+                        <i class="fas fa-comment me-2"></i>Motivo de la Anulación *
+                    </label>
+                    <textarea name="motivo" id="motivo" class="form-control" rows="3" 
+                              placeholder="Explique el motivo de la anulación..." required></textarea>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'informes:detalle_informe' informe.id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-danger-custom">
+                        <i class="fas fa-ban me-2"></i>Anular Pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

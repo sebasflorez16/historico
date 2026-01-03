@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",  # Para formateo de números y fechas
     # Soporte geoespacial
     "django.contrib.gis",
     # Apps del proyecto

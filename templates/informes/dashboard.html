@@ -1,4 +1,5 @@
 {% extends 'informes/base.html' %}
+{% load humanize %}
 
 {% block title %}Dashboard - AgroTech Histórico{% endblock %}
 
@@ -109,7 +110,6 @@
     </div>
 </div>
 
-{% if user.is_superuser and estadisticas_economicas %}
 <!-- Estadísticas Económicas (Solo para administradores) -->
 <div class="row mb-4">
     <div class="col-12">
@@ -221,6 +221,150 @@
         </div>
     </div>
 </div>
+
+<!-- Panel Financiero de Informes (NUEVO) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="text-dark mb-3">
+            <i class="fas fa-file-invoice-dollar me-2"></i>
+            Gestión Financiera de Informes
+        </h4>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Ingresos Totales</h6>
+                        <h3 class="mb-0 text-success">${{ estadisticas_economicas.total_ingresos_informes|floatformat:0|intcomma }} COP</h3>
+                        <small class="text-muted">{{ estadisticas_economicas.informes_pagados }} informes pagados</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-hand-holding-usd fa-3x text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Cuentas por Cobrar</h6>
+                        <h3 class="mb-0 text-warning">${{ estadisticas_economicas.cuentas_por_cobrar|floatformat:0|intcomma }} COP</h3>
+                        <small class="text-muted">{{ estadisticas_economicas.informes_pendientes }} informes pendientes</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-money-bill-wave fa-3x text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Informes Vencidos</h6>
+                        <h3 class="mb-0 text-danger">{{ estadisticas_economicas.informes_vencidos }}</h3>
+                        <small class="text-muted">Requieren atención urgente</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-exclamation-triangle fa-3x text-danger opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Por Vencer (7 días)</h6>
+                        <h3 class="mb-0 text-info">{{ estadisticas_economicas.informes_por_vencer }}</h3>
+                        <small class="text-muted">Próximos a vencimiento</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-calendar-alt fa-3x text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimos Pagos Registrados -->
+{% if estadisticas_economicas.ultimos_pagos %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Últimos Pagos Registrados
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Parcela</th>
+                                <th>Cliente</th>
+                                <th>Monto Pagado</th>
+                                <th>Saldo Pendiente</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pago in estadisticas_economicas.ultimos_pagos %}
+                            <tr>
+                                <td>{{ pago.fecha_actualizacion|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'informes:detalle_informe' pago.id %}">
+                                        {{ pago.parcela.nombre }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if pago.parcela.cliente %}
+                                        {{ pago.parcela.cliente.get_full_name }}
+                                    {% else %}
+                                        <span class="text-muted">Sin cliente</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-success fw-bold">${{ pago.monto_pagado|floatformat:0|intcomma }} COP</td>
+                                <td class="text-warning">${{ pago.saldo_pendiente|floatformat:0|intcomma }} COP</td>
+                                <td>
+                                    {% if pago.estado_pago == 'pagado' %}
+                                        <span class="badge bg-success">Pagado</span>
+                                    {% elif pago.estado_pago == 'parcial' %}
+                                        <span class="badge bg-warning text-dark">Parcial</span>
+                                    {% elif pago.estado_pago == 'pendiente' %}
+                                        <span class="badge bg-secondary">Pendiente</span>
+                                    {% elif pago.estado_pago == 'vencido' %}
+                                        <span class="badge bg-danger">Vencido</span>
+                                    {% elif pago.estado_pago == 'cortesia' %}
+                                        <span class="badge bg-info">Cortesía</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endif %}
 
 <!-- Estado de Servicios -->

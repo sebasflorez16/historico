@@ -126,6 +126,107 @@
         box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
         color: white;
     }
+    
+    /* Estilos para información de pago */
+    .payment-card {
+        background: linear-gradient(135deg, #fff8f0 0%, #fff 100%);
+        border: 2px solid #FF7A00;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 16px rgba(255, 122, 0, 0.15);
+    }
+    
+    .payment-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: inline-block;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .badge-pagado {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+    
+    .badge-pendiente {
+        background: linear-gradient(135deg, #ffc107, #ffca2c);
+        color: #333;
+    }
+    
+    .badge-parcial {
+        background: linear-gradient(135deg, #17a2b8, #20c997);
+        color: white;
+    }
+    
+    .badge-vencido {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+    }
+    
+    .badge-cortesia {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        color: white;
+    }
+    
+    .payment-info-item {
+        margin-bottom: 15px;
+    }
+    
+    .payment-label {
+        font-weight: 600;
+        color: #FF7A00;
+        margin-right: 10px;
+        font-size: 0.95rem;
+    }
+    
+    .payment-value {
+        font-size: 1.05rem;
+        color: #333;
+    }
+    
+    .price-large {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #2E8B57;
+    }
+    
+    .btn-payment {
+        background: linear-gradient(135deg, #FF7A00, #FF9533);
+        border: none;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(255, 122, 0, 0.3);
+    }
+    
+    .btn-payment:hover {
+        background: linear-gradient(135deg, #FF9533, #FF7A00);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 122, 0, 0.4);
+        color: white;
+    }
+    
+    .alert-vencido {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 15px 20px;
+        box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
+    }
+    
+    .progress-bar-custom {
+        height: 25px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #2E8B57, #3BA567);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
 </style>
 {% endblock %}
 
@@ -178,6 +279,177 @@
             </div>
         </div>
     </div>
+
+    <!-- INFORMACIÓN DE PAGO -->
+    {% if informe.precio_base > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="payment-card">
+                <div class="row align-items-center mb-4">
+                    <div class="col-md-8">
+                        <h3 style="color: #FF7A00; font-weight: 700; margin-bottom: 5px;">
+                            <i class="fas fa-money-bill-wave me-2"></i>
+                            Información de Pago
+                        </h3>
+                        <span class="payment-badge badge-{{ informe.estado_pago }}">
+                            {{ informe.get_estado_pago_display }}
+                        </span>
+                        
+                        {% if informe.esta_vencido %}
+                        <div class="alert alert-vencido mt-3 mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>PAGO VENCIDO</strong> - {{ informe.dias_vencido }} día{{ informe.dias_vencido|pluralize }} de retraso
+                        </div>
+                        {% elif informe.fecha_vencimiento and informe.dias_para_vencimiento <= 7 and informe.estado_pago != 'pagado' %}
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="fas fa-clock me-2"></i>
+                            <strong>Próximo a vencer</strong> - {{ informe.dias_para_vencimiento }} día{{ informe.dias_para_vencimiento|pluralize }} restante{{ informe.dias_para_vencimiento|pluralize }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="price-large">
+                            ${{ informe.precio_final|floatformat:0 }} <small style="font-size: 1rem;">COP</small>
+                        </div>
+                        {% if informe.descuento_porcentaje > 0 %}
+                        <div style="color: #28a745; font-weight: 600; margin-top: 5px;">
+                            <i class="fas fa-tag me-1"></i>
+                            Descuento {{ informe.descuento_porcentaje }}% aplicado
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        {% if informe.precio_base != informe.precio_final %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">💵 Precio Base:</span>
+                            <span class="payment-value">${{ informe.precio_base|floatformat:0 }} COP</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if informe.cliente %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">👤 Cliente:</span>
+                            <span class="payment-value">{{ informe.cliente.nombre_cliente }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if informe.monto_pagado > 0 %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">💰 Monto Pagado:</span>
+                            <span class="payment-value">${{ informe.monto_pagado|floatformat:0 }} COP</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if informe.saldo_pendiente > 0 %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">📊 Saldo Pendiente:</span>
+                            <span class="payment-value" style="color: #dc3545; font-weight: 700;">
+                                ${{ informe.saldo_pendiente|floatformat:0 }} COP
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6">
+                        {% if informe.fecha_vencimiento %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">📅 Vencimiento:</span>
+                            <span class="payment-value">{{ informe.fecha_vencimiento|date:"d/m/Y" }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if informe.fecha_pago %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">✅ Fecha Pago:</span>
+                            <span class="payment-value">{{ informe.fecha_pago|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if informe.metodo_pago %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">💳 Método:</span>
+                            <span class="payment-value">{{ informe.metodo_pago }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if informe.referencia_pago %}
+                        <div class="payment-info-item">
+                            <span class="payment-label">🔖 Referencia:</span>
+                            <span class="payment-value">{{ informe.referencia_pago }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Barra de progreso de pago -->
+                {% if informe.estado_pago == 'parcial' %}
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="payment-label">Progreso de Pago:</span>
+                        <span class="payment-value">{{ informe.porcentaje_pagado|floatformat:1 }}%</span>
+                    </div>
+                    <div class="progress" style="height: 25px; border-radius: 12px;">
+                        <div class="progress-bar progress-bar-custom" role="progressbar" 
+                             style="width: {{ informe.porcentaje_pagado }}%;"
+                             aria-valuenow="{{ informe.porcentaje_pagado }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ informe.porcentaje_pagado|floatformat:1 }}%
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Botones de acción de pago -->
+                <div class="mt-4 d-flex gap-2 flex-wrap">
+                    {% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
+                        <a href="{% url 'informes:registrar_pago' informe.id %}" class="btn btn-payment">
+                            <i class="fas fa-cash-register me-2"></i>
+                            Registrar Pago
+                        </a>
+                    {% endif %}
+                    
+                    {% if user.is_superuser %}
+                        {% if informe.estado_pago != 'cortesia' and informe.descuento_porcentaje == 0 %}
+                        <a href="{% url 'informes:aplicar_descuento' informe.id %}" class="btn btn-warning">
+                            <i class="fas fa-percent me-2"></i>
+                            Aplicar Descuento
+                        </a>
+                        {% endif %}
+                        
+                        {% if informe.monto_pagado > 0 %}
+                        <a href="{% url 'informes:anular_pago' informe.id %}" class="btn btn-danger">
+                            <i class="fas fa-ban me-2"></i>
+                            Anular Pago
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <a href="{% url 'informes:generar_factura' informe.id %}" class="btn btn-outline-primary">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        Ver Factura
+                    </a>
+                </div>
+                
+                <!-- Historial de pagos (notas) -->
+                {% if informe.notas_pago %}
+                <div class="mt-4 pt-3" style="border-top: 2px dashed #FF7A00;">
+                    <h5 style="color: #FF7A00; font-weight: 600;">
+                        <i class="fas fa-history me-2"></i>
+                        Historial de Pagos
+                    </h5>
+                    <div style="background: white; padding: 15px; border-radius: 10px; margin-top: 10px;">
+                        {{ informe.notas_pago|linebreaks }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Información General -->
     <div class="row mb-4">
