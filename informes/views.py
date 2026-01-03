@@ -2392,3 +2392,98 @@ def generar_factura_informe(request, informe_id):
         logger.error(f"Error generando factura para informe {informe_id}: {str(e)}")
         messages.error(request, f'Error generando factura: {str(e)}')
         return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def arqueo_caja(request):
+    """
+    Vista de arqueo de caja - gestión completa de facturación
+    """
+    try:
+        from decimal import Decimal
+        from datetime import timedelta
+        
+        # Obtener filtros
+        estado_filtro = request.GET.get('estado', 'todos')
+        busqueda = request.GET.get('busqueda', '')
+        
+        # Verificar si existen los campos de pago
+        if not hasattr(Informe, 'precio_base'):
+            messages.warning(request, 'El sistema de pagos aún no está completamente configurado. Ejecute las migraciones pendientes.')
+            return redirect('informes:dashboard')
+        
+        # Query base
+        informes_query = Informe.objects.select_related('parcela').order_by('-fecha_generacion')
+        
+        # Aplicar filtros
+        if estado_filtro != 'todos':
+            informes_query = informes_query.filter(estado_pago=estado_filtro)
+        
+        if busqueda:
+            from django.db.models import Q
+            informes_query = informes_query.filter(
+                Q(parcela__nombre__icontains=busqueda) |
+                Q(parcela__propietario__icontains=busqueda)
+            )
+        
+        # Paginación
+        from django.core.paginator import Paginator
+        paginator = Paginator(informes_query, 20)
+        page_number = request.GET.get('page')
+        informes = paginator.get_page(page_number)
+        
+        # Estadísticas generales
+        total_informes = Informe.objects.count()
+        
+        # Estadísticas financieras
+        ingresos_totales = Informe.objects.filter(
+            estado_pago__in=['pagado', 'parcial']
+        ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
+        
+        cuentas_por_cobrar = sum([
+            inf.saldo_pendiente for inf in Informe.objects.filter(
+                estado_pago__in=['pendiente', 'parcial', 'vencido']
+            )
+        ])
+        
+        ahora = timezone.now()
+        informes_vencidos = Informe.objects.filter(
+            fecha_vencimiento__lt=ahora,
+            estado_pago__in=['pendiente', 'parcial']
+        ).count()
+        
+        informes_pagados = Informe.objects.filter(estado_pago='pagado').count()
+        informes_pendientes = Informe.objects.filter(estado_pago='pendiente').count()
+        informes_parciales = Informe.objects.filter(estado_pago='parcial').count()
+        
+        # Distribución por estado
+        estados_count = {
+            'pagado': Informe.objects.filter(estado_pago='pagado').count(),
+            'parcial': Informe.objects.filter(estado_pago='parcial').count(),
+            'pendiente': Informe.objects.filter(estado_pago='pendiente').count(),
+            'vencido': Informe.objects.filter(estado_pago='vencido').count(),
+            'cortesia': Informe.objects.filter(estado_pago='cortesia').count(),
+        }
+        
+        contexto = {
+            'informes': informes,
+            'estado_filtro': estado_filtro,
+            'busqueda': busqueda,
+            'total_informes': total_informes,
+            'ingresos_totales': float(ingresos_totales),
+            'cuentas_por_cobrar': float(cuentas_por_cobrar),
+            'informes_vencidos': informes_vencidos,
+            'informes_pagados': informes_pagados,
+            'informes_pendientes': informes_pendientes,
+            'informes_parciales': informes_parciales,
+            'estados_count': estados_count,
+        }
+        
+        return render(request, 'informes/arqueo_caja.html', contexto)
+        
+    except Exception as e:
+        logger.error(f"Error en arqueo de caja: {str(e)}")
+        messages.error(request, f'Error cargando arqueo de caja: {str(e)}')
+        return redirect('informes:dashboard')
+

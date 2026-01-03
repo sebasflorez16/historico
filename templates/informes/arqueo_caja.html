@@ -1,0 +1,317 @@
+{% extends 'informes/base.html' %}
+{% load humanize %}
+
+{% block title %}Arqueo de Caja - Facturación{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'informes:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Arqueo de Caja</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row fade-in-up">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 text-dark">
+                <i class="fas fa-cash-register me-3" style="color: var(--agrotech-verde);"></i>
+                Arqueo de Caja - Facturación
+            </h1>
+            <div class="d-flex gap-2">
+                <a href="{% url 'informes:dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen Financiero -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">💰 Ingresos Totales</h6>
+                        <h3 class="mb-0 text-success">${{ ingresos_totales|floatformat:0|intcomma }} COP</h3>
+                        <small class="text-muted">{{ informes_pagados }} informes pagados</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-money-bill-wave fa-3x text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">📋 Por Cobrar</h6>
+                        <h3 class="mb-0 text-warning">${{ cuentas_por_cobrar|floatformat:0|intcomma }} COP</h3>
+                        <small class="text-muted">{{ informes_pendientes }} pendientes</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-file-invoice-dollar fa-3x text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">⚠️ Vencidos</h6>
+                        <h3 class="mb-0 text-danger">{{ informes_vencidos }}</h3>
+                        <small class="text-muted">Requieren atención</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-exclamation-triangle fa-3x text-danger opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">🔵 Parciales</h6>
+                        <h3 class="mb-0 text-info">{{ informes_parciales }}</h3>
+                        <small class="text-muted">Abonos registrados</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-percentage fa-3x text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="fas fa-search me-1"></i>Buscar por parcela o propietario
+                        </label>
+                        <input type="text" class="form-control" name="busqueda" value="{{ busqueda }}" 
+                               placeholder="Ej: Lote 4, Juan Pérez...">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-filter me-1"></i>Filtrar por estado
+                        </label>
+                        <select class="form-select" name="estado">
+                            <option value="todos" {% if estado_filtro == 'todos' %}selected{% endif %}>Todos los estados</option>
+                            <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>⚪ Pendiente ({{ estados_count.pendiente }})</option>
+                            <option value="parcial" {% if estado_filtro == 'parcial' %}selected{% endif %}>🟡 Parcial ({{ estados_count.parcial }})</option>
+                            <option value="pagado" {% if estado_filtro == 'pagado' %}selected{% endif %}>🟢 Pagado ({{ estados_count.pagado }})</option>
+                            <option value="vencido" {% if estado_filtro == 'vencido' %}selected{% endif %}>🔴 Vencido ({{ estados_count.vencido }})</option>
+                            <option value="cortesia" {% if estado_filtro == 'cortesia' %}selected{% endif %}>🔵 Cortesía ({{ estados_count.cortesia }})</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i>Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Informes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Listado de Facturación ({{ informes.paginator.count }} informes)
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if informes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Parcela</th>
+                                <th>Cliente</th>
+                                <th>Precio Base</th>
+                                <th>Descuento</th>
+                                <th>Precio Final</th>
+                                <th>Pagado</th>
+                                <th>Saldo</th>
+                                <th>Estado</th>
+                                <th>Vencimiento</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for informe in informes %}
+                            <tr>
+                                <td>{{ informe.fecha_generacion|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'informes:detalle_informe' informe.id %}" class="text-decoration-none">
+                                        <strong>{{ informe.parcela.nombre }}</strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if informe.parcela.cliente %}
+                                        {{ informe.parcela.cliente.get_full_name }}
+                                    {% else %}
+                                        <span class="text-muted">{{ informe.parcela.propietario }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">${{ informe.precio_base|floatformat:0|intcomma }}</td>
+                                <td class="text-end">
+                                    {% if informe.descuento_porcentaje > 0 %}
+                                        <span class="badge bg-success">-{{ informe.descuento_porcentaje }}%</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold">${{ informe.precio_final|floatformat:0|intcomma }}</td>
+                                <td class="text-end text-success">${{ informe.monto_pagado|floatformat:0|intcomma }}</td>
+                                <td class="text-end text-warning">${{ informe.saldo_pendiente|floatformat:0|intcomma }}</td>
+                                <td>
+                                    {% if informe.estado_pago == 'pagado' %}
+                                        <span class="badge bg-success">🟢 Pagado</span>
+                                    {% elif informe.estado_pago == 'parcial' %}
+                                        <span class="badge bg-warning text-dark">🟡 Parcial</span>
+                                    {% elif informe.estado_pago == 'vencido' %}
+                                        <span class="badge bg-danger">🔴 Vencido</span>
+                                    {% elif informe.estado_pago == 'cortesia' %}
+                                        <span class="badge bg-info">🔵 Cortesía</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">⚪ Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if informe.fecha_vencimiento %}
+                                        {{ informe.fecha_vencimiento|date:"d/m/Y" }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        {% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
+                                        <a href="{% url 'informes:registrar_pago' informe.id %}" 
+                                           class="btn btn-outline-success" 
+                                           title="Registrar Pago">
+                                            <i class="fas fa-money-bill"></i>
+                                        </a>
+                                        {% endif %}
+                                        <a href="{% url 'informes:generar_factura' informe.id %}" 
+                                           class="btn btn-outline-primary" 
+                                           title="Ver Factura">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                        <a href="{% url 'informes:detalle_informe' informe.id %}" 
+                                           class="btn btn-outline-info" 
+                                           title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Paginación -->
+                {% if informes.has_other_pages %}
+                <div class="p-3">
+                    <nav aria-label="Paginación">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if informes.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ informes.previous_page_number }}&estado={{ estado_filtro }}&busqueda={{ busqueda }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in informes.paginator.page_range %}
+                                {% if informes.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > informes.number|add:'-3' and num < informes.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}&estado={{ estado_filtro }}&busqueda={{ busqueda }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if informes.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ informes.next_page_number }}&estado={{ estado_filtro }}&busqueda={{ busqueda }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="p-5 text-center">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay informes que coincidan con los filtros aplicados.</p>
+                    <a href="{% url 'informes:arqueo_caja' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-1"></i>Limpiar filtros
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        transition: transform 0.2s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .table th {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}

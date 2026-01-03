@@ -46,6 +46,9 @@ urlpatterns = [
     path('informes/<int:informe_id>/anular-pago/', views.anular_pago_informe, name='anular_pago'),
     path('informes/<int:informe_id>/factura/', views.generar_factura_informe, name='generar_factura'),
     
+    # Arqueo de caja / Facturación
+    path('facturacion/', views.arqueo_caja, name='arqueo_caja'),
+    
     # Sistema
     path('sistema/estado/', views.estado_sistema, name='estado_sistema'),
     path('sistema/probar-email/', views.probar_email, name='probar_email'),
