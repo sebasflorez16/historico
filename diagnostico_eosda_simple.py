@@ -24,7 +24,7 @@ def diagnosticar_eosda():
     print("-" * 80)
     
     api_key = os.getenv('EOSDA_API_KEY')
-    base_url = os.getenv('EOSDA_BASE_URL', 'https://api.eos.com')
+    base_url = os.getenv('EOSDA_BASE_URL', 'https://api-connect.eos.com')
     
     print(f"EOSDA_API_KEY:  {'✅ Configurada' if api_key else '❌ NO configurada'}")
     if api_key:

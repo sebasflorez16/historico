@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 api_key = os.getenv('EOSDA_API_KEY')
-base_url = os.getenv('EOSDA_BASE_URL', 'https://api.eos.com')
+base_url = os.getenv('EOSDA_BASE_URL', 'https://api-connect.eos.com')
 
 print("=" * 80)
 print("PRUEBAS DE AUTENTICACIÓN EOSDA - TODOS LOS FORMATOS")
