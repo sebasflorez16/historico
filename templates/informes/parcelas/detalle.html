@@ -563,7 +563,7 @@
                     {% if parcela.invitacion_cliente.telefono_cliente %}
                     <p><strong>Teléfono:</strong> {{ parcela.invitacion_cliente.telefono_cliente }}</p>
                     {% endif %}
-                    <p><strong>Costo Servicio:</strong> ${{ parcela.invitacion_cliente.costo_servicio|floatformat:2 }}</p>
+                    <p><strong>Costo Servicio:</strong> ${{ parcela.invitacion_cliente.costo_servicio|floatformat:2 }} COP</p>
                     <p><strong>Estado Pago:</strong>
                         <span class="badge bg-{% if parcela.invitacion_cliente.pagado %}success{% else %}warning{% endif %}">
                             {% if parcela.invitacion_cliente.pagado %}Pagado{% else %}Pendiente{% endif %}
@@ -656,7 +656,7 @@
                                     <td>{{ registro.fecha_servicio|date:"d/m/Y" }}</td>
                                     <td>{{ registro.get_tipo_servicio_display }}</td>
                                     <td>{{ registro.descripcion|truncatechars:50 }}</td>
-                                    <td>${{ registro.valor_final|floatformat:2 }}</td>
+                                    <td>${{ registro.valor_final|floatformat:2 }} COP</td>
                                     <td>
                                         <span class="badge bg-{% if registro.pagado %}success{% else %}warning{% endif %}">
                                             {% if registro.pagado %}Pagado{% else %}Pendiente{% endif %}

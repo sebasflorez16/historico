@@ -528,6 +528,21 @@ class Informe(models.Model):
         verbose_name="Tiempo Procesamiento"
     )
     
+    # === SISTEMA DE PAGOS ===
+    ESTADO_PAGO_CHOICES = [('pagado', '💰 Pagado'), ('pendiente', '⏳ Pendiente'), ('vencido', '⚠️ Vencido'), ('parcial', '📊 Pago Parcial'), ('cortesia', '🎁 Cortesía')]
+    precio_base = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Precio Base")
+    descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Descuento %")
+    precio_final = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Precio Final")
+    estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='pendiente', verbose_name="Estado Pago", db_index=True)
+    monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Pagado")
+    saldo_pendiente = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Saldo Pendiente")
+    fecha_pago = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Pago")
+    fecha_vencimiento = models.DateField(null=True, blank=True, verbose_name="Vencimiento", db_index=True)
+    metodo_pago = models.CharField(max_length=100, blank=True, verbose_name="Método Pago")
+    referencia_pago = models.CharField(max_length=200, blank=True, verbose_name="Referencia")
+    notas_pago = models.TextField(blank=True, verbose_name="Notas")
+    cliente = models.ForeignKey('ClienteInvitacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='informes_generados', verbose_name="Cliente")
+    
     class Meta:
         verbose_name = "Informe"
         verbose_name_plural = "Informes"
@@ -553,10 +568,85 @@ class Informe(models.Model):
             return "Requiere atención"
     
     def save(self, *args, **kwargs):
-        """Override save para generar título automáticamente"""
+        """Calcular precio final, saldo y estado de pago al guardar"""
         if not self.titulo:
             self.titulo = f"Análisis Satelital - {self.parcela.nombre} ({self.periodo_analisis_meses} meses)"
+        
+        # Calcular precio final con descuento
+        if self.descuento_porcentaje > 0:
+            self.precio_final = self.precio_base - (self.precio_base * self.descuento_porcentaje / 100)
+        else:
+            self.precio_final = self.precio_base
+        
+        # Calcular saldo pendiente
+        self.saldo_pendiente = self.precio_final - self.monto_pagado
+        
+        # Actualizar estado de pago automáticamente
+        if self.precio_base == 0:
+            self.estado_pago = 'cortesia'
+            self.saldo_pendiente = Decimal('0.00')
+        elif self.monto_pagado >= self.precio_final:
+            self.estado_pago = 'pagado'
+            self.saldo_pendiente = Decimal('0.00')
+        elif self.monto_pagado > 0:
+            self.estado_pago = 'parcial'
+        elif self.fecha_vencimiento and timezone.now().date() > self.fecha_vencimiento:
+            if self.estado_pago not in ['pagado', 'cortesia']:
+                self.estado_pago = 'vencido'
+        
         super().save(*args, **kwargs)
+    
+    def aplicar_descuento(self, porcentaje, notas=''):
+        self.descuento_porcentaje = Decimal(str(porcentaje))
+        if notas:
+            self.notas_pago = notas
+        self.save()
+    
+    def marcar_como_pagado(self, monto=None, metodo='', referencia='', notas=''):
+        self.monto_pagado = monto if monto else self.precio_final
+        if metodo:
+            self.metodo_pago = metodo
+        if referencia:
+            self.referencia_pago = referencia
+        if notas:
+            self.notas_pago = notas
+        self.save()
+    
+    def registrar_pago_parcial(self, monto, metodo='', referencia='', notas=''):
+        self.monto_pagado += Decimal(str(monto))
+        if metodo:
+            self.metodo_pago = metodo
+        if referencia:
+            self.referencia_pago = referencia
+        if notas:
+            self.notas_pago = f"{self.notas_pago}\n{notas}" if self.notas_pago else notas
+        self.save()
+    
+    @property
+    def esta_vencido(self):
+        return bool(self.fecha_vencimiento and timezone.now().date() > self.fecha_vencimiento)
+    
+    @property
+    def porcentaje_pagado(self):
+        return 100 if self.precio_final == 0 else float((self.monto_pagado / self.precio_final) * 100)
+
+    
+    def generar_factura_data(self):
+        return {
+            'numero': f'INF-{self.id}',
+            'fecha': self.fecha_generacion,
+            'cliente': self.cliente.email_cliente if self.cliente else 'Sin cliente',
+            'parcela': self.parcela.nombre,
+            'precio_base': float(self.precio_base),
+            'descuento': float(self.precio_base * self.descuento_porcentaje / 100),
+            'precio_final': float(self.precio_final),
+            'monto_pagado': float(self.monto_pagado),
+            'saldo_pendiente': float(self.saldo_pendiente),
+            'estado': self.get_estado_pago_display(),
+            'fecha_pago': self.fecha_pago,
+            'metodo_pago': self.metodo_pago,
+            'referencia': self.referencia_pago
+        }
 
 
 class ConfiguracionAPI(models.Model):

@@ -104,8 +104,8 @@ class ConfiguracionReporte(models.Model):
         max_digits=10,
         decimal_places=2,
         default=Decimal('0.00'),
-        verbose_name='Costo Estimado (USD)',
-        help_text='Cálculo automático según configuración'
+        verbose_name='Costo Estimado (COP)',
+        help_text='Cálculo automático según configuración en pesos colombianos'
     )
     
     # Metadatos
@@ -163,36 +163,36 @@ class ConfiguracionReporte(models.Model):
     def calcular_costo(self):
         """
         Calcula el costo estimado según la configuración
-        Precios en USD
+        Precios en pesos colombianos (COP)
         """
         # Precios base por plan
         precios_base = {
-            'basico_6m': Decimal('50.00'),
-            'estandar_1y': Decimal('80.00'),
-            'avanzado_2y': Decimal('140.00'),
+            'basico_6m': Decimal('200000.00'),
+            'estandar_1y': Decimal('320000.00'),
+            'avanzado_2y': Decimal('560000.00'),
         }
         
         # Precios por índice adicional
         precios_indice_adicional = {
-            'basico_6m': Decimal('15.00'),
-            'estandar_1y': Decimal('10.00'),
-            'avanzado_2y': Decimal('8.00'),
+            'basico_6m': Decimal('60000.00'),
+            'estandar_1y': Decimal('40000.00'),
+            'avanzado_2y': Decimal('32000.00'),
         }
         
         # Precios por imágenes
         precios_imagenes = {
-            'basico_6m': Decimal('20.00'),
-            'estandar_1y': Decimal('30.00'),
-            'avanzado_2y': Decimal('50.00'),
+            'basico_6m': Decimal('80000.00'),
+            'estandar_1y': Decimal('120000.00'),
+            'avanzado_2y': Decimal('200000.00'),
         }
         
         if self.plan == PlanReporte.PERSONALIZADO:
             # Cálculo personalizado
             meses = self.duracion_meses
-            costo = Decimal('10.00') * meses  # Base: $10/mes
+            costo = Decimal('40000.00') * meses  # Base: $40,000 COP/mes
             
             # Agregar costo por índice
-            costo += Decimal('8.00') * self.num_indices * meses
+            costo += Decimal('32000.00') * self.num_indices * meses
             
             # Agregar costo por imágenes
             if self.incluir_imagenes:
@@ -202,10 +202,10 @@ class ConfiguracionReporte(models.Model):
                     'trimestral': meses // 3
                 }
                 num_imagenes = frecuencia_map.get(self.frecuencia_imagenes, meses)
-                costo += Decimal('2.00') * num_imagenes
+                costo += Decimal('8000.00') * num_imagenes
         else:
             # Plan predefinido
-            costo = precios_base.get(self.plan, Decimal('50.00'))
+            costo = precios_base.get(self.plan, Decimal('200000.00'))
             
             # Índices incluidos por plan
             indices_incluidos = {
@@ -218,11 +218,11 @@ class ConfiguracionReporte(models.Model):
             num_incluidos = indices_incluidos.get(self.plan, 1)
             if self.num_indices > num_incluidos:
                 indices_extra = self.num_indices - num_incluidos
-                costo += precios_indice_adicional.get(self.plan, Decimal('15.00')) * indices_extra
+                costo += precios_indice_adicional.get(self.plan, Decimal('60000.00')) * indices_extra
             
             # Agregar costo de imágenes
             if self.incluir_imagenes:
-                costo += precios_imagenes.get(self.plan, Decimal('20.00'))
+                costo += precios_imagenes.get(self.plan, Decimal('80000.00'))
         
         self.costo_estimado = costo
         return costo

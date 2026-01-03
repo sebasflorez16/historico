@@ -119,4 +119,4 @@ class RegistroEconomico(models.Model):
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.get_tipo_servicio_display()} - {self.invitacion.nombre_cliente} - ${self.valor_final}"
+        return f"{self.get_tipo_servicio_display()} - {self.invitacion.nombre_cliente} - ${self.valor_final:,.0f} COP"
