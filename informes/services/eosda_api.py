@@ -712,7 +712,8 @@ class EosdaAPIService:
         Usa 10 segundos entre intentos (6 requests/minuto vs 10/minuto del API)
         """
         try:
-            url = f"{self.base_url}/api/gdw/api/{task_id}"
+            # ✅ Usar _build_url para incluir api_key
+            url = self._build_url(f'api/gdw/api/{task_id}')
             
             for intento in range(max_intentos):
                 # Delay ANTES de cada petición (excepto la primera)
@@ -1119,7 +1120,8 @@ class EosdaAPIService:
         
         try:
             # UNA petición con TODOS los índices usando geometría
-            url = f"{self.base_url}/api/gdw/api"
+            # ✅ Usar _build_url para agregar api_key automáticamente
+            url = self._build_url('api/gdw/api')
             
             # Convertir índices a mayúsculas (requerido por EOSDA)
             indices_mayusculas = [idx.upper() for idx in indices]
