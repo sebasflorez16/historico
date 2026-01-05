@@ -1,0 +1,55 @@
+
+    # ========= SISTEMA DE PAGOS =========
+    ESTADO_PAGO_CHOICES = [
+        ('pagado', '💰 Pagado'),
+        ('pendiente', '⏳ Pendiente'),
+        ('vencido', '⚠️ Vencido'),
+        ('parcial', '📊 Pago Parcial'),
+        ('cortesia', '🎁 Cortesía'),
+    ]
+    
+    precio_base = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        verbose_name="Precio Base"
+    )
+    descuento_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Descuento %"
+    )
+    precio_final = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        verbose_name="Precio Final"
+    )
+    estado_pago = models.CharField(
+        max_length=20, choices=ESTADO_PAGO_CHOICES, default='pendiente',
+        verbose_name="Estado Pago", db_index=True
+    )
+    monto_pagado = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        verbose_name="Monto Pagado"
+    )
+    saldo_pendiente = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        verbose_name="Saldo Pendiente"
+    )
+    fecha_pago = models.DateTimeField(
+        null=True, blank=True, verbose_name="Fecha Pago"
+    )
+    fecha_vencimiento = models.DateField(
+        null=True, blank=True, verbose_name="Vencimiento", db_index=True
+    )
+    metodo_pago = models.CharField(
+        max_length=100, blank=True, verbose_name="Método Pago"
+    )
+    referencia_pago = models.CharField(
+        max_length=200, blank=True, verbose_name="Referencia"
+    )
+    notas_pago = models.TextField(
+        blank=True, verbose_name="Notas"
+    )
+    cliente = models.ForeignKey(
+        'ClienteInvitacion', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='informes_generados',
+        verbose_name="Cliente"
+    )

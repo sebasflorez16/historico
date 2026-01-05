@@ -48,30 +48,60 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def limpiar_html_para_reportlab(texto: str) -> str:
+def limpiar_html_completo(texto: str) -> str:
     """
-    Limpia HTML para que sea compatible con ReportLab.
+    Limpia HTML COMPLETAMENTE - convierte a formato ReportLab sin tags visibles
     
-    ReportLab no soporta:
-    - <br><br> seguidos (debe ser <br/> o usar espacers)
-    - Contenido después de tags self-closing
-    - Algunos caracteres especiales sin escapar
+    Usa enfoque de 3 pasos:
+    1. Convertir tags deseados a marcadores temporales
+    2. Eliminar TODOS los tags HTML restantes  
+    3. Restaurar solo los tags necesarios en formato ReportLab
     """
     if not texto:
         return ""
     
-    # Reemplazar <br><br> por <br/><br/>
-    texto = re.sub(r'<br>\s*<br>', '<br/><br/>', texto)
+    # Convertir a string
+    texto = str(texto)
     
-    # Asegurar que todos los <br> sean self-closing
-    texto = re.sub(r'<br(?!/)', '<br/', texto)
-    texto = re.sub(r'<br/>\s+', '<br/>', texto)
+
+    # Normalizar <strong> a <b> y </strong> a </b> para evitar duplicidad y errores
+    texto = texto.replace('<strong>', '<b>').replace('</strong>', '</b>')
+    # PASO 1: Reemplazar tags que queremos mantener con marcadores temporales
+    replacements = {
+        '<b>': '**BOLD_START**',
+        '</b>': '**BOLD_END**',
+        '<em>': '**ITALIC_START**',
+        '</em>': '**ITALIC_END**',
+        '<i>': '**ITALIC_START**',
+        '</i>': '**ITALIC_END**',
+        '<br>': '**LINEBREAK**',
+        '<br/>': '**LINEBREAK**',
+        '<BR>': '**LINEBREAK**',
+    }
+    for old, new in replacements.items():
+        texto = texto.replace(old, new)
     
-    # Limpiar espacios múltiples
+    # PASO 2: Eliminar CUALQUIER tag HTML que quede (regex agresivo)
+    texto = re.sub(r'<[^>]+>', '', texto)
+    
+    # PASO 3: Restaurar los tags que queremos en formato ReportLab
+    texto = texto.replace('**BOLD_START**', '<b>')
+    texto = texto.replace('**BOLD_END**', '</b>')
+    texto = texto.replace('**ITALIC_START**', '<i>')
+    texto = texto.replace('**ITALIC_END**', '</i>')
+    texto = texto.replace('**LINEBREAK**', '<br/>')
+    
+    # PASO 4: Limpiar saltos de línea
+    texto = texto.replace('\n\n', '<br/><br/>')
+    texto = texto.replace('\n', ' ')
+    
+    # PASO 5: Formatear bullets
+    texto = re.sub(r'•\s*', '<br/>  • ', texto)
+    texto = re.sub(r'\*\s+', '<br/>  • ', texto)
+    
+    # PASO 6: Limpiar espacios múltiples
     texto = re.sub(r'\s+', ' ', texto)
-    
-    # Asegurar que no haya contenido después de <br/>
-    texto = re.sub(r'(<br/>)\s+(\S)', r'\1 \2', texto)
+    texto = re.sub(r'(<br/>\s*){3,}', '<br/><br/>', texto)
     
     return texto.strip()
 
@@ -104,6 +134,19 @@ class GeneradorPDFProfesional:
         # Estilos
         self.estilos = self._crear_estilos()
     
+    def _decorar_seccion(self, img_name, height=1.2*cm):
+        """Devuelve una banda decorativa para usar como separador de secciones"""
+        from reportlab.platypus import Image
+        img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
+        if os.path.exists(img_path):
+            try:
+                banda = Image(img_path, width=15*cm, height=height, kind='proportional')
+                banda.hAlign = 'CENTER'
+                return [banda, Spacer(1, 0.2*cm)]
+            except Exception as e:
+                logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
+        return []
+
     def _crear_estilos(self):
         """Crea estilos personalizados para el documento"""
         estilos = getSampleStyleSheet()
@@ -294,6 +337,10 @@ class GeneradorPDFProfesional:
         
         # Tabla de datos
         story.extend(self._crear_tabla_datos(datos_analisis))
+        story.append(PageBreak())
+        
+        # Página de créditos
+        story.extend(self._crear_pagina_creditos())
         
         # Construir PDF con headers y footers
         doc.build(story, onFirstPage=self._crear_header_footer, 
@@ -509,78 +556,156 @@ class GeneradorPDFProfesional:
         return buffer
     
     def _crear_portada(self, parcela: Parcela, fecha_inicio: date, fecha_fin: date) -> List:
-        """Crea la portada del informe"""
+        """Crea la portada del informe con diseño profesional estilo EOSDA"""
+        from reportlab.lib.utils import ImageReader
         elements = []
+        # === IMAGEN DE FONDO DECORATIVA (1.png) ===
+        img_fondo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '1.png')
+        if os.path.exists(img_fondo_path):
+            try:
+                img_fondo = Image(img_fondo_path, width=15*cm, height=8*cm, kind='proportional')
+                img_fondo.hAlign = 'CENTER'
+                elements.append(img_fondo)
+                elements.append(Spacer(1, 0.5*cm))
+            except Exception as e:
+                logger.warning(f"No se pudo cargar imagen de portada: {e}")
+        else:
+            elements.append(Spacer(1, 2*cm))
         
-        # Logo AgroTech (buscar en static)
-        logo_path = os.path.join(settings.STATIC_ROOT or settings.BASE_DIR, 'static', 'img', 'agrotech-logo-text.svg')
+        # === LOGO AGROTECH GRANDE ===
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Agro Tech logo solo.png')
         if not os.path.exists(logo_path):
-            # Buscar alternativas
-            logo_path = os.path.join(settings.BASE_DIR, 'historical', 'static', 'img', 'agrotech-logo-text.svg')
+            # Alternativa con texto
+            logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'agrotech solo negro.png')
         
         if os.path.exists(logo_path):
             try:
-                logo = Image(logo_path, width=10*cm, height=3*cm)
+                logo = Image(logo_path, width=8*cm, height=8*cm, kind='proportional')
                 logo.hAlign = 'CENTER'
                 elements.append(logo)
-                elements.append(Spacer(1, 1.5*cm))
-            except:
-                # Si falla, poner texto
-                titulo_logo = Paragraph("🌾 AgroTech Histórico", self.estilos['TituloPortada'])
+                elements.append(Spacer(1, 0.8*cm))
+            except Exception as e:
+                logger.warning(f"No se pudo cargar logo: {e}")
+                titulo_logo = Paragraph(
+                    '<font size="24" color="#2E8B57"><strong>agrotech</strong></font>',
+                    self.estilos['TituloPortada']
+                )
                 elements.append(titulo_logo)
-                elements.append(Spacer(1, 1*cm))
+                elements.append(Spacer(1, 0.5*cm))
+        
+        # === TÍTULO PRINCIPAL MODERNO CON IMAGEN DECORATIVA AL LADO (2.png) ===
+        titulo_img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '2.png')
+        if os.path.exists(titulo_img_path):
+            from reportlab.platypus import Table, TableStyle
+            titulo_principal = Paragraph(
+                '<para align="left">'
+                '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
+                '</para>',
+                self.estilos['TituloPortada']
+            )
+            img_titulo = Image(titulo_img_path, width=3*cm, height=3*cm, kind='proportional')
+            tabla_titulo = Table([[titulo_principal, img_titulo]], colWidths=[12*cm, 3*cm])
+            tabla_titulo.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ]))
+            elements.append(tabla_titulo)
         else:
-            # Texto alternativo
-            titulo_logo = Paragraph("🌾 AgroTech Histórico", self.estilos['TituloPortada'])
-            elements.append(titulo_logo)
-            elements.append(Spacer(1, 1*cm))
+            titulo_principal = Paragraph(
+                '<para align="center">'
+                '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
+                '</para>',
+                self.estilos['TituloPortada']
+            )
+            elements.append(titulo_principal)
+        elements.append(Spacer(1, 0.3*cm))
         
-        # Título del informe
-        titulo = Paragraph(
-            f"Informe Satelital Agrícola<br/><font size=20>{parcela.nombre}</font>",
-            self.estilos['TituloPortada']
+        subtitulo = Paragraph(
+            '<para align="center">'
+            '<font size="14" color="#555555"><i>Sistema Inteligente de Monitoreo Agrícola</i></font>'
+            '</para>',
+            self.estilos['TextoNormal']
         )
-        elements.append(titulo)
-        elements.append(Spacer(1, 2*cm))
+        elements.append(subtitulo)
+        # Banda decorativa bajo el título (3.png)
+        banda_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '3.png')
+        if os.path.exists(banda_path):
+            try:
+                banda = Image(banda_path, width=15*cm, height=1.2*cm, kind='proportional')
+                banda.hAlign = 'CENTER'
+                elements.append(banda)
+            except Exception as e:
+                logger.warning(f"No se pudo cargar banda decorativa portada: {e}")
+        elements.append(Spacer(1, 1.2*cm))
         
-        # Tabla de información
-        info_data = [
-            ['Parcela:', parcela.nombre],
-            ['Propietario:', parcela.propietario],
-            ['Cultivo:', parcela.tipo_cultivo or 'No especificado'],
-            ['Área:', f"{parcela.area_hectareas:.2f} hectáreas"],
-            ['Período Analizado:', f"{fecha_inicio.strftime('%d/%m/%Y')} - {fecha_fin.strftime('%d/%m/%Y')}"],
-            ['Fecha de Generación:', datetime.now().strftime('%d/%m/%Y %H:%M')]
+        # === CARD FLOTANTE MINIMALISTA CON INFO ===
+        info_card_data = [
+            ['Parcela', parcela.nombre],
+            ['Cultivo', parcela.tipo_cultivo or 'No especificado'],
+            ['Extensión', f"{parcela.area_hectareas:.2f} hectáreas"],
+            ['Período', f"{fecha_inicio.strftime('%B %Y')} - {fecha_fin.strftime('%B %Y')}"]
         ]
         
-        tabla = Table(info_data, colWidths=[5*cm, 11*cm])
-        tabla.setStyle(TableStyle([
+        tabla_card = Table(info_card_data, colWidths=[4.5*cm, 8*cm])
+        tabla_card.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('TEXTCOLOR', (0, 0), (0, -1), self.colores['verde_principal']),
-            ('TEXTCOLOR', (1, 0), (1, -1), self.colores['gris_oscuro']),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#2c3e50')),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#2E8B57')),
+            ('BACKGROUND', (1, 0), (1, -1), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, self.colores['gris_claro']]),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2E8B57')),
+            ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#E0E0E0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (0, -1), 15),
+            ('RIGHTPADDING', (0, 0), (0, -1), 10),
+            ('LEFTPADDING', (1, 0), (1, -1), 15),
         ]))
         
-        elements.append(tabla)
-        elements.append(Spacer(1, 3*cm))
+        # Centrar la card
+        from reportlab.platypus import KeepTogether
+        tabla_card.hAlign = 'CENTER'
+        elements.append(tabla_card)
+        elements.append(Spacer(1, 2*cm))
+        # Imagen decorativa inferior portada (4.png)
+        img_inf_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '4.png')
+        if os.path.exists(img_inf_path):
+            try:
+                img_inf = Image(img_inf_path, width=15*cm, height=2*cm, kind='proportional')
+                img_inf.hAlign = 'CENTER'
+                elements.append(img_inf)
+            except Exception as e:
+                logger.warning(f"No se pudo cargar imagen inferior portada: {e}")
         
-        # Pie de portada
+        # === PIE DE PORTADA MINIMALISTA ===
         pie = Paragraph(
-            "Este informe fue generado automáticamente mediante análisis satelital "
-            "con tecnología EOSDA y sistema de análisis inteligente AgroTech. "
-            "Todos los datos y recomendaciones están basados en imágenes Sentinel-2 y algoritmos científicos validados.",
+            '<para align="center">'
+            '<font size="9" color="#888888">'
+            'Informe generado automáticamente · Tecnología EOSDA + Gemini AI<br/>'
+            f'<strong>{datetime.now().strftime("%d de %B de %Y")}</strong>'
+            '</font>'
+            '</para>',
             self.estilos['TextoNormal']
         )
         elements.append(pie)
-        
         return elements
+        def _decorar_seccion(self, img_name, height=1.2*cm):
+            """Devuelve una banda decorativa para usar como separador de secciones"""
+            from reportlab.platypus import Image
+            img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
+            if os.path.exists(img_path):
+                try:
+                    banda = Image(img_path, width=15*cm, height=height, kind='proportional')
+                    banda.hAlign = 'CENTER'
+                    return [banda, Spacer(1, 0.2*cm)]
+                except Exception as e:
+                    logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
+            return []
     
     def _crear_header_footer(self, canvas_obj, doc):
         """Crea header y footer en cada página"""
@@ -617,7 +742,8 @@ class GeneradorPDFProfesional:
     def _crear_resumen_ejecutivo(self, analisis: Dict) -> List:
         """Crea resumen ejecutivo del informe, priorizando análisis de Gemini AI"""
         elements = []
-        
+        # Decoración superior (5.png)
+        elements.extend(self._decorar_seccion('5.png', height=1*cm))
         # Título
         titulo = Paragraph("📊 Resumen Ejecutivo", self.estilos['TituloSeccion'])
         elements.append(titulo)
@@ -640,7 +766,7 @@ class GeneradorPDFProfesional:
             if resumen_gemini:
                 # Limpiar y formatear texto
                 resumen_texto = resumen_gemini.replace('\n', '<br/>')
-                resumen_texto = limpiar_html_para_reportlab(resumen_texto)
+                resumen_texto = limpiar_html_completo(resumen_texto)
                 
                 resumen = Paragraph(resumen_texto, self.estilos['TextoNormal'])
                 elements.append(resumen)
@@ -746,13 +872,13 @@ recomendaciones de alta prioridad requieren atención.<br/>
         
         # Interpretación técnica - LIMPIADO
         elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
-        interpretacion_limpia = limpiar_html_para_reportlab(analisis['interpretacion_tecnica'])
+        interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
         elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
         
         # Interpretación simple - LIMPIADO
         elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
-        simple_limpia = limpiar_html_para_reportlab(analisis['interpretacion_simple'])
+        simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
         elements.append(Paragraph(simple_limpia, self.estilos['TextoNormal']))
         
         # Alertas
@@ -761,7 +887,7 @@ recomendaciones de alta prioridad requieren atención.<br/>
             elements.append(Paragraph("<strong>⚠️ Alertas:</strong>", self.estilos['TextoNormal']))
             for alerta in analisis['alertas'][:3]:  # Máximo 3 alertas
                 alerta_texto = f"{alerta['icono']} <strong>{alerta['titulo']}:</strong> {alerta['mensaje']}"
-                alerta_limpia = limpiar_html_para_reportlab(alerta_texto)
+                alerta_limpia = limpiar_html_completo(alerta_texto)
                 elements.append(Paragraph(alerta_limpia, self.estilos['TextoNormal']))
         
         return elements
@@ -787,13 +913,13 @@ recomendaciones de alta prioridad requieren atención.<br/>
         
         # Interpretación técnica - LIMPIADO
         elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
-        interpretacion_limpia = limpiar_html_para_reportlab(analisis['interpretacion_tecnica'])
+        interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
         elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
         
         # Interpretación simple - LIMPIADO
         elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
-        simple_limpia = limpiar_html_para_reportlab(analisis['interpretacion_simple'])
+        simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
         elements.append(Paragraph(simple_limpia, self.estilos['TextoNormal']))
         
         # Alertas
@@ -802,7 +928,7 @@ recomendaciones de alta prioridad requieren atención.<br/>
             elements.append(Paragraph("<strong>⚠️ Alertas:</strong>", self.estilos['TextoNormal']))
             for alerta in analisis['alertas'][:3]:
                 alerta_texto = f"{alerta['icono']} <strong>{alerta['titulo']}:</strong> {alerta['mensaje']}"
-                alerta_limpia = limpiar_html_para_reportlab(alerta_texto)
+                alerta_limpia = limpiar_html_completo(alerta_texto)
                 elements.append(Paragraph(alerta_limpia, self.estilos['TextoNormal']))
         
         return elements
@@ -827,7 +953,7 @@ recomendaciones de alta prioridad requieren atención.<br/>
         
         # Interpretación - LIMPIADO
         elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
-        interpretacion_limpia = limpiar_html_para_reportlab(analisis['interpretacion_tecnica'])
+        interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
         elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
         
         return elements
@@ -854,7 +980,7 @@ recomendaciones de alta prioridad requieren atención.<br/>
         
         # Resumen de tendencias
         if tendencias.get('resumen'):
-            resumen_limpio = limpiar_html_para_reportlab(tendencias['resumen'])
+            resumen_limpio = limpiar_html_completo(tendencias['resumen'])
             elements.append(Paragraph(resumen_limpio, self.estilos['TextoNormal']))
         
         # Tendencia lineal
@@ -987,11 +1113,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             elements.append(subtitulo)
             elements.append(Spacer(1, 0.3*cm))
             
-            tendencias_texto = analisis_gemini['analisis_tendencias']
-            # Convertir saltos de línea a <br/>
-            tendencias_texto = tendencias_texto.replace('\n\n', '<br/><br/>')
-            tendencias_texto = tendencias_texto.replace('\n', '<br/>')
-            tendencias_texto = limpiar_html_para_reportlab(tendencias_texto)
+            tendencias_texto = limpiar_html_completo(analisis_gemini['analisis_tendencias'])
             
             tendencias = Paragraph(tendencias_texto, self.estilos['TextoNormal'])
             elements.append(tendencias)
@@ -1007,9 +1129,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 elements.append(subtitulo)
                 elements.append(Spacer(1, 0.3*cm))
                 
-                analisis_visual_texto = analisis_visual_texto.replace('\n\n', '<br/><br/>')
-                analisis_visual_texto = analisis_visual_texto.replace('\n', '<br/>')
-                analisis_visual_texto = limpiar_html_para_reportlab(analisis_visual_texto)
+                analisis_visual_texto = limpiar_html_completo(analisis_visual_texto)
                 
                 analisis_visual = Paragraph(analisis_visual_texto, self.estilos['TextoNormal'])
                 
@@ -1033,11 +1153,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             elements.append(subtitulo)
             elements.append(Spacer(1, 0.3*cm))
             
-            recomendaciones_texto = analisis_gemini['recomendaciones']
-            # Convertir formato de lista a HTML
-            recomendaciones_texto = recomendaciones_texto.replace('\n\n', '<br/><br/>')
-            recomendaciones_texto = recomendaciones_texto.replace('\n', '<br/>')
-            recomendaciones_texto = limpiar_html_para_reportlab(recomendaciones_texto)
+            recomendaciones_texto = limpiar_html_completo(analisis_gemini['recomendaciones'])
             
             # Crear caja destacada para recomendaciones
             recomendaciones = Paragraph(recomendaciones_texto, self.estilos['TextoNormal'])
@@ -1068,7 +1184,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 
                 alertas_texto = alertas_texto.replace('\n\n', '<br/><br/>')
                 alertas_texto = alertas_texto.replace('\n', '<br/>')
-                alertas_texto = limpiar_html_para_reportlab(alertas_texto)
+                alertas_texto = limpiar_html_completo(alertas_texto)
                 
                 alertas = Paragraph(alertas_texto, self.estilos['TextoNormal'])
                 
@@ -1113,7 +1229,8 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         con análisis visual específico por imagen generado por Gemini AI
         """
         elements = []
-        
+        # Decoración superior (6.png)
+        elements.extend(self._decorar_seccion('6.png', height=1*cm))
         # Título de la sección con diseño mejorado
         titulo = Paragraph(
             '📸 <font size="16"><strong>Imágenes Satelitales y Análisis Visual Detallado</strong></font>',
@@ -1217,34 +1334,129 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 elements.append(tabla_metadatos)
                 elements.append(Spacer(1, 0.5*cm))
                 
-                # === PROCESAR CADA IMAGEN DISPONIBLE ===
+                # === LAYOUT HORIZONTAL: 3 IMÁGENES LADO A LADO ===
+                # Recolectar las 3 imágenes disponibles para este mes
+                imagenes_mes = []
                 
                 # NDVI
                 if idx.imagen_ndvi and os.path.exists(idx.imagen_ndvi.path):
                     imagenes_encontradas += 1
-                    elements.extend(self._agregar_imagen_con_analisis(
-                        idx, 'NDVI', idx.imagen_ndvi.path, 
-                        "Índice de Vegetación de Diferencia Normalizada - Mide la salud y vigor vegetal",
-                        usar_gemini=True
-                    ))
+                    imagenes_mes.append({
+                        'tipo': 'NDVI',
+                        'path': idx.imagen_ndvi.path,
+                        'promedio': idx.ndvi_promedio or 0,
+                        'minimo': idx.ndvi_minimo or 0,
+                        'maximo': idx.ndvi_maximo or 0,
+                        'color_badge': colors.HexColor('#4CAF50'),
+                        'descripcion': 'Vigor Vegetal'
+                    })
                 
                 # NDMI
                 if idx.imagen_ndmi and os.path.exists(idx.imagen_ndmi.path):
                     imagenes_encontradas += 1
-                    elements.extend(self._agregar_imagen_con_analisis(
-                        idx, 'NDMI', idx.imagen_ndmi.path,
-                        "Índice de Humedad de Diferencia Normalizada - Mide el contenido de agua en la vegetación",
-                        usar_gemini=True
-                    ))
+                    imagenes_mes.append({
+                        'tipo': 'NDMI',
+                        'path': idx.imagen_ndmi.path,
+                        'promedio': idx.ndmi_promedio or 0,
+                        'minimo': idx.ndmi_minimo or 0,
+                        'maximo': idx.ndmi_maximo or 0,
+                        'color_badge': colors.HexColor('#2196F3'),
+                        'descripcion': 'Humedad'
+                    })
                 
                 # SAVI
                 if idx.imagen_savi and os.path.exists(idx.imagen_savi.path):
                     imagenes_encontradas += 1
-                    elements.extend(self._agregar_imagen_con_analisis(
-                        idx, 'SAVI', idx.imagen_savi.path,
-                        "Índice de Vegetación Ajustado al Suelo - Mide la cobertura vegetal minimizando el efecto del suelo",
-                        usar_gemini=True
-                    ))
+                    imagenes_mes.append({
+                        'tipo': 'SAVI',
+                        'path': idx.imagen_savi.path,
+                        'promedio': idx.savi_promedio or 0,
+                        'minimo': idx.savi_minimo or 0,
+                        'maximo': idx.savi_maximo or 0,
+                        'color_badge': colors.HexColor('#FF9800'),
+                        'descripcion': 'Cobertura Suelo'
+                    })
+                
+                # Crear tabla horizontal de 3 columnas
+                if imagenes_mes:
+                    celdas_imagenes = []
+                    
+                    for img_data in imagenes_mes:
+                        try:
+                            # Imagen satelital con borde sutil
+                            img = Image(img_data['path'], width=5*cm, height=5*cm, kind='proportional')
+                            
+                            # Badge de tipo de índice
+                            badge = Paragraph(
+                                f'<para align="center" backColor="{img_data["color_badge"]}" '
+                                f'leftIndent="2" rightIndent="2" spaceAfter="5">'
+                                f'<font size="9" color="white"><strong>{img_data["tipo"]}</strong></font>'
+                                f'</para>',
+                                self.estilos['TextoNormal']
+                            )
+                            
+                            # Descripción
+                            desc = Paragraph(
+                                f'<para align="center"><font size="8" color="#666666">'
+                                f'<i>{img_data["descripcion"]}</i></font></para>',
+                                self.estilos['TextoNormal']
+                            )
+                            
+                            # Valores estadísticos
+                            valores = Paragraph(
+                                f'<para align="center"><font size="8">'
+                                f'<strong>Prom:</strong> {img_data["promedio"]:.3f}<br/>'
+                                f'<font color="#999999">Min: {img_data["minimo"]:.3f} | Max: {img_data["maximo"]:.3f}</font>'
+                                f'</font></para>',
+                                self.estilos['TextoNormal']
+                            )
+                            
+                            # Apilar verticalmente: badge + imagen + desc + valores
+                            celda_contenido = [[badge], [img], [desc], [Spacer(1, 0.1*cm)], [valores]]
+                            tabla_celda = Table(celda_contenido, colWidths=[5.2*cm])
+                            tabla_celda.setStyle(TableStyle([
+                                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                                ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                                ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+                                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                            ]))
+                            
+                            celdas_imagenes.append(tabla_celda)
+                            
+                        except Exception as e:
+                            logger.warning(f"Error procesando imagen {img_data['tipo']}: {e}")
+                            continue
+                    
+                    # Crear tabla horizontal de 3 columnas
+                    if celdas_imagenes:
+                        # Rellenar con celdas vacías si faltan imágenes
+                        while len(celdas_imagenes) < 3:
+                            celda_vacia = Paragraph(
+                                '<para align="center"><font size="10" color="#CCCCCC">─</font></para>',
+                                self.estilos['TextoNormal']
+                            )
+                            celdas_imagenes.append(celda_vacia)
+                        
+                        tabla_horizontal = Table([celdas_imagenes], colWidths=[5.3*cm, 5.3*cm, 5.3*cm])
+                        tabla_horizontal.setStyle(TableStyle([
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E0E0E0')),
+                            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#F0F0F0')),
+                            ('TOPPADDING', (0, 0), (-1, -1), 10),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                        ]))
+                        
+                        elements.append(tabla_horizontal)
+                        elements.append(Spacer(1, 0.7*cm))
+                        
+                        # Análisis Gemini consolidado para el mes (si está disponible)
+                        if hasattr(idx, 'analisis_gemini') and idx.analisis_gemini:
+                            elements.extend(self._crear_analisis_gemini_mes(idx, parcela))
         
         # Si no se encontraron imágenes
         if imagenes_encontradas == 0:
@@ -1401,6 +1613,175 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     self.estilos['TextoNormal']
                 )
                 elements.append(error_msg)
+        
+        return elements
+    
+    
+    def _crear_analisis_gemini_mes(self, indice: IndiceMensual, parcela: Parcela) -> List:
+        """
+        Crea análisis Gemini AI organizado visualmente - REHECHO DESDE CERO
+        """
+        elements = []
+        
+        # Verificar si hay análisis Gemini disponible
+        if not indice.analisis_gemini or not isinstance(indice.analisis_gemini, dict):
+            return elements
+        
+        analisis_data = indice.analisis_gemini
+        
+        # Título de la sección
+        titulo = Paragraph(
+            '<para align="center" spaceBefore="8" spaceAfter="12">'
+            '<font size="12" color="#FFFFFF" backColor="#2E7D32">'
+            '<b> 🤖 ANÁLISIS INTELIGENTE - IA GEMINI </b>'
+            '</font>'
+            '</para>',
+            self.estilos['SubtituloSeccion']
+        )
+        tabla_titulo = Table([[titulo]], colWidths=[15.5*cm])
+        tabla_titulo.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2E7D32')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        elements.append(tabla_titulo)
+        elements.append(Spacer(1, 0.4*cm))
+        
+        # /01 NDVI - Vigor Vegetal
+        if analisis_data.get('ndvi'):
+            texto_limpio = limpiar_html_completo(analisis_data["ndvi"])
+            
+            header_ndvi = Paragraph(
+                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
+                '<font size="10" color="white"><b>🌱 01. NDVI - VIGOR VEGETAL</b></font>'
+                '</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            contenido_ndvi = Paragraph(
+                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
+                f'<font size="9.5" color="#2c3e50">{texto_limpio}</font>'
+                f'</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            tabla_ndvi = Table([[header_ndvi], [contenido_ndvi]], colWidths=[15.5*cm])
+            tabla_ndvi.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#4CAF50')),
+                ('TOPPADDING', (0, 0), (0, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
+                ('BACKGROUND', (0, 1), (0, 1), colors.white),
+                ('TOPPADDING', (0, 1), (0, 1), 0),
+                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
+                ('LEFTPADDING', (0, 1), (0, 1), 0),
+                ('RIGHTPADDING', (0, 1), (0, 1), 0),
+                ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#4CAF50')),
+                ('LINEBELOW', (0, 0), (0, 0), 1.5, colors.HexColor('#43A047')),
+            ]))
+            elements.append(tabla_ndvi)
+            elements.append(Spacer(1, 0.4*cm))
+        
+        # /02 NDMI - Contenido de Humedad
+        if analisis_data.get('ndmi'):
+            texto_limpio = limpiar_html_completo(analisis_data["ndmi"])
+            
+            header_ndmi = Paragraph(
+                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
+                '<font size="10" color="white"><b>💧 02. NDMI - CONTENIDO DE HUMEDAD</b></font>'
+                '</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            contenido_ndmi = Paragraph(
+                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
+                f'<font size="9.5" color="#2c3e50">{texto_limpio}</font>'
+                f'</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            tabla_ndmi = Table([[header_ndmi], [contenido_ndmi]], colWidths=[15.5*cm])
+            tabla_ndmi.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#2196F3')),
+                ('TOPPADDING', (0, 0), (0, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
+                ('BACKGROUND', (0, 1), (0, 1), colors.white),
+                ('TOPPADDING', (0, 1), (0, 1), 0),
+                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
+                ('LEFTPADDING', (0, 1), (0, 1), 0),
+                ('RIGHTPADDING', (0, 1), (0, 1), 0),
+                ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2196F3')),
+                ('LINEBELOW', (0, 0), (0, 0), 1.5, colors.HexColor('#1E88E5')),
+            ]))
+            elements.append(tabla_ndmi)
+            elements.append(Spacer(1, 0.4*cm))
+        
+        # /03 SAVI - Cobertura del Suelo
+        if analisis_data.get('savi'):
+            texto_limpio = limpiar_html_completo(analisis_data["savi"])
+            
+            header_savi = Paragraph(
+                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
+                '<font size="10" color="white"><b>🌾 03. SAVI - COBERTURA DEL SUELO</b></font>'
+                '</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            contenido_savi = Paragraph(
+                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
+                f'<font size="9.5" color="#2c3e50">{texto_limpio}</font>'
+                f'</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            tabla_savi = Table([[header_savi], [contenido_savi]], colWidths=[15.5*cm])
+            tabla_savi.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#FF9800')),
+                ('TOPPADDING', (0, 0), (0, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
+                ('BACKGROUND', (0, 1), (0, 1), colors.white),
+                ('TOPPADDING', (0, 1), (0, 1), 0),
+                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
+                ('LEFTPADDING', (0, 1), (0, 1), 0),
+                ('RIGHTPADDING', (0, 1), (0, 1), 0),
+                ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#FF9800')),
+                ('LINEBELOW', (0, 0), (0, 0), 1.5, colors.HexColor('#FB8C00')),
+            ]))
+            elements.append(tabla_savi)
+            elements.append(Spacer(1, 0.4*cm))
+        
+        # /04 Recomendaciones PRIORITARIAS
+        if analisis_data.get('recomendaciones'):
+            texto_limpio = limpiar_html_completo(analisis_data['recomendaciones'])
+            
+            header_recom = Paragraph(
+                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
+                '<font size="10" color="white"><b>⚡ 04. RECOMENDACIONES PRIORITARIAS</b></font>'
+                '</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            contenido_recom = Paragraph(
+                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
+                f'<font size="9.5" color="#2c3e50"><b>{texto_limpio}</b></font>'
+                f'</para>',
+                self.estilos['TextoNormal']
+            )
+            
+            tabla_recom = Table([[header_recom], [contenido_recom]], colWidths=[15.5*cm])
+            tabla_recom.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#FF5722')),
+                ('TOPPADDING', (0, 0), (0, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
+                ('BACKGROUND', (0, 1), (0, 1), colors.HexColor('#FFF8E1')),
+                ('TOPPADDING', (0, 1), (0, 1), 0),
+                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
+                ('LEFTPADDING', (0, 1), (0, 1), 0),
+                ('RIGHTPADDING', (0, 1), (0, 1), 0),
+                ('BOX', (0, 0), (-1, -1), 2.5, colors.HexColor('#FF5722')),
+                ('LINEBELOW', (0, 0), (0, 0), 2, colors.HexColor('#E64A19')),
+            ]))
+            elements.append(tabla_recom)
+            elements.append(Spacer(1, 0.6*cm))
         
         return elements
     
@@ -1702,23 +2083,141 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 f"{dato.get('precipitacion', 0):.1f}" if dato.get('precipitacion') else 'N/D'
             ])
         
-        # Crear tabla
+        # Crear tabla con estilo moderno difuminado
         tabla = Table(table_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 3*cm])
         tabla.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BACKGROUND', (0, 0), (-1, 0), self.colores['verde_principal']),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),  # Verde AgroTech
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.colores['gris_oscuro']),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.colores['gris_claro']]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            # Filas alternadas con verde muy claro (difuminado sutil)
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F1F8F4')]),
+            # Bordes sutiles y difuminados
+            ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#2E7D32')),
+            ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ]))
         
         elements.append(tabla)
+        
+        return elements    
+    def _crear_pagina_creditos(self) -> List:
+        """Crea página final con créditos e información legal"""
+        elements = []
+        
+        # Título
+        titulo = Paragraph(
+            '<para align="center"><font size="14" color="#2E7D32"><strong>Créditos e Información</strong></font></para>',
+            self.estilos['TituloSeccion']
+        )
+        elements.append(titulo)
+        elements.append(Spacer(1, 1*cm))
+        
+        # Sección de tecnologías
+        tecnologias = Paragraph(
+            '<para align="left">'
+            '<font size="10" color="#2c3e50"><strong>🛰️ Tecnologías Satelitales</strong></font><br/>'
+            '<font size="9" color="#555555">'
+            '• Datos satelitales: EOSDA Earth Observing System Data Analytics<br/>'
+            '• Imágenes: Sentinel-2 (ESA Copernicus Programme)<br/>'
+            '• Resolución espacial: 10-20 metros/píxel<br/>'
+            '• Índices espectrales: NDVI, NDMI, SAVI'
+            '</font>'
+            '</para>',
+            self.estilos['TextoNormal']
+        )
+        elements.append(tecnologias)
+        elements.append(Spacer(1, 0.7*cm))
+        
+        # Sección de análisis IA
+        ia_info = Paragraph(
+            '<para align="left">'
+            '<font size="10" color="#2c3e50"><strong>🤖 Análisis Inteligente</strong></font><br/>'
+            '<font size="9" color="#555555">'
+            '• Motor de IA: Google Gemini 2.0 Flash<br/>'
+            '• Procesamiento: Análisis espacial y temporal de patrones de cultivo<br/>'
+            '• Recomendaciones: Basadas en algoritmos científicos validados'
+            '</font>'
+            '</para>',
+            self.estilos['TextoNormal']
+        )
+        elements.append(ia_info)
+        elements.append(Spacer(1, 0.7*cm))
+        
+        # Créditos de imágenes decorativas
+        creditos_img = Paragraph(
+            '<para align="left">'
+            '<font size="10" color="#2c3e50"><strong>📸 Imágenes Decorativas</strong></font><br/>'
+            '<font size="8" color="#777777">'
+            '• Fotografía satelital: Unsplash (licencia libre)<br/>'
+            '• Imágenes agrícolas: Unsplash Contributors<br/>'
+            '• Todas las imágenes utilizadas bajo licencias de uso libre comercial'
+            '</font>'
+            '</para>',
+            self.estilos['TextoNormal']
+        )
+        elements.append(creditos_img)
+        elements.append(Spacer(1, 1*cm))
+        
+        # Aviso legal
+        aviso = Paragraph(
+            '<para align="center">'
+            '<font size="8" color="#999999">'
+            '<i>Este informe fue generado automáticamente por AgroTech Sistema de Análisis Satelital. '
+            'Los datos y recomendaciones son de carácter informativo y deben ser complementados con '
+            'inspección de campo y criterio agronómico profesional.</i>'
+            '</font>'
+            '</para>',
+            self.estilos['TextoNormal']
+        )
+        elements.append(aviso)
+        elements.append(Spacer(1, 1.5*cm))
+        
+        # Logo y fecha al final
+        footer_creditos = Paragraph(
+            '<para align="center">'
+            '<font size="10" color="#2E7D32"><strong>agrotech</strong></font><br/>'
+            f'<font size="8" color="#888888">Análisis Satelital de Precisión · {datetime.now().strftime("%Y")}</font>'
+            '</para>',
+            self.estilos['TextoNormal']
+        )
+        elements.append(footer_creditos)
+        
+        # Imagen decorativa bottom si existe
+        img_bottom_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', 'cultivos_aereo.jpg')
+        if os.path.exists(img_bottom_path):
+            try:
+                from reportlab.platypus import Flowable
+                class ImagenDecorativaBottom(Flowable):
+                    def __init__(self, width, height):
+                        Flowable.__init__(self)
+                        self.width = width
+                        self.height = height
+                    
+                    def draw(self):
+                        try:
+                            self.canv.saveState()
+                            self.canv.setFillAlpha(0.1)
+                            self.canv.drawImage(img_bottom_path, 0, -2*cm, 
+                                              width=self.width, height=4*cm, 
+                                              preserveAspectRatio=True, mask='auto')
+                            self.canv.restoreState()
+                        except:
+                            pass
+                
+                elements.append(Spacer(1, 1*cm))
+                img_fondo = ImagenDecorativaBottom(17*cm, 4*cm)
+                elements.append(img_fondo)
+            except Exception as e:
+                logger.warning(f"No se pudo agregar imagen decorativa bottom: {e}")
         
         return elements
