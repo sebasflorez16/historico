@@ -7,6 +7,7 @@ import re
 from datetime import datetime, date
 from typing import Dict, List, Any, Optional
 from io import BytesIO
+from dateutil.relativedelta import relativedelta
 
 # ReportLab imports
 from reportlab.lib.pagesizes import A4, letter
@@ -63,7 +64,10 @@ def limpiar_html_completo(texto: str) -> str:
     # Convertir a string
     texto = str(texto)
     
-
+    # Limpieza agresiva de strong mal formados
+    texto = re.sub(r'<strong>\s*</strong>', '', texto)  # Eliminar strong vacíos
+    texto = re.sub(r'<strong>([^<]*?)(?=<strong>|$)', r'<b>\1</b>', texto)  # strong sin cerrar
+    
     # Normalizar <strong> a <b> y </strong> a </b> para evitar duplicidad y errores
     texto = texto.replace('<strong>', '<b>').replace('</strong>', '</b>')
     # PASO 1: Reemplazar tags que queremos mantener con marcadores temporales
@@ -133,6 +137,12 @@ class GeneradorPDFProfesional:
         
         # Estilos
         self.estilos = self._crear_estilos()
+    
+    def formato_mes_año_español(self, fecha: date) -> str:
+        """Formatea fecha en español (Enero 2025)"""
+        meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        return f"{meses[fecha.month]} {fecha.year}"
     
     def _decorar_seccion(self, img_name, height=1.2*cm):
         """Devuelve una banda decorativa para usar como separador de secciones"""
@@ -209,6 +219,20 @@ class GeneradorPDFProfesional:
             fontName='Helvetica'
         ))
         
+        # Análisis técnico (fuente mejorada)
+        estilos.add(ParagraphStyle(
+            name='AnalisisTecnico',
+            parent=estilos['Normal'],
+            fontSize=12,
+            leading=18,
+            textColor=self.colores['gris_oscuro'],
+            spaceAfter=14,
+            alignment=TA_JUSTIFY,
+            fontName='Helvetica',
+            leftIndent=10,
+            rightIndent=10
+        ))
+        
         # Pie de imagen
         estilos.add(ParagraphStyle(
             name='PieImagen',
@@ -241,26 +265,12 @@ class GeneradorPDFProfesional:
         except Parcela.DoesNotExist:
             raise ValueError(f"Parcela {parcela_id} no encontrada")
         
-        # Obtener datos históricos
-        fecha_fin = date.today()
-        fecha_inicio = date(fecha_fin.year, fecha_fin.month, 1)
-        
-        # Retroceder meses_atras
-        for _ in range(meses_atras):
-            if fecha_inicio.month == 1:
-                fecha_inicio = date(fecha_inicio.year - 1, 12, 1)
-            else:
-                fecha_inicio = date(fecha_inicio.year, fecha_inicio.month - 1, 1)
-        
-        # Obtener índices mensuales
-        indices = IndiceMensual.objects.filter(
-            parcela=parcela,
-            año__gte=fecha_inicio.year,
-            mes__gte=fecha_inicio.month if fecha_inicio.year == fecha_fin.year else 1
-        ).order_by('año', 'mes')
-        
+        # Obtener datos históricos - PERIODO REAL SEGÚN DATOS DISPONIBLES
+        indices = IndiceMensual.objects.filter(parcela=parcela).order_by('año', 'mes')
         if not indices.exists():
             raise ValueError(f"No hay datos disponibles para la parcela {parcela.nombre}")
+        fecha_inicio = date(indices.first().año, indices.first().mes, 1)
+        fecha_fin = date(indices.last().año, indices.last().mes, 1)
         
         # Preparar datos para análisis
         datos_analisis = self._preparar_datos_analisis(indices)
@@ -643,7 +653,7 @@ class GeneradorPDFProfesional:
             ['Parcela', parcela.nombre],
             ['Cultivo', parcela.tipo_cultivo or 'No especificado'],
             ['Extensión', f"{parcela.area_hectareas:.2f} hectáreas"],
-            ['Período', f"{fecha_inicio.strftime('%B %Y')} - {fecha_fin.strftime('%B %Y')}"]
+            ['Período', f"{self.formato_mes_año_español(fecha_inicio)} - {self.formato_mes_año_español(fecha_fin)}"]
         ]
         
         tabla_card = Table(info_card_data, colWidths=[4.5*cm, 8*cm])
@@ -791,30 +801,61 @@ class GeneradorPDFProfesional:
             elements.append(complemento)
             
         else:
-            # FALLBACK: Usar análisis tradicional si Gemini no está disponible
+            # FALLBACK: Usar análisis tradicional mejorado y dinámico
             if analisis.get('gemini') and analisis['gemini'].get('error'):
-                logger.warning(f"⚠️ Error en Gemini, usando análisis tradicional: {analisis['gemini'].get('error')}")
+                logger.warning(f"⚠️ Error en Gemini, usando análisis tradicional mejorado")
+            
+            # Calcular valores del período completo
+            from informes.models import IndiceMensual
+            indices_periodo = IndiceMensual.objects.filter(
+                parcela=analisis.get('parcela')
+            ).order_by('-año', '-mes') if analisis.get('parcela') else []
+            
+            temp_valores = [idx.temperatura_promedio for idx in indices_periodo if idx.temperatura_promedio]
+            precip_valores = [idx.precipitacion_total for idx in indices_periodo if idx.precipitacion_total]
+            
+            temp_prom_periodo = sum(temp_valores) / len(temp_valores) if temp_valores else None
+            precip_total_periodo = sum(precip_valores) if precip_valores else None
             
             # Puntuaciones tradicionales
             ndvi_punt = analisis['ndvi'].get('puntuacion', 0)
             ndmi_punt = analisis['ndmi'].get('puntuacion', 0)
-            
             promedio_general = (ndvi_punt + ndmi_punt) / 2
             
+            # Identificar alertas críticas
+            alertas_criticas = [r for r in analisis['recomendaciones'] if r['prioridad'] == 'alta']
+            tiene_alertas = len(alertas_criticas) > 0
+            
+            # Texto dinámico basado en condiciones reales
+            if promedio_general >= 8:
+                conclusion = "El cultivo presenta <b>excelente estado general</b> en el período analizado."
+            elif promedio_general >= 6:
+                conclusion = "El cultivo muestra <b>buen desempeño</b> con algunas áreas de mejora identificadas."
+            elif promedio_general >= 4:
+                conclusion = "El cultivo presenta <b>estado moderado</b> que requiere atención en ciertas áreas."
+            else:
+                conclusion = "El cultivo muestra <b>signos de estrés</b> que requieren intervención inmediata."
+            
             resumen_texto = f"""
-<strong>Puntuación General del Cultivo: {promedio_general:.1f}/10</strong><br/><br/>
+<b>📊 ESTADO DEL CULTIVO</b><br/>
+{conclusion}<br/><br/>
 
-<strong>Estado de Salud Vegetal (NDVI):</strong> {analisis['ndvi']['estado']['etiqueta']} 
-({analisis['ndvi']['estadisticas']['promedio']:.3f}) - Puntuación: {ndvi_punt}/10<br/>
+<b>Puntuación General del Cultivo: {promedio_general:.1f}/10</b><br/><br/>
 
-<strong>Estado Hídrico (NDMI):</strong> {analisis['ndmi']['estado']['etiqueta']} 
-({analisis['ndmi']['estadisticas']['promedio']:.3f}) - Puntuación: {ndmi_punt}/10<br/><br/>
+<b>🌱 Estado de Salud Vegetal (NDVI):</b> {analisis['ndvi']['estado']['etiqueta']} 
+({analisis['ndvi']['estadisticas']['promedio']:.3f}) - Puntuación: <font color="{'green' if ndvi_punt >= 7 else 'orange' if ndvi_punt >= 5 else 'red'}">
+{ndvi_punt}/10</font><br/>
 
-<strong>Tendencia General:</strong> {analisis['tendencias'].get('tendencia_lineal', {}).get('direccion', 'estable').title()} 
+<b>💧 Estado Hídrico (NDMI):</b> {analisis['ndmi']['estado']['etiqueta']} 
+({analisis['ndmi']['estadisticas']['promedio']:.3f}) - Puntuación: <font color="{'green' if ndmi_punt >= 7 else 'orange' if ndmi_punt >= 5 else 'red'}">
+{ndmi_punt}/10</font><br/><br/>
+
+{f'<b>🌡️ CONDICIONES CLIMÁTICAS DEL PERÍODO</b><br/>• Temperatura promedio: <b>{temp_prom_periodo:.1f}°C</b><br/>• Precipitación acumulada: <b>{precip_total_periodo:.1f} mm</b><br/><br/>' if temp_prom_periodo or precip_total_periodo else ''}
+
+<b>📈 Tendencia General:</b> {analisis['tendencias'].get('tendencia_lineal', {}).get('direccion', 'estable').title()} 
 ({analisis['tendencias'].get('tendencia_lineal', {}).get('cambio_porcentual', 0):+.1f}%)<br/><br/>
 
-<strong>Recomendaciones Prioritarias:</strong> {len([r for r in analisis['recomendaciones'] if r['prioridad'] == 'alta'])} 
-recomendaciones de alta prioridad requieren atención.<br/>
+{'<b><font color="red">⚠️ ALERTAS:</font></b> ' + str(len(alertas_criticas)) + ' situaciones críticas requieren atención inmediata.' if tiene_alertas else '<font color="green">✅ No se detectaron situaciones críticas.</font>'}
 """
             
             resumen = Paragraph(resumen_texto, self.estilos['TextoNormal'])
@@ -873,13 +914,13 @@ recomendaciones de alta prioridad requieren atención.<br/>
         # Interpretación técnica - LIMPIADO
         elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
         interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
-        elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
+        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
         elements.append(Spacer(1, 0.5*cm))
         
         # Interpretación simple - LIMPIADO
         elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
         simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
-        elements.append(Paragraph(simple_limpia, self.estilos['TextoNormal']))
+        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
         
         # Alertas
         if analisis.get('alertas'):
@@ -954,7 +995,7 @@ recomendaciones de alta prioridad requieren atención.<br/>
         # Interpretación - LIMPIADO
         elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
         interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
-        elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
+        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
         
         return elements
     
@@ -1030,7 +1071,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         for rec in recomendaciones:
             prioridad = rec.get('prioridad', 'baja')
             por_prioridad[prioridad].append(rec)
-        
+
         # Renderizar por prioridad
         contador = 1
         for prioridad in ['alta', 'media', 'baja']:
@@ -1042,26 +1083,30 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     titulo_prioridad = "🟡 Prioridad Media"
                 else:
                     titulo_prioridad = "🟢 Prioridad Baja"
-                
-                elements.append(Paragraph(f"<strong>{titulo_prioridad}</strong>", self.estilos['TextoNormal']))
+
+                elements.append(Paragraph(f"<b>{titulo_prioridad}</b>", self.estilos['TextoNormal']))
                 elements.append(Spacer(1, 0.3*cm))
-                
+
                 for rec in por_prioridad[prioridad]:
-                    # Crear tabla para cada recomendación
+                    # Limpiar y justificar cada campo
+                    titulo = limpiar_html_completo(f"<b>{contador}. {rec['titulo']}</b>")
+                    desc_tecnica = limpiar_html_completo(f"<b>Para técnicos:</b> {rec['descripcion_tecnica']}")
+                    desc_simple = limpiar_html_completo(f"<b>En palabras simples:</b> {rec['descripcion_simple']}")
+                    acciones = [limpiar_html_completo(f"• {a}") for a in rec['acciones'][:5]]
+                    impacto = limpiar_html_completo(f"<b>Impacto esperado:</b> {rec['impacto_esperado']}")
+                    tiempo = limpiar_html_completo(f"<b>Tiempo de implementación:</b> {rec['tiempo_implementacion']}")
+
                     rec_data = [
-                        [f"<strong>{contador}. {rec['titulo']}</strong>"],
-                        [f"<strong>Para técnicos:</strong> {rec['descripcion_tecnica']}"],
-                        [f"<strong>En palabras simples:</strong> {rec['descripcion_simple']}"],
-                        [f"<strong>Acciones sugeridas:</strong>"]
+                        [Paragraph(titulo, self.estilos['AnalisisTecnico'])],
+                        [Paragraph(desc_tecnica, self.estilos['AnalisisTecnico'])],
+                        [Paragraph(desc_simple, self.estilos['AnalisisTecnico'])],
+                        [Paragraph("<b>Acciones sugeridas:</b>", self.estilos['AnalisisTecnico'])]
                     ]
-                    
-                    # Añadir acciones
-                    for accion in rec['acciones'][:5]:  # Máximo 5 acciones
-                        rec_data.append([f"  • {accion}"])
-                    
-                    rec_data.append([f"<strong>Impacto esperado:</strong> {rec['impacto_esperado']}"])
-                    rec_data.append([f"<strong>Tiempo de implementación:</strong> {rec['tiempo_implementacion']}"])
-                    
+                    for accion in acciones:
+                        rec_data.append([Paragraph(accion, self.estilos['AnalisisTecnico'])])
+                    rec_data.append([Paragraph(impacto, self.estilos['AnalisisTecnico'])])
+                    rec_data.append([Paragraph(tiempo, self.estilos['AnalisisTecnico'])])
+
                     tabla_rec = Table(rec_data, colWidths=[16*cm])
                     tabla_rec.setStyle(TableStyle([
                         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
@@ -1075,11 +1120,9 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                         ('LEFTPADDING', (0, 0), (-1, -1), 10),
                         ('BOX', (0, 0), (-1, -1), 1, colors.grey),
                     ]))
-                    
                     elements.append(tabla_rec)
                     elements.append(Spacer(1, 0.5*cm))
                     contador += 1
-        
         return elements
     
     def _crear_seccion_analisis_gemini(self, analisis_gemini: Dict) -> List:
@@ -1091,12 +1134,11 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         # Título principal de la sección
         titulo = Paragraph(
-            "🤖 Análisis Inteligente con Gemini AI", 
+            "🤖 Análisis Inteligente con IA", 
             self.estilos['TituloSeccion']
         )
         elements.append(titulo)
         elements.append(Spacer(1, 0.3*cm))
-        
         # Badge informativo
         badge = Paragraph(
             '<para alignment="center"><font color="#17a2b8" size="9">'
@@ -1215,13 +1257,51 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         # Nota al pie de la sección
         nota = Paragraph(
             '<para alignment="right"><font size="8" color="#666666">'
-            '<i>Análisis generado por Google Gemini AI - Modelo gemini-2.5-flash</i>'
+            '<i>Análisis generado por IA avanzada.</i>'
             '</font></para>',
             self.estilos['TextoNormal']
         )
         elements.append(nota)
         
         return elements
+    
+    def _evaluar_calidad_imagen(self, tipo_indice: str, valor_promedio: float, 
+                                valor_minimo: float, valor_maximo: float) -> Dict:
+        """Evalúa cualitativamente la calidad de una imagen satelital"""
+        
+        # Calcular heterogeneidad espacial
+        rango = valor_maximo - valor_minimo if valor_maximo and valor_minimo else 0
+        es_heterogeneo = rango > 0.2
+        
+        if tipo_indice == 'NDVI':
+            if valor_promedio >= 0.7:
+                return {'etiqueta': 'Excelente', 'icono': '🟢', 'color': '#4CAF50'}
+            elif valor_promedio >= 0.5:
+                return {'etiqueta': 'Bueno', 'icono': '🟢', 'color': '#8BC34A'}
+            elif valor_promedio >= 0.3:
+                return {'etiqueta': 'Regular', 'icono': '🟡', 'color': '#FFC107'}
+            else:
+                return {'etiqueta': 'Pobre', 'icono': '🔴', 'color': '#F44336'}
+        
+        elif tipo_indice == 'NDMI':
+            if valor_promedio >= 0.2:
+                return {'etiqueta': 'Excelente', 'icono': '💧', 'color': '#2196F3'}
+            elif valor_promedio >= 0.0:
+                return {'etiqueta': 'Bueno', 'icono': '💧', 'color': '#03A9F4'}
+            elif valor_promedio >= -0.2:
+                return {'etiqueta': 'Regular', 'icono': '⚠️', 'color': '#FFC107'}
+            else:
+                return {'etiqueta': 'Bajo', 'icono': '🔴', 'color': '#F44336'}
+        
+        elif tipo_indice == 'SAVI':
+            if valor_promedio >= 0.5:
+                return {'etiqueta': 'Excelente', 'icono': '🌾', 'color': '#4CAF50'}
+            elif valor_promedio >= 0.3:
+                return {'etiqueta': 'Bueno', 'icono': '🌾', 'color': '#8BC34A'}
+            else:
+                return {'etiqueta': 'Bajo', 'icono': '⚠️', 'color': '#FFC107'}
+        
+        return {'etiqueta': 'N/D', 'icono': '❓', 'color': '#999999'}
     
     def _crear_galeria_imagenes_satelitales(self, parcela: Parcela, indices: List[IndiceMensual], analisis_gemini: Dict = None) -> List:
         """
@@ -1306,12 +1386,19 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 elements.append(Spacer(1, 0.2*cm))
                 
                 # === METADATOS DE LA CAPTURA EN FORMATO MEJORADO ===
+                # Coordenadas del centroide
+                coord_texto = 'N/A'
+                if parcela.centroide:
+                    coord_texto = f"{parcela.centroide.y:.6f}, {parcela.centroide.x:.6f}"
+                
                 metadatos_data = [
                     ['📅 Fecha de captura:', idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'],
                     ['🛰️ Satélite:', idx.satelite_imagen or 'Sentinel-2'],
                     ['📏 Resolución espacial:', f"{idx.resolucion_imagen or 10} metros/píxel"],
                     ['☁️ Nubosidad:', f"{idx.nubosidad_imagen or 0:.1f}%"],
-                    ['🌍 Coordenadas:', f"({parcela.latitud:.6f}, {parcela.longitud:.6f})" if hasattr(parcela, 'latitud') else 'N/A']
+                    ['🌍 Coordenadas:', coord_texto],
+                    ['🌡️ Temperatura promedio:', f"{idx.temperatura_promedio:.1f}°C" if idx.temperatura_promedio else 'N/D'],
+                    ['💧 Precipitación total:', f"{idx.precipitacion_total:.1f} mm" if idx.precipitacion_total else 'N/D']
                 ]
                 
                 tabla_metadatos = Table(metadatos_data, colWidths=[4*cm, 11*cm])
@@ -1384,7 +1471,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     for img_data in imagenes_mes:
                         try:
                             # Imagen satelital con borde sutil
-                            img = Image(img_data['path'], width=5*cm, height=5*cm, kind='proportional')
+                            img = Image(img_data['path'], width=7*cm, height=7*cm, kind='proportional')
                             
                             # Badge de tipo de índice
                             badge = Paragraph(
@@ -1411,8 +1498,23 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                                 self.estilos['TextoNormal']
                             )
                             
-                            # Apilar verticalmente: badge + imagen + desc + valores
-                            celda_contenido = [[badge], [img], [desc], [Spacer(1, 0.1*cm)], [valores]]
+                            # === ANÁLISIS CUALITATIVO ===
+                            evaluacion = self._evaluar_calidad_imagen(
+                                tipo_indice=img_data['tipo'],
+                                valor_promedio=img_data['promedio'],
+                                valor_minimo=img_data['minimo'],
+                                valor_maximo=img_data['maximo']
+                            )
+                            
+                            badge_calidad = Paragraph(
+                                f'<para align="center"><font size="8" color="{evaluacion["color"]}">'
+                                f'<b>{evaluacion["icono"]} {evaluacion["etiqueta"]}</b>'
+                                f'</font></para>',
+                                self.estilos['TextoNormal']
+                            )
+                            
+                            # Apilar verticalmente: badge + imagen + desc + valores + calidad
+                            celda_contenido = [[badge], [img], [desc], [Spacer(1, 0.1*cm)], [valores], [badge_calidad]]
                             tabla_celda = Table(celda_contenido, colWidths=[5.2*cm])
                             tabla_celda.setStyle(TableStyle([
                                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -1463,14 +1565,12 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             sin_imagenes = Paragraph(
                 '<para alignment="center"><font color="#999999" size="11">'
                 '<br/><br/><br/>'
-                '<strong>📭 No hay imágenes satelitales disponibles para este período</strong><br/><br/>'
-                '<i>Las imágenes se descargan automáticamente desde EOSDA Field Imagery API.<br/>'
-                'Pueden requerirse hasta 24-48 horas para estar disponibles después de la captura.</i>'
+                '<b>📭 No hay imágenes satelitales disponibles para este período</b><br/><br/>'
+                '<i>Las imágenes se descargarán automáticamente y estarán disponibles en el sistema una vez procesadas.</i>'
                 '<br/><br/><br/>'
                 '</font></para>',
                 self.estilos['TextoNormal']
             )
-            
             tabla_sin_img = Table([[sin_imagenes]], colWidths=[15*cm])
             tabla_sin_img.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff3cd')),
@@ -1478,7 +1578,6 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 ('TOPPADDING', (0, 0), (-1, -1), 20),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
             ]))
-            
             elements.append(tabla_sin_img)
         else:
             # === ANÁLISIS GLOBAL CONSOLIDADO ===
@@ -2127,7 +2226,6 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             '<para align="left">'
             '<font size="10" color="#2c3e50"><strong>🛰️ Tecnologías Satelitales</strong></font><br/>'
             '<font size="9" color="#555555">'
-            '• Datos satelitales: EOSDA Earth Observing System Data Analytics<br/>'
             '• Imágenes: Sentinel-2 (ESA Copernicus Programme)<br/>'
             '• Resolución espacial: 10-20 metros/píxel<br/>'
             '• Índices espectrales: NDVI, NDMI, SAVI'
