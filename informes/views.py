@@ -332,7 +332,12 @@ def detalle_parcela(request, parcela_id):
         
         # Calcular estadísticas básicas
         if indices_recientes:
-            ndvi_promedio = sum(i.ndvi_promedio for i in indices_recientes if i.ndvi_promedio) / len([i for i in indices_recientes if i.ndvi_promedio])
+            # Filtrar índices con NDVI válido
+            indices_con_ndvi = [i for i in indices_recientes if i.ndvi_promedio]
+            if indices_con_ndvi:
+                ndvi_promedio = sum(i.ndvi_promedio for i in indices_con_ndvi) / len(indices_con_ndvi)
+            else:
+                ndvi_promedio = None
             ultimo_indice = indices_recientes[0]
         else:
             ndvi_promedio = None
