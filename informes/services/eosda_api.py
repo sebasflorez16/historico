@@ -1067,9 +1067,17 @@ class EosdaAPIService:
         field_id = parcela.eosda_field_id or f"parcela_{parcela.id}"
         
         try:
-            geometria = json.loads(parcela.poligono_geojson) if parcela.poligono_geojson else None
-            if not geometria:
-                logger.error(f"❌ Parcela {parcela.nombre} no tiene geometría GeoJSON")
+            # Obtener geometría desde PostGIS o campo de respaldo
+            if parcela.geometria:
+                # Convertir geometría PostGIS a GeoJSON dict
+                geometria = json.loads(parcela.geometria.geojson)
+                logger.info(f"✅ Usando geometría PostGIS de {parcela.nombre}")
+            elif parcela.coordenadas:
+                # Usar campo de respaldo
+                geometria = json.loads(parcela.coordenadas)
+                logger.info(f"✅ Usando coordenadas de respaldo de {parcela.nombre}")
+            else:
+                logger.error(f"❌ Parcela {parcela.nombre} no tiene geometría")
                 return {'error': 'Sin geometría', 'resultados': []}
         except Exception as e:
             logger.error(f"❌ Error parseando geometría: {e}")
