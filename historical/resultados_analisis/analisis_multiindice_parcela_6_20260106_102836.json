@@ -1,0 +1,233 @@
+{
+  "indices_individuales": {
+    "ndvi": {
+      "indice": "NDVI",
+      "nombre_completo": "Normalized Difference Vegetation Index",
+      "estadisticas": {
+        "promedio": 0.684087736347506,
+        "mediana": 0.6939274037870333,
+        "desviacion_estandar": 0.04958373497439889,
+        "minimo": 0.5916266696395573,
+        "maximo": 0.7388822391701286,
+        "percentil_25": 0.6866596605219382,
+        "percentil_75": 0.7093427086188724,
+        "coeficiente_variacion": 0.07248154343350358,
+        "rango": 0.14725556953057128
+      },
+      "tendencia": {
+        "tipo": "deterioro",
+        "pendiente": -0.030177888232623774,
+        "r2": 0.7408481691766257,
+        "p_value": 0.06107371415272832,
+        "significativa": "False"
+      },
+      "estado_actual": {
+        "valor": 0.5916266696395573,
+        "clasificacion": "medio",
+        "nivel_numerico": 3,
+        "interpretacion": "Vegetación moderada"
+      },
+      "cambios_detectados": [
+        {
+          "periodo_inicial": "2025-11",
+          "periodo_final": "2025-12",
+          "valor_inicial": 0.6866596605219382,
+          "valor_final": 0.5916266696395573,
+          "diferencia": -0.09503299088238082,
+          "porcentaje_cambio": -13.839897163923261,
+          "tipo": "deterioro",
+          "magnitud": "moderado"
+        }
+      ],
+      "interpretacion": "El NDVI actual (0.592) indica vegetación moderada. Se observa una tendencia de deterioro (pendiente: -0.0302). La variabilidad es baja, indicando condiciones consistentes.",
+      "metadatos": {
+        "total_puntos": 5,
+        "puntos_validos": 5,
+        "puntos_descartados": 0,
+        "cobertura": 1.0
+      }
+    },
+    "ndmi": {
+      "indice": "NDMI",
+      "nombre_completo": "Normalized Difference Moisture Index",
+      "estadisticas": {
+        "promedio": 0.12650433847478282,
+        "mediana": 0.15495979140768978,
+        "desviacion_estandar": 0.05652758431872158,
+        "minimo": 0.021452770189427164,
+        "maximo": 0.17421360999744293,
+        "percentil_25": 0.1141345669834912,
+        "percentil_75": 0.16776095379586295,
+        "coeficiente_variacion": 0.446843049023095,
+        "rango": 0.15276083980801575
+      },
+      "tendencia": {
+        "tipo": "deterioro",
+        "pendiente": -0.03463469040402301,
+        "r2": 0.7508129634064128,
+        "p_value": 0.05737040270338134,
+        "significativa": "False"
+      },
+      "estado_actual": {
+        "valor": 0.021452770189427164,
+        "clasificacion": "bajo",
+        "nivel_numerico": 2,
+        "interpretacion": "Estrés hídrico moderado"
+      },
+      "cambios_detectados": [
+        {
+          "periodo_inicial": "2025-08",
+          "periodo_final": "2025-09",
+          "valor_inicial": 0.17421360999744293,
+          "valor_final": 0.15495979140768978,
+          "diferencia": -0.01925381858975314,
+          "porcentaje_cambio": -11.051845254820071,
+          "tipo": "deterioro",
+          "magnitud": "moderado"
+        },
+        {
+          "periodo_inicial": "2025-10",
+          "periodo_final": "2025-11",
+          "valor_inicial": 0.16776095379586295,
+          "valor_final": 0.1141345669834912,
+          "diferencia": -0.05362638681237175,
+          "porcentaje_cambio": -31.965952505030526,
+          "tipo": "deterioro",
+          "magnitud": "fuerte"
+        },
+        {
+          "periodo_inicial": "2025-11",
+          "periodo_final": "2025-12",
+          "valor_inicial": 0.1141345669834912,
+          "valor_final": 0.021452770189427164,
+          "diferencia": -0.09268179679406403,
+          "porcentaje_cambio": -81.2039676003413,
+          "tipo": "deterioro",
+          "magnitud": "fuerte"
+        }
+      ],
+      "interpretacion": "El NDMI actual (0.021) indica estrés hídrico moderado. Se observa una tendencia de deterioro (pendiente: -0.0346). La variabilidad es alta, sugiriendo condiciones cambiantes.",
+      "metadatos": {
+        "total_puntos": 5,
+        "puntos_validos": 5,
+        "puntos_descartados": 0,
+        "cobertura": 1.0
+      }
+    },
+    "savi": {
+      "indice": "SAVI",
+      "nombre_completo": "Soil-Adjusted Vegetation Index",
+      "estadisticas": {
+        "promedio": 0.4636402248983414,
+        "mediana": 0.47532571130698487,
+        "desviacion_estandar": 0.032987896238566,
+        "minimo": 0.40459904385111184,
+        "maximo": 0.4973448257692884,
+        "percentil_25": 0.45329867332643203,
+        "percentil_75": 0.48763287023788976,
+        "coeficiente_variacion": 0.07114977188573099,
+        "rango": 0.09274578191817656
+      },
+      "tendencia": {
+        "tipo": "deterioro",
+        "pendiente": -0.020751860181690597,
+        "r2": 0.79147066208136,
+        "p_value": 0.043270420614751115,
+        "significativa": "True"
+      },
+      "estado_actual": {
+        "valor": 0.40459904385111184,
+        "clasificacion": "medio",
+        "nivel_numerico": 3,
+        "interpretacion": "Cobertura vegetal moderada"
+      },
+      "cambios_detectados": [
+        {
+          "periodo_inicial": "2025-11",
+          "periodo_final": "2025-12",
+          "valor_inicial": 0.45329867332643203,
+          "valor_final": 0.40459904385111184,
+          "diferencia": -0.048699629475320194,
+          "porcentaje_cambio": -10.743386720713021,
+          "tipo": "deterioro",
+          "magnitud": "moderado"
+        }
+      ],
+      "interpretacion": "El SAVI actual (0.405) indica cobertura vegetal moderada. Se observa una tendencia de deterioro (pendiente: -0.0208). La variabilidad es baja, indicando condiciones consistentes.",
+      "metadatos": {
+        "total_puntos": 5,
+        "puntos_validos": 5,
+        "puntos_descartados": 0,
+        "cobertura": 1.0
+      }
+    }
+  },
+  "patrones_detectados": [
+    {
+      "nombre": "influencia_suelo",
+      "descripcion": "SAVI-NDVI divergen significativamente",
+      "interpretacion": "La divergencia entre SAVI y NDVI indica alta reflectancia del suelo, común en cultivos con cobertura incompleta o en etapas tempranas. SAVI proporciona estimación más precisa en estas condiciones.",
+      "severidad": "baja",
+      "recomendaciones": [
+        "Priorizar SAVI sobre NDVI para análisis en esta parcela",
+        "Evaluar densidad de siembra y cobertura del suelo",
+        "Considerar prácticas de manejo de residuos o coberturas",
+        "Re-evaluar cuando el cultivo alcance mayor cobertura"
+      ],
+      "indices_utilizados": [
+        "ndvi",
+        "savi"
+      ],
+      "confianza_requerida": 0.6
+    }
+  ],
+  "diagnostico_consolidado": {
+    "conclusion_principal": "El NDVI actual (0.592) indica vegetación moderada. Se observa una tendencia de deterioro (pendiente: -0.0302). La variabilidad es baja, indicando condiciones consistentes.",
+    "estados_indices": {
+      "ndvi": {
+        "valor": 0.684087736347506,
+        "clasificacion": "medio",
+        "tendencia": "deterioro",
+        "interpretacion": "El NDVI actual (0.592) indica vegetación moderada. Se observa una tendencia de deterioro (pendiente: -0.0302). La variabilidad es baja, indicando condiciones consistentes."
+      },
+      "ndmi": {
+        "valor": 0.12650433847478282,
+        "clasificacion": "bajo",
+        "tendencia": "deterioro",
+        "interpretacion": "El NDMI actual (0.021) indica estrés hídrico moderado. Se observa una tendencia de deterioro (pendiente: -0.0346). La variabilidad es alta, sugiriendo condiciones cambiantes."
+      },
+      "savi": {
+        "valor": 0.4636402248983414,
+        "clasificacion": "medio",
+        "tendencia": "deterioro",
+        "interpretacion": "El SAVI actual (0.405) indica cobertura vegetal moderada. Se observa una tendencia de deterioro (pendiente: -0.0208). La variabilidad es baja, indicando condiciones consistentes."
+      }
+    },
+    "patrones_activos": 1,
+    "severidad_maxima": "baja",
+    "recomendaciones": [
+      {
+        "texto": "Priorizar SAVI sobre NDVI para análisis en esta parcela",
+        "prioridad": "baja",
+        "fuente_patron": "influencia_suelo"
+      },
+      {
+        "texto": "Evaluar densidad de siembra y cobertura del suelo",
+        "prioridad": "baja",
+        "fuente_patron": "influencia_suelo"
+      },
+      {
+        "texto": "Considerar prácticas de manejo de residuos o coberturas",
+        "prioridad": "baja",
+        "fuente_patron": "influencia_suelo"
+      },
+      {
+        "texto": "Re-evaluar cuando el cultivo alcance mayor cobertura",
+        "prioridad": "baja",
+        "fuente_patron": "influencia_suelo"
+      }
+    ],
+    "numero_indices_analizados": 3
+  },
+  "timestamp": "2026-01-06T10:28:36.249990"
+}

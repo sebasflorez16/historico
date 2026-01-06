@@ -1,0 +1,745 @@
+{% extends "informes/base.html" %}
+{% load static %}
+
+{% block title %}Crear Nueva Parcela - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<!-- Plugin de búsqueda -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+<style>
+    .map-container {
+        height: 600px;  /* Aumentado de 400px a 600px para mayor altura */
+        width: 100%;
+        border: 2px solid #4a5d23;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        min-height: 600px;  /* Altura mínima garantizada */
+    }
+    
+    /* Asegurar que el mapa tome toda la altura disponible */
+    #map {
+        height: 100%;
+        width: 100%;
+    }
+    
+    .coords-input {
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .method-selector {
+        margin-bottom: 25px;
+    }
+    
+    .btn-method {
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .coords-list {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+    
+    .coord-item {
+        padding: 5px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .area-display {
+        background: linear-gradient(135deg, #4a5d23, #6b8e23);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        margin: 15px 0;
+    }
+    
+    /* Estilos para los controles de dibujo - asegurar que sean visibles */
+    .leaflet-draw-toolbar a {
+        background-color: white !important;
+        border: 2px solid #ccc !important;
+        border-radius: 4px !important;
+    }
+    
+    .leaflet-draw-toolbar a:hover {
+        background-color: #f0f0f0 !important;
+        border-color: #4a5d23 !important;
+    }
+    
+    /* Hacer más visible el botón de polígono */
+    .leaflet-draw-draw-polygon {
+        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAZCAYAAADE6YVjAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo2N0MxQ0UzMUMzODMxMUUyOEI5NDk2RDQ1QTE4RTMxNiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDo2N0MxQ0UzMkMzODMxMUUyOEI5NDk2RDQ1QTE4RTMxNiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjY3QzFDRTJGQzM4MzExRTI4Qjk0OTZENDVBMThFMzE2IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjY3QzFDRTMwQzM4MzExRTI4Qjk0OTZENDVBMThFMzE2Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+GXaUOgAAApJJREFUeNrMVk1IVEEUfudNZ2ad2S+t1LJStv2wfygkIpJCCpIiCCI6CFGHTrLsEG269NC5Q6dOHYJOQQlFRQQdJFpJK1opSzE1NbNsZ+b9fH0zsxvOZIxFKW+H937fe2++976ZN5yIQCk1QGtDtWKEkkNQ/l+I+EAhNuWLh3K5vLIsy9aVdm9/n1AwGDRs204vLy8Tl8sJA5HdbpdlmTaYYrFo6Lq+5Ha7g8FgsLigoKBPluWJlpYWHQBA0zTNZKZNNE07IhBCOE6y2WxY0DQNt7eaLy8vK6lUymGmaWa7u7tF1NZPL+Cw7x49lSSJzKOzs7Nn5ubmFIqiEEVRKysr6fT09IMzKYBjsVgPz/N+CAAQ/fFjbGxseDqdBgCgKOq6ruu7aZom3nFdR1HUQjqdRs5pPp9f8Xg8YT6fR15BZa8bF4vFtRPj4+PjdOv8g2+6rvdNTk5+z2QyGAAAp6enp2dm5sAPnueyqY5V6GhslyzLilzXP7iNHApGOp3OOzo6eppKpeJqdjqamdJmZmYmGEAJpZqmmbSyslZaVdVaWlrOlpeXH6yurq48fPjwXXt7e4/H47mgKMr6+vp6Z2dnd1VVVWNjY2OHy+WStm7d+tzhcDwAgLa2to5qtdqc53a7v9XV1V0dHR3t9Xq927du3fqx7u7u9+fPnz86MDDwJCdZJotE27Zty8vLf+l0OvdXVlbet7a2HonEhELR6HU6vV6vvRJa7IiuLy8v/0pJScmFkpKSNqfT6fH7/Q+bmpqONjY23t+wYcNOr9e7w+fz2W63+7Pf77+5efPmO5WVlVdcLld2enraBwA2E4eZmZldtbW1OwsLCys9Ho+vpaXlGsdxIZ/PF25ubp65efOmO+YXoKtVqz2f5yTD5v8c/BFgAFCb22j0/KZcAAAAAElFTkSuQmCC') !important;
+        background-size: 16px 16px !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-map-marked-alt"></i> Crear Nueva Parcela</h2>
+                <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" id="parcelaForm">
+                {% csrf_token %}
+                
+                <!-- Información básica -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle"></i> Información de la Parcela</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="nombre" class="form-label">Nombre de la Parcela *</label>
+                                    <input type="text" class="form-control" id="nombre" name="nombre" required>
+                                    <div class="form-text">Ej: Lote Norte, Finca El Cafetal, etc.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="propietario" class="form-label">Propietario *</label>
+                                    <input type="text" class="form-control" id="propietario" name="propietario" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="tipo_cultivo" class="form-label">Tipo de Cultivo</label>
+                                    <select class="form-control" id="tipo_cultivo" name="tipo_cultivo">
+                                        <option value="">Seleccionar cultivo...</option>
+                                        <option value="Café">Café</option>
+                                        <option value="Maíz">Maíz</option>
+                                        <option value="Arroz">Arroz</option>
+                                        <option value="Cacao">Cacao</option>
+                                        <option value="Plátano">Plátano</option>
+                                        <option value="Aguacate">Aguacate</option>
+                                        <option value="Caña de azúcar">Caña de azúcar</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fecha_inicio_monitoreo" class="form-label">Fecha Inicio Monitoreo *</label>
+                                    <input type="date" class="form-control" id="fecha_inicio_monitoreo" 
+                                           name="fecha_inicio_monitoreo" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notas" class="form-label">Notas</label>
+                            <textarea class="form-control" id="notas" name="notas" rows="3" 
+                                      placeholder="Información adicional sobre la parcela..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selección del método de captura -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-map"></i> Definir Límites de la Parcela</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="method-selector">
+                            <label class="form-label">Método de captura de coordenadas:</label><br>
+                            <button type="button" class="btn btn-outline-success btn-method" id="btnMapMode" onclick="setMode('map')">
+                                <i class="fas fa-draw-polygon"></i> Dibujar en Mapa
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-method" id="btnCoordsMode" onclick="setMode('coords')">
+                                <i class="fas fa-list-ol"></i> Ingresar Coordenadas GPS
+                            </button>
+                        </div>
+
+                        <!-- Modo Mapa -->
+                        <div id="mapMode" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> 
+                                <strong>Instrucciones:</strong> 
+                                Haga clic en el botón de polígono (□) en el mapa y dibuje los límites de su parcela haciendo clic en cada esquina.
+                            </div>
+                            <div id="map" class="map-container"></div>
+                        </div>
+
+                        <!-- Modo Coordenadas -->
+                        <div id="coordsMode" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> 
+                                <strong>Instrucciones:</strong> 
+                                Ingrese las coordenadas GPS de cada punto del perímetro de su parcela. Mínimo 3 puntos.
+                            </div>
+                            
+                            <div class="coords-input">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <label class="form-label">Latitud</label>
+                                        <input type="number" class="form-control" id="inputLat" 
+                                               placeholder="Ej: 4.5981" step="any">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Longitud</label>
+                                        <input type="number" class="form-control" id="inputLng" 
+                                               placeholder="Ej: -74.0758" step="any">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">&nbsp;</label><br>
+                                        <button type="button" class="btn btn-success" onclick="addCoordinate()">
+                                            <i class="fas fa-plus"></i> Agregar
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-text mt-2">
+                                    <i class="fas fa-lightbulb"></i> 
+                                    Formato: Latitud positiva para Norte, Longitud negativa para Oeste (Colombia)
+                                </div>
+                            </div>
+
+                            <div id="coordsList" class="coords-list" style="display: none;">
+                                <h6>Coordenadas ingresadas:</h6>
+                                <div id="coordinatesContainer"></div>
+                                <button type="button" class="btn btn-warning btn-sm mt-2" onclick="clearCoordinates()">
+                                    <i class="fas fa-trash"></i> Limpiar todas
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Área calculada -->
+                        <div id="areaDisplay" class="area-display" style="display: none;">
+                            <h5><i class="fas fa-ruler-combined"></i> Área Calculada</h5>
+                            <div id="areaValue">0 hectáreas</div>
+                        </div>
+
+                        <!-- Campo oculto para geometría -->
+                        <input type="hidden" id="geometria" name="geometria" required>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="text-center">
+                    <button type="submit" class="btn btn-success btn-lg me-3">
+                        <i class="fas fa-save"></i> Guardar Parcela
+                    </button>
+                    <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Cargar librerías en orden correcto -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<!-- Plugin de búsqueda -->
+<script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+
+<script>
+// Verificar que las librerías se cargaron correctamente
+console.log('Leaflet cargado:', typeof L !== 'undefined');
+console.log('Leaflet Draw cargado:', typeof L.Draw !== 'undefined');
+console.log('Geocoder cargado:', typeof L.Control.Geocoder !== 'undefined');
+
+let map;
+let drawControl;
+let drawnLayer;
+let coordinates = [];
+let currentMode = null;
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    // Crear el elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = `
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    `;
+    
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Agregar al DOM
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 4 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 4000);
+}
+
+// Inicializar fecha por defecto
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha_inicio_monitoreo').value = today;
+});
+
+function setMode(mode) {
+    currentMode = mode;
+    
+    // Resetear estilos de botones
+    document.getElementById('btnMapMode').className = 'btn btn-outline-success btn-method';
+    document.getElementById('btnCoordsMode').className = 'btn btn-outline-primary btn-method';
+    
+    // Ocultar ambos modos
+    document.getElementById('mapMode').style.display = 'none';
+    document.getElementById('coordsMode').style.display = 'none';
+    
+    if (mode === 'map') {
+        document.getElementById('btnMapMode').className = 'btn btn-success btn-method';
+        document.getElementById('mapMode').style.display = 'block';
+        // Dar tiempo al DOM para mostrar el contenedor
+        setTimeout(() => {
+            initializeMap();
+        }, 100);
+    } else {
+        document.getElementById('btnCoordsMode').className = 'btn btn-primary btn-method';
+        document.getElementById('coordsMode').style.display = 'block';
+    }
+    
+    // Limpiar datos previos
+    clearData();
+}
+
+function initializeMap() {
+    if (map) {
+        map.remove();
+        map = null;
+    }
+    
+    console.log('Inicializando mapa para crear parcela...');
+    
+    // Coordenadas de Colombia (centro aproximado)
+    map = L.map('map', {
+        center: [4.5709, -74.2973],
+        zoom: 6,
+        zoomControl: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        touchZoom: true
+    });
+    
+    console.log('Mapa creado, agregando capas...');
+    
+    // Capa satelital de Esri como principal
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
+        maxZoom: 19
+    });
+    
+    // Capa de calles como alternativa
+    const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    });
+    
+    // Agregar la capa satelital por defecto
+    esriSatellite.addTo(map);
+    
+    // Control de capas
+    const baseMaps = {
+        "📡 Imagen Satelital": esriSatellite,
+        "🗺️ Mapa Calles": openStreetMap
+    };
+    
+    L.control.layers(baseMaps).addTo(map);
+    
+    // Control de búsqueda con geocodificación
+    console.log('Agregando control de búsqueda...');
+    const geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: '🔍 Buscar ubicación en Colombia...',
+        errorMessage: 'No se encontró la ubicación',
+        showUniqueResult: true,
+        geocoder: L.Control.Geocoder.nominatim({
+            serviceUrl: 'https://nominatim.openstreetmap.org/',
+            geocodingQueryParams: {
+                countrycodes: 'co', // Limitar búsquedas a Colombia
+                limit: 5
+            }
+        })
+    }).on('markgeocode', function(e) {
+        console.log('Ubicación encontrada:', e.geocode);
+        const bbox = e.geocode.bbox;
+        const poly = L.polygon([
+            [bbox.getSouthEast().lat, bbox.getSouthEast().lng],
+            [bbox.getNorthEast().lat, bbox.getNorthEast().lng],
+            [bbox.getNorthWest().lat, bbox.getNorthWest().lng],
+            [bbox.getSouthWest().lat, bbox.getSouthWest().lng]
+        ]);
+        map.fitBounds(poly.getBounds());
+        
+        // Agregar marcador temporal
+        const marker = L.marker(e.geocode.center, {
+            icon: L.divIcon({
+                className: 'search-marker',
+                html: `<div style="background-color: #ff6b35; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 16px;">📍</div>`,
+                iconSize: [30, 30]
+            })
+        }).addTo(map);
+        
+        // Popup con información de la ubicación
+        marker.bindPopup(`
+            <div style="text-align: center; min-width: 200px;">
+                <h6 style="color: #4a5d23; margin-bottom: 10px;">📍 ${e.geocode.name}</h6>
+                <p><small>Lat: ${e.geocode.center.lat.toFixed(6)}<br>Lng: ${e.geocode.center.lng.toFixed(6)}</small></p>
+                <p style="margin: 0;"><em>Ahora puedes dibujar tu parcela aquí</em></p>
+            </div>
+        `).openPopup();
+        
+        // Remover el marcador después de 6 segundos
+        setTimeout(() => {
+            if (map.hasLayer(marker)) {
+                map.removeLayer(marker);
+            }
+        }, 6000);
+        
+        // Mostrar notificación
+        showNotification(`📍 Ubicación encontrada: ${e.geocode.name}`, 'success');
+    }).addTo(map);
+    
+    console.log('Control de búsqueda agregado');
+    
+    console.log('Capas agregadas, configurando herramientas de dibujo...');
+    
+    // Grupo para elementos dibujados
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    
+    // Control de dibujo con configuración mejorada
+    drawControl = new L.Control.Draw({
+        position: 'topleft',
+        draw: {
+            polygon: {
+                allowIntersection: false,
+                drawError: {
+                    color: '#ff6b35',
+                    message: '<strong>Error:</strong> Los bordes no pueden cruzarse'
+                },
+                shapeOptions: {
+                    color: '#ff6b35',        // Naranja para mejor visibilidad
+                    weight: 3,
+                    fillOpacity: 0.3,
+                    fillColor: '#ff9800'
+                },
+                showArea: true,
+                metric: ['km', 'm']
+            },
+            polyline: false,
+            rectangle: {
+                shapeOptions: {
+                    color: '#ff6b35',
+                    weight: 3,
+                    fillOpacity: 0.3,
+                    fillColor: '#ff9800'
+                }
+            },
+            circle: false,
+            marker: false,
+            circlemarker: false
+        },
+        edit: {
+            featureGroup: drawnItems,
+            remove: true,
+            edit: true
+        }
+    });
+    
+    console.log('Control de dibujo creado, agregando al mapa...');
+    map.addControl(drawControl);
+    
+    console.log('Control de dibujo agregado, configurando eventos...');
+    
+    // Eventos de dibujo mejorados
+    map.on(L.Draw.Event.CREATED, function (e) {
+        console.log('Polígono creado');
+        const layer = e.layer;
+        
+        // Limpiar polígonos anteriores
+        drawnItems.clearLayers();
+        drawnItems.addLayer(layer);
+        drawnLayer = layer;
+        
+        // Aplicar estilo naranja
+        layer.setStyle({
+            color: '#e65100',
+            weight: 4,
+            fillOpacity: 0.4,
+            fillColor: '#ff9800'
+        });
+        
+        // Obtener coordenadas
+        const coords = layer.getLatLngs()[0];
+        const geojson = layer.toGeoJSON();
+        
+        // Actualizar campo oculto
+        document.getElementById('geometria').value = JSON.stringify(geojson);
+        console.log('Geometría actualizada:', geojson);
+        
+        // Calcular y mostrar área
+        calculateAndDisplayArea(coords);
+        
+        // Mostrar notificación de éxito
+        showNotification('✅ Parcela dibujada correctamente', 'success');
+    });
+    
+    map.on(L.Draw.Event.EDITED, function (e) {
+        console.log('Polígono editado');
+        const layers = e.layers;
+        layers.eachLayer(function (layer) {
+            const coords = layer.getLatLngs()[0];
+            const geojson = layer.toGeoJSON();
+            document.getElementById('geometria').value = JSON.stringify(geojson);
+            calculateAndDisplayArea(coords);
+        });
+        showNotification('✅ Parcela actualizada', 'info');
+    });
+    
+    map.on(L.Draw.Event.DELETED, function (e) {
+        console.log('Polígono eliminado');
+        document.getElementById('geometria').value = '';
+        hideAreaDisplay();
+        showNotification('🗑️ Parcela eliminada', 'warning');
+    });
+    
+    map.on(L.Draw.Event.DRAWSTART, function (e) {
+        console.log('Iniciando dibujo...');
+        showNotification('✏️ Haga clic en el mapa para dibujar la parcela', 'info');
+    });
+    
+    map.on(L.Draw.Event.DRAWSTOP, function (e) {
+        console.log('Dibujo finalizado');
+    });
+    
+    // Forzar actualización del tamaño del mapa
+    setTimeout(() => {
+        console.log('Actualizando tamaño del mapa...');
+        map.invalidateSize();
+        console.log('Mapa inicializado completamente');
+    }, 300);
+}
+
+function addCoordinate() {
+    const lat = parseFloat(document.getElementById('inputLat').value);
+    const lng = parseFloat(document.getElementById('inputLng').value);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+        alert('Por favor ingrese coordenadas válidas');
+        return;
+    }
+    
+    // Validar rango aproximado para Colombia
+    if (lat < -4 || lat > 15 || lng < -82 || lng > -66) {
+        if (!confirm('Las coordenadas parecen estar fuera de Colombia. ¿Desea continuar?')) {
+            return;
+        }
+    }
+    
+    coordinates.push([lng, lat]); // GeoJSON usa [lng, lat]
+    
+    // Limpiar inputs
+    document.getElementById('inputLat').value = '';
+    document.getElementById('inputLng').value = '';
+    
+    updateCoordinatesList();
+    updateGeometryFromCoords();
+}
+
+function updateCoordinatesList() {
+    const container = document.getElementById('coordinatesContainer');
+    const coordsList = document.getElementById('coordsList');
+    
+    if (coordinates.length === 0) {
+        coordsList.style.display = 'none';
+        return;
+    }
+    
+    coordsList.style.display = 'block';
+    
+    let html = '';
+    coordinates.forEach((coord, index) => {
+        html += `
+            <div class="coord-item">
+                <span>
+                    <strong>${index + 1}.</strong> 
+                    Lat: ${coord[1].toFixed(6)}, Lng: ${coord[0].toFixed(6)}
+                </span>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeCoordinate(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function removeCoordinate(index) {
+    coordinates.splice(index, 1);
+    updateCoordinatesList();
+    updateGeometryFromCoords();
+}
+
+function clearCoordinates() {
+    coordinates = [];
+    updateCoordinatesList();
+    document.getElementById('geometria').value = '';
+    hideAreaDisplay();
+}
+
+function updateGeometryFromCoords() {
+    if (coordinates.length < 3) {
+        document.getElementById('geometria').value = '';
+        hideAreaDisplay();
+        return;
+    }
+    
+    // Cerrar polígono si no está cerrado
+    const closedCoords = [...coordinates];
+    if (coordinates.length > 0) {
+        const first = coordinates[0];
+        const last = coordinates[coordinates.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+            closedCoords.push([first[0], first[1]]);
+        }
+    }
+    
+    const geojson = {
+        type: "Feature",
+        properties: {},
+        geometry: {
+            type: "Polygon",
+            coordinates: [closedCoords]
+        }
+    };
+    
+    document.getElementById('geometria').value = JSON.stringify(geojson);
+    
+    // Calcular área usando aproximación
+    const latLngCoords = coordinates.map(coord => [coord[1], coord[0]]); // Convertir a [lat, lng]
+    calculateAndDisplayAreaFromCoords(latLngCoords);
+}
+
+function calculateAndDisplayArea(coords) {
+    // Calcular área usando algoritmo de Shoelace (aproximado)
+    let area = 0;
+    const n = coords.length;
+    
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += coords[i].lat * coords[j].lng;
+        area -= coords[j].lat * coords[i].lng;
+    }
+    
+    area = Math.abs(area) / 2;
+    
+    // Convertir a hectáreas (aproximado)
+    const hectares = area * 111320 * 111320 / 10000; // Conversión aproximada
+    
+    showAreaDisplay(hectares);
+}
+
+function calculateAndDisplayAreaFromCoords(coords) {
+    if (coords.length < 3) return;
+    
+    let area = 0;
+    const n = coords.length;
+    
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += coords[i][1] * coords[j][0]; // lng * lat
+        area -= coords[j][1] * coords[i][0];
+    }
+    
+    area = Math.abs(area) / 2;
+    
+    // Convertir a hectáreas (aproximado)
+    const hectares = area * 111320 * 111320 / 10000;
+    
+    showAreaDisplay(hectares);
+}
+
+function showAreaDisplay(hectares) {
+    const display = document.getElementById('areaDisplay');
+    const value = document.getElementById('areaValue');
+    
+    value.textContent = `${hectares.toFixed(2)} hectáreas`;
+    display.style.display = 'block';
+}
+
+function hideAreaDisplay() {
+    document.getElementById('areaDisplay').style.display = 'none';
+}
+
+function clearData() {
+    coordinates = [];
+    document.getElementById('geometria').value = '';
+    document.getElementById('coordinatesContainer').innerHTML = '';
+    document.getElementById('coordsList').style.display = 'none';
+    hideAreaDisplay();
+    
+    if (map && drawnLayer) {
+        map.removeLayer(drawnLayer);
+    }
+}
+
+// Validación del formulario
+document.getElementById('parcelaForm').addEventListener('submit', function(e) {
+    const geometria = document.getElementById('geometria').value;
+    
+    if (!geometria) {
+        e.preventDefault();
+        alert('Por favor defina los límites de la parcela usando uno de los métodos disponibles.');
+        return false;
+    }
+    
+    if (currentMode === 'coords' && coordinates.length < 3) {
+        e.preventDefault();
+        alert('Se requieren mínimo 3 coordenadas para formar una parcela.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

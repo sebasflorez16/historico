@@ -1,0 +1,57 @@
+═══════════════════════════════════════════════════════════════════════════════
+REFACTORIZACIÓN COMPLETA DEL SISTEMA DE TESTS - AGROTECH
+═══════════════════════════════════════════════════════════════════════════════
+
+Fecha: 6 de enero de 2026
+Total de archivos de tests encontrados: 111
+
+═══════════════════════════════════════════════════════════════════════════════
+ESTRATEGIA DE REFACTORIZACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+OBJETIVOS:
+✓ Eliminar tests obsoletos, duplicados y experimentales
+✓ Conservar solo tests que validan el motor de análisis actual
+✓ Centralizar todos los tests en /historical/tests/
+✓ Nomenclatura clara y consistente
+✓ Suite mínima, limpia y mantenible
+
+═══════════════════════════════════════════════════════════════════════════════
+CLASIFICACIÓN DE TESTS
+═══════════════════════════════════════════════════════════════════════════════
+
+TESTS A CONSERVAR (Motor actual de análisis):
+────────────────────────────────────────────────────────────────────────────────
+1. test_motor_completo_v2.py                → Motor de análisis completo
+2. test_generacion_informe.py               → Generación de PDFs
+3. test_views_completo.py                   → Vistas Django
+4. test_endpoints.py                        → API REST
+
+TESTS OBSOLETOS/EXPERIMENTALES A ELIMINAR:
+────────────────────────────────────────────────────────────────────────────────
+Categoría: Tests de integración EOSDA experimental
+- test_eosda_*.py (múltiples versiones)
+- test_field_imagery_api.py
+- test_field_analytics.py
+- test_flujo_completo_eosda.py
+- test_parcela_6_real.py
+
+Categoría: Tests de Gemini/IA (experimental)
+- test_gemini_*.py
+- test_analisis_*_gemini.py
+- test_pdf_con_gemini.py
+
+Categoría: Tests de seguridad redundantes
+- test_seguridad_*.py (múltiples versiones)
+- test_eliminacion_segura.py
+- test_sistema_seguridad.py
+
+Categoría: Tests de sistema de pagos
+- test_sistema_pagos_completo.py
+- test_pagos_rapido.py
+- test_debug_pagos.py
+
+Categoría: Tests duplicados/backup
+- Cualquier test con "_backup", "_old", "_v1", etc.
+
+═══════════════════════════════════════════════════════════════════════════════

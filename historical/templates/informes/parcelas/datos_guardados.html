@@ -1,0 +1,1555 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Datos Guardados - {{ parcela.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========================================
+       🌿 NEUMORFISMO LUMINOSO AGROTECH 🌿
+       Datos Guardados - Diseño Neumórfico 3D
+       Paleta: Blanco, Naranja #FF7A00, Verde #2E8B57
+       ======================================== */
+    
+    :root {
+        --agrotech-orange: #FF7A00;
+        --agrotech-green: #2E8B57;
+        --agrotech-white: #FFFFFF;
+        --agrotech-light: #F0F4F8;
+        --neuro-bg-primary: #E8F0F8;
+        --neuro-bg-secondary: #F5F7FA;
+        --neuro-shadow-light: -8px -8px 16px rgba(255, 255, 255, 0.8);
+        --neuro-shadow-dark: 8px 8px 16px rgba(46, 139, 87, 0.15);
+        --neuro-shadow-hover-light: -12px -12px 24px rgba(255, 255, 255, 0.9);
+        --neuro-shadow-hover-dark: 12px 12px 24px rgba(255, 122, 0, 0.2);
+    }
+    
+    /* Fondo con degradado neumórfico */
+    body {
+        background: linear-gradient(145deg, 
+            #E8F0F8 0%, 
+            #F0F8F0 50%, 
+            #FFF8F0 100%);
+        background-attachment: fixed;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    /* Container con espacio para el logo */
+    .container-fluid {
+        padding-top: 30px;
+        position: relative;
+    }
+    
+    /* Logo AgroTech en esquina superior - Diseño Neumórfico */
+    .agrotech-logo-header {
+        position: fixed;
+        top: 24px;
+        left: 24px;
+        z-index: 1000;
+        background: var(--neuro-bg-secondary);
+        border-radius: 24px;
+        padding: 16px 24px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .agrotech-logo-header:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .agrotech-logo-header img {
+        height: 50px;
+        width: auto;
+        filter: drop-shadow(0 2px 8px rgba(46, 139, 87, 0.3));
+    }
+    
+    .agrotech-brand-text {
+        font-size: 1.3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--agrotech-green), var(--agrotech-orange));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.5px;
+    }
+    
+    /* Tarjetas con efecto neumórfico 3D */
+    .datos-card {
+        background: var(--neuro-bg-secondary);
+        border: none;
+        border-radius: 32px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: visible;
+        position: relative;
+        margin-bottom: 30px;
+    }
+    
+    .datos-card::before {
+        content: '';
+        position: absolute;
+        top: -3px;
+        left: 30px;
+        right: 30px;
+        height: 6px;
+        background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
+        border-radius: 32px 32px 0 0;
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        transform: translateY(-100%);
+    }
+    
+    .datos-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .datos-card:hover::before {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    /* Header de tarjetas neumórfico */
+    .card-header {
+        background: linear-gradient(145deg, 
+            rgba(46, 139, 87, 0.06), 
+            rgba(255, 122, 0, 0.06));
+        border-bottom: none;
+        padding: 24px 32px;
+        border-radius: 32px 32px 0 0 !important;
+    }
+    
+    .card-header h5 {
+        margin: 0;
+        font-weight: 800;
+        color: var(--agrotech-green);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .card-header h5 i {
+        color: var(--agrotech-orange);
+        font-size: 1.4rem;
+        padding: 12px;
+        background: var(--neuro-bg-primary);
+        border-radius: 16px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+    }
+    
+    /* Badges neumórficos con diseño 3D */
+    .indice-badge {
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        background: var(--neuro-bg-secondary);
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+    }
+    
+    .indice-badge:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .indice-badge::before {
+        content: '●';
+        font-size: 14px;
+    }
+    
+    .fuente-eosda { 
+        background: linear-gradient(145deg, 
+            var(--agrotech-green), 
+            #34A853);
+        color: white; 
+        box-shadow: var(--neuro-shadow-light), 
+                    var(--neuro-shadow-dark),
+                    0 4px 15px rgba(46, 139, 87, 0.3);
+    }
+    
+    .fuente-simulado { 
+        background: linear-gradient(145deg, 
+            #FFC107, 
+            var(--agrotech-orange));
+        color: #212529;
+        box-shadow: var(--neuro-shadow-light), 
+                    var(--neuro-shadow-dark),
+                    0 4px 15px rgba(255, 193, 7, 0.3);
+    }
+    
+    /* Badges informativos para datos faltantes */
+    .bg-warning-subtle {
+        background-color: #fff3cd !important;
+        border: 1px solid #ffc107;
+    }
+    
+    .text-warning-emphasis {
+        color: #997404 !important;
+    }
+    
+    .bg-secondary-subtle {
+        background-color: #e9ecef !important;
+        border: 1px solid #6c757d;
+    }
+    
+    .text-secondary-emphasis {
+        color: #495057 !important;
+    }
+    
+    /* Valores con colores AgroTech */
+    .valor-positivo { 
+        color: var(--agrotech-green); 
+        font-weight: 800;
+        text-shadow: 0 0 20px rgba(46, 139, 87, 0.2);
+    }
+    
+    .valor-neutro { 
+        color: #6c757d; 
+        font-weight: 600; 
+    }
+    
+    .valor-negativo { 
+        color: var(--agrotech-orange); 
+        font-weight: 800;
+        text-shadow: 0 0 20px rgba(255, 122, 0, 0.2);
+    }
+    
+    /* Tabla neumórfica mejorada */
+    .datos-tabla {
+        font-size: 0.95rem;
+        background: var(--neuro-bg-secondary);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+    }
+    
+    .datos-tabla thead {
+        background: linear-gradient(145deg, 
+            rgba(46, 139, 87, 0.08), 
+            rgba(255, 122, 0, 0.08));
+    }
+    
+    .datos-tabla thead th {
+        border: none;
+        color: var(--agrotech-green);
+        font-weight: 800;
+        padding: 18px 16px;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .datos-tabla tbody tr {
+        background: rgba(245, 247, 250, 0.5);
+        border-bottom: 1px solid rgba(46, 139, 87, 0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .datos-tabla tbody tr:hover {
+        background: linear-gradient(145deg, 
+            rgba(46, 139, 87, 0.06), 
+            rgba(255, 122, 0, 0.06));
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(255, 122, 0, 0.15);
+    }
+    
+    .datos-tabla tbody td {
+        padding: 16px;
+        vertical-align: middle;
+    }
+    
+    .chart-container {
+        height: 350px;
+        margin: 24px 0;
+        position: relative;
+        padding: 20px;
+        background: var(--neuro-bg-primary);
+        border-radius: 20px;
+        box-shadow: inset -4px -4px 8px rgba(255, 255, 255, 0.7),
+                    inset 4px 4px 8px rgba(46, 139, 87, 0.1);
+    }
+    
+    .indice-badge::before {
+        content: '●';
+        font-size: 12px;
+    }
+    
+    .fuente-eosda { 
+        background: linear-gradient(135deg, 
+            rgba(46, 139, 87, 0.9), 
+            rgba(34, 139, 87, 0.95));
+        color: white; 
+        box-shadow: 0 4px 15px rgba(46, 139, 87, 0.3);
+    }
+    
+    .fuente-simulado { 
+        background: linear-gradient(135deg, 
+            rgba(255, 193, 7, 0.9), 
+            rgba(255, 152, 0, 0.95));
+        color: #212529;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+    }
+    
+    /* Valores con colores AgroTech */
+    .valor-positivo { 
+        color: var(--agrotech-green); 
+        font-weight: 700;
+        text-shadow: 0 0 20px rgba(46, 139, 87, 0.2);
+    }
+    
+    .valor-neutro { 
+        color: #6c757d; 
+        font-weight: 600; 
+    }
+    
+    .valor-negativo { 
+        color: var(--agrotech-orange); 
+        font-weight: 700;
+        text-shadow: 0 0 20px rgba(255, 122, 0, 0.2);
+    }
+    
+    /* Tabla mejorada */
+    .datos-tabla {
+        font-size: 0.9rem;
+        background: transparent;
+    }
+    
+    .datos-tabla thead {
+        background: linear-gradient(135deg, 
+            rgba(46, 139, 87, 0.12), 
+            rgba(255, 122, 0, 0.12));
+        border-radius: 16px;
+    }
+    
+    .datos-tabla thead th {
+        border: none;
+        color: var(--agrotech-green);
+        font-weight: 700;
+        padding: 16px 12px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .datos-tabla tbody tr {
+        background: rgba(255, 255, 255, 0.5);
+        border-bottom: 1px solid rgba(46, 139, 87, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .datos-tabla tbody tr:hover {
+        background: rgba(255, 122, 0, 0.08);
+        transform: scale(1.01);
+        box-shadow: 0 4px 12px rgba(255, 122, 0, 0.15);
+    }
+    
+    .chart-container {
+        height: 300px;
+        margin: 20px 0;
+        position: relative;
+    }
+    
+    /* ========================================
+       🛰️ SPINNERS SATELITALES NEUMÓRFICOS
+       ======================================== */
+    
+    /* Spinner satelital con efecto neumórfico */
+    .satellite-spinner {
+        display: inline-block;
+        width: 70px;
+        height: 70px;
+        position: relative;
+        animation: satellite-orbit 3s linear infinite;
+    }
+    
+    .satellite-spinner::before {
+        content: '🛰️';
+        font-size: 45px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        filter: drop-shadow(0 4px 12px rgba(46, 139, 87, 0.5));
+    }
+    
+    .satellite-spinner::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 85px;
+        height: 85px;
+        border: 4px dashed var(--agrotech-green);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        animation: orbit-ring 3s linear infinite;
+        box-shadow: 0 0 30px rgba(46, 139, 87, 0.4),
+                    inset 0 0 15px rgba(255, 122, 0, 0.2);
+    }
+    
+    @keyframes satellite-orbit {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes orbit-ring {
+        0%, 100% { 
+            opacity: 0.5;
+            border-color: var(--agrotech-green);
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% { 
+            opacity: 1;
+            border-color: var(--agrotech-orange);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+    }
+    
+    /* Barra de progreso neumórfica */
+    .satellite-progress {
+        width: 100%;
+        height: 10px;
+        background: var(--neuro-bg-secondary);
+        border-radius: 30px;
+        position: relative;
+        overflow: hidden;
+        margin: 20px 0;
+        box-shadow: inset -4px -4px 8px rgba(255, 255, 255, 0.7),
+                    inset 4px 4px 8px rgba(46, 139, 87, 0.15);
+    }
+    
+    .satellite-progress::before {
+        content: '🛰️';
+        position: absolute;
+        font-size: 28px;
+        top: -14px;
+        animation: satellite-scan 4s linear infinite;
+        filter: drop-shadow(0 2px 10px rgba(46, 139, 87, 0.6));
+    }
+    
+    .satellite-progress::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(255, 122, 0, 0.9), 
+            rgba(46, 139, 87, 0.9),
+            transparent);
+        animation: progress-scan 3s ease-in-out infinite;
+        box-shadow: 0 0 25px rgba(255, 122, 0, 0.6);
+        border-radius: 30px;
+    }
+    
+    @keyframes satellite-scan {
+        0% { left: -50px; }
+        100% { left: calc(100% + 50px); }
+    }
+    
+    @keyframes progress-scan {
+        0%, 100% { transform: translateX(-100%); }
+        50% { transform: translateX(350%); }
+    }
+    
+    /* Spinner de descarga neumórfico */
+    .image-download-spinner {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        padding: 20px 36px;
+        background: linear-gradient(145deg, 
+            var(--agrotech-green) 0%, 
+            var(--agrotech-orange) 100%);
+        border-radius: 20px;
+        color: white;
+        box-shadow: var(--neuro-shadow-light), 
+                    var(--neuro-shadow-dark),
+                    0 8px 32px rgba(46, 139, 87, 0.4);
+        border: none;
+    }
+    
+    .image-download-spinner .icon {
+        font-size: 32px;
+        animation: pulse-icon 1.8s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-icon {
+        0%, 100% { 
+            transform: scale(1); 
+            opacity: 1;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+        }
+        50% { 
+            transform: scale(1.4); 
+            opacity: 0.85;
+            filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.9));
+        }
+    }
+    
+    /* Dots animados neumórficos */
+    .loading-dots {
+        display: inline-flex;
+        gap: 7px;
+    }
+    
+    .loading-dots span {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--agrotech-white);
+        animation: loading-dots-bounce 1.6s infinite ease-in-out both;
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.6),
+                    inset 0 2px 4px rgba(46, 139, 87, 0.2);
+    }
+    
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes loading-dots-bounce {
+        0%, 80%, 100% { 
+            transform: scale(0.7); 
+            opacity: 0.5; 
+        }
+        40% { 
+            transform: scale(1.3); 
+            opacity: 1; 
+        }
+    }
+    
+    /* Modal neumórfico mejorado */
+    .download-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(46, 139, 87, 0.15);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        animation: fadeIn 0.4s ease;
+    }
+    
+    .download-modal.active {
+        display: flex;
+    }
+    
+    .download-modal-content {
+        background: var(--glass-bg);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        padding: 50px 40px;
+        border-radius: 32px;
+        text-align: center;
+        box-shadow: 0 24px 80px rgba(46, 139, 87, 0.25),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+        max-width: 550px;
+        animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .download-modal-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+        from { 
+            transform: translateY(80px) scale(0.95); 
+            opacity: 0; 
+        }
+        to { 
+            transform: translateY(0) scale(1); 
+            opacity: 1; 
+        }
+    }
+    
+    /* Mensajes de estado con glassmorphism */
+    .status-message {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 24px;
+        border-radius: 16px;
+        font-weight: 600;
+        margin: 12px 0;
+        animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+    
+    .status-message.success {
+        background: linear-gradient(135deg, 
+            rgba(46, 139, 87, 0.95) 0%, 
+            rgba(52, 168, 83, 0.95) 100%);
+        color: white;
+        box-shadow: 0 8px 32px rgba(46, 139, 87, 0.4);
+    }
+    
+    .status-message.error {
+        background: linear-gradient(135deg, 
+            rgba(255, 122, 0, 0.95) 0%, 
+            rgba(244, 67, 54, 0.95) 100%);
+        color: white;
+        box-shadow: 0 8px 32px rgba(255, 122, 0, 0.4);
+    }
+    
+    .status-message.warning {
+        background: linear-gradient(135deg, 
+            rgba(255, 193, 7, 0.95) 0%, 
+            rgba(255, 152, 0, 0.95) 100%);
+        color: #212529;
+        box-shadow: 0 8px 32px rgba(255, 193, 7, 0.4);
+    }
+    
+    @keyframes slideIn {
+        from { 
+            transform: translateX(-30px); 
+            opacity: 0; 
+        }
+        to { 
+            transform: translateX(0); 
+            opacity: 1; 
+        }
+    }
+    
+    @keyframes slideOut {
+        from { 
+            transform: translateX(0); 
+            opacity: 1; 
+        }
+        to { 
+            transform: translateX(120px); 
+            opacity: 0; 
+        }
+    }
+    
+    /* Botones con estilo AgroTech */
+    .btn {
+        border-radius: 14px;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+    
+    .btn:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, var(--agrotech-green) 0%, #34A853 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(46, 139, 87, 0.3);
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(46, 139, 87, 0.4);
+    }
+    
+    .btn-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+    }
+    
+    .btn-info:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(23, 162, 184, 0.4);
+    }
+    
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    }
+    
+    .btn-secondary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--agrotech-orange) 0%, #ff8c1a 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(255, 122, 0, 0.4);
+    }
+    
+    /* Botón de descarga especial */
+    .descargar-imagen {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, var(--agrotech-orange) 0%, var(--agrotech-green) 100%);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        font-size: 1.2rem;
+    }
+    
+    .descargar-imagen:hover:not(:disabled) {
+        transform: scale(1.15) rotate(5deg);
+        box-shadow: 0 6px 20px rgba(255, 122, 0, 0.5);
+    }
+    
+    .descargar-imagen:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+    
+    .descargar-imagen:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* Selectores mejorados */
+    .form-select {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-weight: 600;
+        color: var(--agrotech-green);
+        transition: all 0.3s ease;
+    }
+    
+    .form-select:focus {
+        border-color: var(--agrotech-orange);
+        box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.15);
+        outline: none;
+    }
+    
+    /* ========================================
+       📱 RESPONSIVE COMPLETO DATOS GUARDADOS
+       ======================================== */
+    @media (max-width: 991px) {
+        .btn-group-responsive {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .btn-group-responsive .btn {
+            width: 100%;
+            margin: 4px 0 !important;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .agrotech-logo-header {
+            position: static;
+            margin-bottom: 20px;
+            border-radius: 20px;
+        }
+        
+        .agrotech-logo-header img {
+            height: 40px;
+        }
+        
+        .agrotech-brand-text {
+            font-size: 1.1rem;
+        }
+        
+        .container-fluid {
+            padding-top: 20px !important;
+        }
+        
+        .datos-card {
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card-header h5 {
+            font-size: 1rem;
+        }
+        
+        .card-header h5 i {
+            font-size: 1.2rem;
+            padding: 10px;
+        }
+        
+        .chart-container {
+            height: 280px !important;
+        }
+        
+        .datos-tabla {
+            font-size: 0.8rem;
+        }
+        
+        .datos-tabla thead th {
+            font-size: 0.7rem;
+            padding: 12px 8px;
+        }
+        
+        .datos-tabla tbody td {
+            padding: 12px 8px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            font-size: 0.85rem;
+        }
+        
+        /* Ocultar columnas menos importantes en móvil */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .agrotech-logo-header {
+            padding: 12px 16px;
+            gap: 10px;
+        }
+        
+        .agrotech-logo-header img {
+            height: 35px;
+        }
+        
+        .agrotech-brand-text {
+            font-size: 1rem;
+        }
+        
+        .datos-card {
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .card-header {
+            padding: 16px 18px;
+        }
+        
+        .card-body {
+            padding: 18px;
+        }
+        
+        .chart-container {
+            height: 250px !important;
+            padding: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+        }
+        
+        /* Cards de estadísticas en columna */
+        .col-sm-6 {
+            margin-bottom: 12px;
+        }
+        
+        /* Ajustar tamaño de números en stats */
+        .datos-card h3 {
+            font-size: 2rem !important;
+        }
+        
+        .datos-card p {
+            font-size: 0.85rem !important;
+        }
+    }
+    
+    @media (max-width: 400px) {
+        .datos-card {
+            padding: 16px !important;
+        }
+        
+        .chart-container {
+            height: 220px !important;
+        }
+        
+        .btn {
+            font-size: 0.75rem;
+            padding: 8px 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Logo AgroTech Flotante -->
+<div class="agrotech-logo-header">
+    <img src="{% static 'img/agrotech-logo.svg' %}" alt="AgroTech" onerror="this.outerHTML='<i class=\'fas fa-seedling\' style=\'font-size:40px;color:var(--agrotech-green)\'></i>'">
+    <span class="agrotech-brand-text">agrotech.</span>
+</div>
+
+<div class="container-fluid" style="padding-top: 80px;">
+    <!-- Header con glassmorphism -->
+    <div class="d-flex justify-content-between align-items-center mb-4" style="background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 24px; padding: 24px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-soft);">
+        <div>
+            <h2 style="margin: 0; color: var(--agrotech-green); font-weight: 800; display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-database" style="color: var(--agrotech-orange);"></i> 
+                Datos Guardados
+            </h2>
+            <p class="text-muted" style="margin: 8px 0 0 0; font-weight: 500;">
+                <i class="fas fa-map-marked-alt" style="color: var(--agrotech-green);"></i> 
+                {{ parcela.nombre }} - Datos históricos en base de datos
+            </p>
+        </div>
+        <div class="btn-group-responsive d-flex gap-2 flex-wrap justify-content-end">
+            <a href="{% url 'informes:galeria_imagenes' parcela.id %}" class="btn btn-info">
+                <i class="fas fa-images"></i> <span class="d-none d-sm-inline">Ver</span> Galería
+            </a>
+            <a href="{% url 'informes:detalle_parcela' parcela.id %}" class="btn btn-light">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <a href="{% url 'informes:obtener_datos_historicos' parcela.id %}" class="btn btn-success">
+                <i class="fas fa-sync-alt"></i> <span class="d-none d-sm-inline">Actualizar</span> Datos
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas Resumen con Glassmorphism -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3 col-sm-6">
+            <div class="datos-card text-center" style="padding: 24px;">
+                <div style="font-size: 2.5rem; margin-bottom: 8px;">📊</div>
+                <h3 class="text-primary" style="color: var(--agrotech-green) !important; font-weight: 800; font-size: 2.5rem; margin: 8px 0;">
+                    {{ total_registros }}
+                </h3>
+                <p class="text-muted mb-0" style="font-weight: 600; font-size: 0.95rem;">Total Registros</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="datos-card text-center" style="padding: 24px;">
+                <div style="font-size: 2.5rem; margin-bottom: 8px;">🛰️</div>
+                <h3 class="text-success" style="color: var(--agrotech-green) !important; font-weight: 800; font-size: 2.5rem; margin: 8px 0;">
+                    {{ registros_eosda }}
+                </h3>
+                <p class="text-muted mb-0" style="font-weight: 600; font-size: 0.95rem;">Datos EOSDA</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="datos-card text-center" style="padding: 24px;">
+                <div style="font-size: 2.5rem; margin-bottom: 8px;">⚠️</div>
+                <h3 class="text-warning" style="color: var(--agrotech-orange) !important; font-weight: 800; font-size: 2.5rem; margin: 8px 0;">
+                    {{ registros_simulados }}
+                </h3>
+                <p class="text-muted mb-0" style="font-weight: 600; font-size: 0.95rem;">Datos Simulados</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="datos-card text-center" style="padding: 24px;">
+                <div style="font-size: 2.5rem; margin-bottom: 8px;">🌾</div>
+                <h3 class="text-info" style="color: var(--agrotech-green) !important; font-weight: 800; font-size: 2rem; margin: 8px 0;">
+                    {{ parcela.tipo_cultivo|default:"Cultivo" }}
+                </h3>
+                <p class="text-muted mb-0" style="font-weight: 600; font-size: 0.95rem;">Tipo de Cultivo</p>
+            </div>
+        </div>
+    </div>
+
+    {% if tiene_datos %}
+        <!-- Gráficos -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card datos-card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-leaf"></i> Índices de Vegetación</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="indicesChart" class="chart-container"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card datos-card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cloud-rain"></i> Datos Climáticos</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="climaChart" class="chart-container"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="card datos-card">
+            <div class="card-header">
+                <h5><i class="fas fa-table"></i> Datos Detallados (Últimos 20 registros)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover datos-tabla">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Período</th>
+                                <th>NDVI</th>
+                                <th>NDMI</th>
+                                <th>SAVI</th>
+                                <th>Temp. °C</th>
+                                <th>Precipitación</th>
+                                <th>Nubosidad</th>
+                                <th>Fuente</th>
+                                <th>Calidad</th>
+                                <th>Imágenes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for indice in indices %}
+                            <tr>
+                                <td><strong>{{ indice.año }}-{{ indice.mes|stringformat:"02d" }}</strong></td>
+                                <td>
+                                    {% if indice.ndvi_promedio %}
+                                        <span class="{% if indice.ndvi_promedio > 0.6 %}valor-positivo{% elif indice.ndvi_promedio > 0.3 %}valor-neutro{% else %}valor-negativo{% endif %}">
+                                            {{ indice.ndvi_promedio|floatformat:3 }}
+                                        </span>
+                                        {% if indice.ndvi_minimo and indice.ndvi_maximo %}
+                                            <small class="text-muted d-block">
+                                                {{ indice.ndvi_minimo|floatformat:2 }} - {{ indice.ndvi_maximo|floatformat:2 }}
+                                            </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <small class="badge bg-warning-subtle text-warning-emphasis" 
+                                               data-bs-toggle="tooltip" 
+                                               title="Sin imágenes satelitales disponibles este mes. Posibles causas: nubosidad muy alta (>80%), satélite no pasó por la zona, o imágenes aún no procesadas por EOSDA.">
+                                            <i class="fas fa-cloud"></i> Sin imagen
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.ndmi_promedio %}
+                                        <span class="valor-neutro">{{ indice.ndmi_promedio|floatformat:3 }}</span>
+                                    {% else %}
+                                        <small class="badge bg-warning-subtle text-warning-emphasis" 
+                                               data-bs-toggle="tooltip" 
+                                               title="Sin imágenes satelitales disponibles este mes.">
+                                            <i class="fas fa-cloud"></i> Sin imagen
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.savi_promedio %}
+                                        <span class="valor-neutro">{{ indice.savi_promedio|floatformat:3 }}</span>
+                                    {% else %}
+                                        <small class="badge bg-warning-subtle text-warning-emphasis" 
+                                               data-bs-toggle="tooltip" 
+                                               title="Sin imágenes satelitales disponibles este mes.">
+                                            <i class="fas fa-cloud"></i> Sin imagen
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.temperatura_promedio %}
+                                        {{ indice.temperatura_promedio|floatformat:1 }}°
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.precipitacion_total %}
+                                        {{ indice.precipitacion_total|floatformat:0 }}mm
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.nubosidad_promedio %}
+                                        <span class="{% if indice.nubosidad_promedio < 20 %}valor-positivo{% elif indice.nubosidad_promedio < 50 %}valor-neutro{% else %}valor-negativo{% endif %}">
+                                            {{ indice.nubosidad_promedio|floatformat:0 }}%
+                                        </span>
+                                    {% else %}
+                                        <small class="badge bg-secondary-subtle text-secondary-emphasis" 
+                                               data-bs-toggle="tooltip" 
+                                               title="No hay datos de nubosidad porque no hubo imágenes satelitales este mes.">
+                                            <i class="fas fa-question-circle"></i> N/D
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.fuente_datos == 'EOSDA' %}
+                                        <span class="indice-badge fuente-eosda" 
+                                              data-bs-toggle="tooltip" 
+                                              title="✅ Datos satelitales completos (NDVI, NDMI, SAVI) + datos climáticos">
+                                            <i class="fas fa-satellite"></i> EOSDA
+                                        </span>
+                                    {% elif indice.fuente_datos == 'Solo Clima' %}
+                                        <span class="indice-badge fuente-simulado" 
+                                              data-bs-toggle="tooltip" 
+                                              title="🌦️ Solo datos climáticos reales (temperatura, precipitación). Sin imágenes satelitales disponibles este mes debido a: nubosidad muy alta (>80%), satélite no pasó por la zona, o imágenes aún no procesadas.">
+                                            <i class="fas fa-cloud-sun"></i> Solo Clima
+                                        </span>
+                                    {% else %}
+                                        <span class="indice-badge fuente-simulado" 
+                                              data-bs-toggle="tooltip" 
+                                              title="⚠️ Datos con fuente desconocida">
+                                            {{ indice.fuente_datos }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if indice.calidad_datos == 'buena' %}
+                                        <span class="text-success">
+                                            <i class="fas fa-check"></i> Buena
+                                        </span>
+                                    {% elif indice.calidad_datos == 'regular' %}
+                                        <span class="text-warning">
+                                            <i class="fas fa-exclamation"></i> Regular
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">
+                                            <i class="fas fa-question"></i> N/A
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <select class="form-select form-select-sm indice-selector" style="width: 100px;" data-registro-id="{{ indice.id }}">
+                                            <option value="NDVI">NDVI</option>
+                                            <option value="NDMI">NDMI</option>
+                                            <option value="SAVI">SAVI</option>
+                                        </select>
+                                        <button class="btn btn-sm btn-primary descargar-imagen" data-registro-id="{{ indice.id }}" title="Descargar imagen">
+                                            📷
+                                        </button>
+                                        <span class="estado-imagen" data-registro-id="{{ indice.id }}">
+                                            {% if indice.imagen_ndvi or indice.imagen_ndmi or indice.imagen_savi %}
+                                                <small class="text-success">✅</small>
+                                            {% else %}
+                                                <small class="text-muted">📥</small>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Sin Datos -->
+        <div class="card datos-card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No hay datos guardados</h4>
+                <p class="text-muted">No se encontraron datos históricos para esta parcela.</p>
+                <a href="{% url 'informes:obtener_datos_historicos' parcela.id %}" class="btn btn-success">
+                    <i class="fas fa-download"></i> Obtener Datos EOSDA
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Descarga Satelital AgroTech -->
+<div id="downloadModal" class="download-modal">
+    <div class="download-modal-content">
+        <!-- Logo pequeño en modal -->
+        <div style="margin-bottom: 20px;">
+            <img src="{% static 'img/agrotech-icon.png' %}" alt="AgroTech" style="height: 50px; width: auto; filter: drop-shadow(0 0 10px rgba(46, 139, 87, 0.3));" onerror="this.style.display='none'">
+        </div>
+        
+        <div class="satellite-spinner"></div>
+        
+        <h3 style="margin: 24px 0 12px 0; color: var(--agrotech-green); font-weight: 800; font-size: 1.6rem;">
+            Descargando Imagen Satelital
+        </h3>
+        
+        <p id="modalMessage" style="color: #666; margin-bottom: 24px; font-weight: 600; font-size: 1.05rem;">
+            Procesando solicitud...
+        </p>
+        
+        <div class="satellite-progress"></div>
+        
+        <div style="margin-top: 28px; color: #666; font-size: 0.95rem; background: rgba(46, 139, 87, 0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(46, 139, 87, 0.1);">
+            <div id="progressSteps">
+                <div id="step1" style="opacity: 0.5; padding: 8px; transition: all 0.3s ease; border-radius: 8px;">
+                    🔍 Buscando escena en caché...
+                </div>
+                <div id="step2" style="opacity: 0.5; padding: 8px; transition: all 0.3s ease; border-radius: 8px;">
+                    📡 Solicitando imagen a EOSDA...
+                </div>
+                <div id="step3" style="opacity: 0.5; padding: 8px; transition: all 0.3s ease; border-radius: 8px;">
+                    ⏳ Esperando generación...
+                </div>
+                <div id="step4" style="opacity: 0.5; padding: 8px; transition: all 0.3s ease; border-radius: 8px;">
+                    💾 Guardando imagen...
+                </div>
+                <div id="step5" style="opacity: 0.5; padding: 8px; transition: all 0.3s ease; border-radius: 8px;">
+                    ✅ ¡Listo!
+                </div>
+            </div>
+        </div>
+        
+        <!-- Marca de agua -->
+        <div style="margin-top: 20px; opacity: 0.5; font-size: 0.85rem; color: var(--agrotech-green);">
+            <strong>agrotech.</strong> Agricultura de Precisión
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js - Actualizado con integridad -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-ZGy8dd9dsOc4QfYSiQLlVKEZfYG/5i8lPEjzH5pJHLPgKnPqjIWaS+IcY0r+fgNZ" crossorigin="anonymous"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if tiene_datos %}
+        // Datos desde Django
+        const datosGraficos = {{ datos_graficos|safe }};
+        
+        // Configuración común para gráficos
+        const commonConfig = {
+            type: 'line',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Período (Año-Mes)'
+                        }
+                    },
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Valor'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        };
+        
+        // Gráfico de Índices de Vegetación
+        const ctxIndices = document.getElementById('indicesChart').getContext('2d');
+        new Chart(ctxIndices, {
+            ...commonConfig,
+            data: {
+                labels: datosGraficos.fechas,
+                datasets: [{
+                    label: 'NDVI',
+                    data: datosGraficos.ndvi,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'NDMI',
+                    data: datosGraficos.ndmi,
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'SAVI',
+                    data: datosGraficos.savi,
+                    borderColor: '#fd7e14',
+                    backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                    tension: 0.4
+                }]
+            }
+        });
+        
+        // Gráfico de Datos Climáticos
+        const ctxClima = document.getElementById('climaChart').getContext('2d');
+        new Chart(ctxClima, {
+            ...commonConfig,
+            data: {
+                labels: datosGraficos.fechas,
+                datasets: [{
+                    label: 'Temperatura (°C)',
+                    data: datosGraficos.temperatura,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Precipitación (mm)',
+                    data: datosGraficos.precipitacion,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                ...commonConfig.options,
+                scales: {
+                    x: commonConfig.options.scales.x,
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Temperatura (°C)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Precipitación (mm)'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+    {% endif %}
+    
+    // ===== SISTEMA DE DESCARGA DE IMÁGENES CON UX MEJORADA =====
+    
+    const modal = document.getElementById('downloadModal');
+    const modalMessage = document.getElementById('modalMessage');
+    
+    // Función para mostrar modal con paso específico
+    function showModal(step, message) {
+        modal.classList.add('active');
+        modalMessage.textContent = message;
+        
+        // Activar paso visual con efectos mejorados
+        for (let i = 1; i <= 5; i++) {
+            const stepEl = document.getElementById(`step${i}`);
+            if (stepEl) {
+                if (i <= step) {
+                    stepEl.style.opacity = '1';
+                    stepEl.style.fontWeight = i === step ? 'bold' : 'normal';
+                    stepEl.style.color = i === step ? 'var(--agrotech-green)' : i < step ? '#6c757d' : '#999';
+                    stepEl.style.background = i === step ? 'rgba(46, 139, 87, 0.1)' : 'transparent';
+                    stepEl.style.transform = i === step ? 'scale(1.05)' : 'scale(1)';
+                } else {
+                    stepEl.style.opacity = '0.5';
+                    stepEl.style.fontWeight = 'normal';
+                    stepEl.style.color = '#999';
+                    stepEl.style.background = 'transparent';
+                    stepEl.style.transform = 'scale(1)';
+                }
+            }
+        }
+    }
+    
+    // Función para ocultar modal
+    function hideModal() {
+        modal.classList.remove('active');
+        // Reset pasos
+        for (let i = 1; i <= 5; i++) {
+            const stepEl = document.getElementById(`step${i}`);
+            if (stepEl) {
+                stepEl.style.opacity = '0.5';
+                stepEl.style.fontWeight = 'normal';
+                stepEl.style.color = '#999';
+            }
+        }
+    }
+    
+    // Función para mostrar notificación toast
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `status-message ${type}`;
+        toast.style.position = 'fixed';
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.zIndex = '10000';
+        
+        const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+        toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+    
+    // Función para descargar imagen satelital
+    function descargarImagen(registroId, indice) {
+        const boton = document.querySelector(`button[data-registro-id="${registroId}"]`);
+        const estadoIconoContainer = document.querySelector(`.estado-imagen[data-registro-id="${registroId}"]`);
+        const estadoIcono = estadoIconoContainer ? estadoIconoContainer.querySelector('small') : null;
+        const textoOriginal = boton.innerHTML;
+        
+        // Deshabilitar botón
+        boton.disabled = true;
+        boton.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        // Mostrar modal - Paso 1
+        showModal(1, `Buscando escena ${indice} en caché...`);
+        
+        // Simular progreso de pasos
+        setTimeout(() => showModal(2, `Solicitando imagen ${indice} a EOSDA...`), 1000);
+        setTimeout(() => showModal(3, `Esperando generación de imagen...`), 2000);
+        
+        // Realizar petición AJAX
+        fetch(`{% url 'informes:descargar_imagen_indice' 0 %}`.replace('0', registroId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: `indice=${indice}`
+        })
+        .then(response => {
+            // Verificar si la respuesta es exitosa
+            if (!response.ok) {
+                throw new Error(`Error HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // ✅ Diferenciar entre imagen cacheada y recién descargada
+                if (data.existe) {
+                    // Imagen ya existe - cerrar rápido
+                    showModal(5, '¡Imagen lista desde caché!');
+                    setTimeout(() => {
+                        hideModal();
+                        showToast(`✅ Imagen ${indice} cargada desde caché`, 'success');
+                        
+                        // Abrir imagen inmediatamente
+                        if (data.url) {
+                            window.open(data.url, '_blank');
+                        }
+                    }, 800);  // Cerrar rápido (800ms)
+                } else {
+                    // Imagen recién descargada - flujo normal
+                    showModal(4, 'Guardando imagen...');
+                    
+                    setTimeout(() => {
+                        showModal(5, '¡Imagen descargada exitosamente!');
+                        
+                        setTimeout(() => {
+                            hideModal();
+                            
+                            // Formatear mensaje según nubosidad disponible
+                            const nubosidadMsg = data.nubosidad != null ? ` • ${data.nubosidad}% nubosidad` : '';
+                            showToast(`✅ Imagen ${indice} descargada${nubosidadMsg}`, 'success');
+                            
+                            // Actualizar icono de estado si existe
+                            if (estadoIcono) {
+                                estadoIcono.className = 'text-success';
+                                estadoIcono.textContent = '✅';
+                            }
+                            
+                            // Abrir imagen en nueva pestaña
+                            if (data.url) {
+                                setTimeout(() => window.open(data.url, '_blank'), 500);
+                            }
+                        }, 1000);
+                    }, 500);
+                }
+            } else {
+                // ✅ SIEMPRE cerrar el modal en caso de error
+                hideModal();
+                
+                // Mensaje de error detallado
+                if (data.requiere_statistics) {
+                    showToast('⚠️ Primero obtén datos históricos desde el botón "Actualizar Datos"', 'warning');
+                } else {
+                    showToast(`❌ Error: ${data.error}`, 'error');
+                }
+            }
+        })
+        .catch(error => {
+            // ✅ SIEMPRE cerrar el modal en caso de error de red
+            hideModal();
+            console.error('Error:', error);
+            showToast('❌ Error de conexión. Intenta nuevamente.', 'error');
+        })
+        .finally(() => {
+            // Rehabilitar botón
+            boton.disabled = false;
+            boton.innerHTML = textoOriginal;
+        });
+    }
+    
+    // Event listeners para botones de descarga
+    document.querySelectorAll('.descargar-imagen').forEach(boton => {
+        boton.addEventListener('click', function() {
+            const registroId = this.dataset.registroId;
+            const selector = document.querySelector(`.indice-selector[data-registro-id="${registroId}"]`);
+            const indice = selector.value;
+            
+            descargarImagen(registroId, indice);
+        });
+    });
+    
+    // Cerrar modal al hacer click fuera
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            // No permitir cerrar mientras está descargando
+            // hideModal();
+        }
+    });
+    
+    // Inicializar tooltips de Bootstrap
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Animación para slideOut
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Lista de Informes - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-header {
+        background: linear-gradient(135deg, #2d5016 0%, #4a8234 100%);
+        color: white;
+    }
+    
+    .informe-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid #f39c12;
+    }
+    
+    .informe-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+    
+    .badge-pdf {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .stats-icon {
+        font-size: 2rem;
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 text-dark">
+                    <i class="fas fa-file-pdf me-2"></i>
+                    Informes de Análisis
+                </h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-file-pdf stats-icon text-danger mb-2"></i>
+                    <h4 class="text-primary">{{ total_informes }}</h4>
+                    <p class="text-muted mb-0">Total Informes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-calendar stats-icon text-success mb-2"></i>
+                    <h4 class="text-success">{{ informes_mes }}</h4>
+                    <p class="text-muted mb-0">Este Mes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-map stats-icon text-info mb-2"></i>
+                    <h4 class="text-info">{{ parcelas_analizadas }}</h4>
+                    <p class="text-muted mb-0">Parcelas Analizadas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Informes -->
+    <div class="row">
+        {% if informes %}
+            {% for informe in informes %}
+            <div class="col-xl-4 col-lg-6 mb-4">
+                <div class="card informe-card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">{{ informe.parcela.nombre }}</h6>
+                        <span class="badge badge-pdf">
+                            <i class="fas fa-file-pdf me-1"></i>PDF
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Propietario:</strong><br>
+                            <span class="text-muted">{{ informe.parcela.propietario }}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Fecha de Generación:</strong><br>
+                            <span class="text-muted">{{ informe.fecha_generacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Área Analizada:</strong><br>
+                            <span class="text-success">{{ informe.parcela.area_hectareas|floatformat:2 }} hectáreas</span>
+                        </div>
+                        
+                        {% if informe.resumen %}
+                        <div class="mb-3">
+                            <strong>Resumen:</strong><br>
+                            <p class="text-muted small">{{ informe.resumen|truncatechars:120 }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <a href="{% url 'informes:detalle_informe' informe.id %}" 
+                               class="btn btn-outline-primary btn-sm flex-grow-1">
+                                <i class="fas fa-eye me-1"></i>Ver Detalle
+                            </a>
+                            {% if informe.archivo_pdf %}
+                            <a href="{{ informe.archivo_pdf.url }}" 
+                               target="_blank"
+                               class="btn btn-outline-danger btn-sm flex-grow-1">
+                                <i class="fas fa-download me-1"></i>Descargar PDF
+                            </a>
+                            {% else %}
+                            <span class="btn btn-outline-secondary btn-sm disabled flex-grow-1">
+                                <i class="fas fa-hourglass-half me-1"></i>Procesando...
+                            </span>
+                            {% endif %}
+                            {% if user.is_superuser %}
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalEliminarInforme{{ informe.id }}"
+                                    title="Eliminar informe">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No hay informes generados</h5>
+                        <p class="text-muted">Los informes se generan automáticamente cuando se procesan las parcelas</p>
+                        <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-primary">
+                            <i class="fas fa-map me-2"></i>Ver Parcelas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="Paginación de informes">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modales de confirmación para eliminar informes -->
+{% if user.is_superuser and informes %}
+{% for informe in informes %}
+<div class="modal fade" id="modalEliminarInforme{{ informe.id }}" tabindex="-1" aria-labelledby="modalEliminarInformeLabel{{ informe.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold" id="modalEliminarInformeLabel{{ informe.id }}">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+                    <i class="fas fa-fire-alt me-3 fs-4"></i>
+                    <div>
+                        <p class="mb-0"><strong>¡ADVERTENCIA!</strong> Esta acción <strong>NO</strong> se puede deshacer.</p>
+                    </div>
+                </div>
+                <p class="mb-3">Se eliminará el informe:</p>
+                <ul class="list-unstyled mb-3">
+                    <li><i class="fas fa-file-pdf text-danger me-2"></i> <strong>{{ informe.titulo }}</strong></li>
+                    <li><i class="fas fa-map text-danger me-2"></i> Parcela: {{ informe.parcela.nombre }}</li>
+                    <li><i class="fas fa-calendar text-danger me-2"></i> Generado: {{ informe.fecha_generacion|date:"d/m/Y H:i" }}</li>
+                    {% if informe.archivo_pdf %}
+                    <li><i class="fas fa-times text-danger me-2"></i> Archivo PDF asociado</li>
+                    {% endif %}
+                </ul>
+                <form method="post" action="{% url 'informes:eliminar_informe' informe.id %}" id="formEliminarInforme{{ informe.id }}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="confirmacion_informe{{ informe.id }}" class="form-label fw-bold">
+                            Para confirmar, escriba: <span class="text-danger">eliminar</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               name="confirmacion_informe" 
+                               id="confirmacion_informe{{ informe.id }}" 
+                               required 
+                               placeholder="eliminar"
+                               autocomplete="off">
+                        <div class="form-text">
+                            Debe escribir exactamente la palabra: <code>eliminar</code> (en minúsculas)
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash-alt me-1"></i>Eliminar Definitivamente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

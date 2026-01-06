@@ -1,0 +1,38 @@
+{
+  "id_reporte": "RT-6-20260106",
+  "fecha": "2026-01-06 10:29",
+  "periodo": {
+    "inicio": "2025-07-10",
+    "fin": "2026-01-06"
+  },
+  "datos": {
+    "imagenes_totales": 0,
+    "imagenes_aceptadas": 0,
+    "nubosidad_promedio": "0.0%",
+    "satelites": [],
+    "indices": [],
+    "puntos_temporales": 0
+  },
+  "metodologia": {
+    "bibliotecas": [
+      "NumPy 1.24+ (Cálculos numéricos y estadísticos)",
+      "SciPy 1.11+ (Análisis estadístico avanzado)",
+      "scikit-learn 1.3+ (Aprendizaje automático y clustering)"
+    ],
+    "reglas": []
+  },
+  "confianza": {
+    "nivel": "media",
+    "puntuacion": 0.635,
+    "factores": {
+      "calidad_datos": 1.0,
+      "completitud_temporal": 0.5,
+      "consistencia_datos": 0.8,
+      "numero_puntos": 0.0,
+      "cobertura_indices": 0.0
+    }
+  },
+  "limitaciones": [],
+  "conclusiones": [],
+  "recomendaciones": []
+}

@@ -1,0 +1,241 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Nueva Invitación - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-header {
+        background: linear-gradient(135deg, #2d5016 0%, #4a8234 100%);
+        color: white;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #2d5016 0%, #4a8234 100%);
+        border: none;
+    }
+    
+    .btn-success:hover {
+        background: linear-gradient(135deg, #1a3009 0%, #2d5016 100%);
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control:focus {
+        border-color: #4a8234;
+        box-shadow: 0 0 0 0.2rem rgba(74, 130, 52, 0.25);
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .preview-card {
+        border: 2px dashed #4a8234;
+        background: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 text-dark">
+                    <i class="fas fa-envelope-circle-check me-2"></i>
+                    Nueva Invitación
+                </h1>
+                <a href="{% url 'informes:gestionar_invitaciones' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </a>
+            </div>
+
+            <div class="row">
+                <!-- Formulario -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-plus me-2"></i>
+                                Datos del Cliente
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <div class="form-group">
+                                    <label for="nombre_cliente" class="form-label">
+                                        Nombre Completo <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="nombre_cliente" 
+                                           name="nombre_cliente" 
+                                           required
+                                           placeholder="Ej: Juan Pérez García">
+                                    <div class="help-text">Nombre completo del cliente</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="email_cliente" class="form-label">
+                                        Email <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="email" 
+                                           class="form-control" 
+                                           id="email_cliente" 
+                                           name="email_cliente" 
+                                           required
+                                           placeholder="cliente@email.com">
+                                    <div class="help-text">Email donde se enviará la invitación</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="descripcion_servicio" class="form-label">
+                                        Descripción del Servicio
+                                    </label>
+                                    <textarea class="form-control" 
+                                              id="descripcion_servicio" 
+                                              name="descripcion_servicio" 
+                                              rows="3"
+                                              placeholder="Análisis satelital de parcela agrícola con informe NDVI, NDMI y SAVI..."></textarea>
+                                    <div class="help-text">Describe el servicio que se va a prestar</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="precio_servicio" class="form-label">
+                                        Precio del Servicio (USD) <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="precio_servicio" 
+                                               name="precio_servicio" 
+                                               step="0.01" 
+                                               min="0" 
+                                               required
+                                               placeholder="0.00">
+                                    </div>
+                                    <div class="help-text">Precio acordado por el servicio</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="dias_vigencia" class="form-label">
+                                        Días de Vigencia <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-control" id="dias_vigencia" name="dias_vigencia" required>
+                                        <option value="7">7 días</option>
+                                        <option value="15" selected>15 días</option>
+                                        <option value="30">30 días</option>
+                                        <option value="60">60 días</option>
+                                    </select>
+                                    <div class="help-text">Tiempo que el cliente tendrá para completar el registro</div>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-paper-plane me-2"></i>
+                                        Crear Invitación
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="col-md-4">
+                    <div class="card preview-card">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-eye me-2"></i>
+                                Vista Previa
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">El cliente recibirá:</small>
+                            </div>
+                            
+                            <div class="border rounded p-3 bg-white">
+                                <div class="text-center mb-3">
+                                    <i class="fas fa-satellite-dish fa-2x text-success"></i>
+                                    <h6 class="mt-2">AgroTech Histórico</h6>
+                                </div>
+                                
+                                <p class="small mb-2">
+                                    <strong>Para:</strong> <span id="preview-nombre">[Nombre del Cliente]</span>
+                                </p>
+                                
+                                <p class="small mb-2">
+                                    <strong>Servicio:</strong> <span id="preview-servicio">[Descripción del servicio]</span>
+                                </p>
+                                
+                                <p class="small mb-3">
+                                    <strong>Precio:</strong> $<span id="preview-precio">0.00</span>
+                                </p>
+                                
+                                <div class="text-center">
+                                    <button class="btn btn-success btn-sm" disabled>
+                                        Registrar Parcela
+                                    </button>
+                                </div>
+                                
+                                <p class="small text-muted text-center mt-2">
+                                    Válido por <span id="preview-dias">15</span> días
+                                </p>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    El enlace se genera automáticamente tras crear la invitación
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Vista previa en tiempo real
+document.addEventListener('DOMContentLoaded', function() {
+    const nombreInput = document.getElementById('nombre_cliente');
+    const servicioInput = document.getElementById('descripcion_servicio');
+    const precioInput = document.getElementById('precio_servicio');
+    const diasInput = document.getElementById('dias_vigencia');
+    
+    const previewNombre = document.getElementById('preview-nombre');
+    const previewServicio = document.getElementById('preview-servicio');
+    const previewPrecio = document.getElementById('preview-precio');
+    const previewDias = document.getElementById('preview-dias');
+    
+    function updatePreview() {
+        previewNombre.textContent = nombreInput.value || '[Nombre del Cliente]';
+        previewServicio.textContent = servicioInput.value || '[Descripción del servicio]';
+        previewPrecio.textContent = precioInput.value || '0.00';
+        previewDias.textContent = diasInput.value || '15';
+    }
+    
+    nombreInput.addEventListener('input', updatePreview);
+    servicioInput.addEventListener('input', updatePreview);
+    precioInput.addEventListener('input', updatePreview);
+    diasInput.addEventListener('change', updatePreview);
+});
+</script>
+{% endblock %}

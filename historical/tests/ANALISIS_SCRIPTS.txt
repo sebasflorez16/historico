@@ -1,0 +1,177 @@
+═══════════════════════════════════════════════════════════════════════════════
+ANÁLISIS Y CLASIFICACIÓN DE SCRIPTS - AGROTECH
+═══════════════════════════════════════════════════════════════════════════════
+
+Fecha: 6 de enero de 2026
+Directorio: /historical/
+
+═══════════════════════════════════════════════════════════════════════════════
+SCRIPTS DE UTILIDAD - CONSERVAR (Scripts administrativos necesarios)
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ create_superuser.py
+  Propósito: Crear superusuario en Railway/producción de forma no interactiva
+  Estado: NECESARIO PARA DEPLOYMENT
+  Acción: CONSERVAR en /scripts/deployment/
+
+✓ verificar_sistema.py
+  Propósito: Verificar estado del sistema en producción (BD, APIs, config)
+  Estado: ÚTIL PARA DIAGNÓSTICO
+  Acción: CONSERVAR en /scripts/diagnostico/
+
+✓ verificar_pdf_generado.py
+  Propósito: Verificar que PDFs se generen correctamente
+  Estado: ÚTIL PARA QA
+  Acción: CONSERVAR en /scripts/diagnostico/
+
+✓ actualizar_metadatos_espaciales.py
+  Propósito: Actualizar metadatos de parcelas (área, coordenadas)
+  Estado: UTILIDAD DE MANTENIMIENTO
+  Acción: CONSERVAR en /scripts/mantenimiento/
+
+═══════════════════════════════════════════════════════════════════════════════
+SCRIPTS DE GEMINI AI - EXPERIMENTALES/DEMO
+═══════════════════════════════════════════════════════════════════════════════
+
+✗ demo_cache_gemini.py
+  Propósito: Demostración de sistema de caché de Gemini
+  Estado: EXPERIMENTAL/DEMO
+  Acción: ELIMINAR (feature Gemini ya no está en uso)
+
+✗ info_limites_gemini.py
+  Propósito: Información sobre límites de API de Gemini
+  Estado: EXPERIMENTAL
+  Acción: ELIMINAR
+
+✗ listar_modelos_gemini.py
+  Propósito: Listar modelos disponibles de Gemini
+  Estado: EXPERIMENTAL
+  Acción: ELIMINAR
+
+✗ ver_cache_gemini.py
+  Propósito: Ver contenido del caché de Gemini
+  Estado: EXPERIMENTAL
+  Acción: ELIMINAR
+
+✗ visualizar_prompt_gemini.py
+  Propósito: Visualizar prompts enviados a Gemini
+  Estado: EXPERIMENTAL
+  Acción: ELIMINAR
+
+═══════════════════════════════════════════════════════════════════════════════
+SCRIPTS DE EOSDA - DIAGNÓSTICO TEMPORAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✗ diagnostico_eosda_completo.py
+  Propósito: Diagnóstico de conexión a EOSDA API
+  Estado: TEMPORAL (usado durante implementación)
+  Acción: ELIMINAR (ya integrado en el sistema)
+
+✗ diagnostico_eosda_simple.py
+  Propósito: Diagnóstico simple de EOSDA
+  Estado: TEMPORAL
+  Acción: ELIMINAR
+
+✗ diagnostico_eosda_stages.py
+  Propósito: Diagnóstico por etapas de EOSDA
+  Estado: TEMPORAL
+  Acción: ELIMINAR
+
+✗ verificar_endpoint_eosda.py
+  Propósito: Verificar endpoint de EOSDA
+  Estado: TEMPORAL
+  Acción: ELIMINAR
+
+═══════════════════════════════════════════════════════════════════════════════
+SCRIPTS DE VERIFICACIÓN - UTILIDAD
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ verificar_cache_imagenes.py
+  Propósito: Verificar imágenes satelitales en caché
+  Estado: ÚTIL PARA DIAGNÓSTICO
+  Acción: CONSERVAR en /scripts/diagnostico/
+
+✓ verificar_clima_bd.py
+  Propósito: Verificar datos climáticos en BD
+  Estado: ÚTIL PARA VALIDACIÓN DE DATOS
+  Acción: CONSERVAR en /scripts/diagnostico/
+
+✗ verificar_view_ids.py
+  Propósito: Verificar IDs de vistas (parece temporal)
+  Estado: TEMPORAL
+  Acción: ELIMINAR
+
+═══════════════════════════════════════════════════════════════════════════════
+SCRIPTS DE SEGURIDAD/INVITACIONES - TEMPORAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✗ auditar_seguridad_vistas.py
+  Propósito: Auditar seguridad de vistas
+  Estado: TEMPORAL (usado durante implementación)
+  Acción: ELIMINAR
+
+✗ enviar_invitacion_real.py
+  Propósito: Enviar invitación de prueba
+  Estado: TEMPORAL/PRUEBA
+  Acción: ELIMINAR
+
+═══════════════════════════════════════════════════════════════════════════════
+RESUMEN DE ACCIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+SCRIPTS A CONSERVAR (7):
+  1. create_superuser.py                    → /scripts/deployment/
+  2. verificar_sistema.py                   → /scripts/diagnostico/
+  3. verificar_pdf_generado.py              → /scripts/diagnostico/
+  4. verificar_cache_imagenes.py            → /scripts/diagnostico/
+  5. verificar_clima_bd.py                  → /scripts/diagnostico/
+  6. actualizar_metadatos_espaciales.py     → /scripts/mantenimiento/
+
+SCRIPTS A ELIMINAR (12):
+  - demo_cache_gemini.py
+  - info_limites_gemini.py
+  - listar_modelos_gemini.py
+  - ver_cache_gemini.py
+  - visualizar_prompt_gemini.py
+  - diagnostico_eosda_completo.py
+  - diagnostico_eosda_simple.py
+  - diagnostico_eosda_stages.py
+  - verificar_endpoint_eosda.py
+  - verificar_view_ids.py
+  - auditar_seguridad_vistas.py
+  - enviar_invitacion_real.py
+
+═══════════════════════════════════════════════════════════════════════════════
+ESTRUCTURA PROPUESTA
+═══════════════════════════════════════════════════════════════════════════════
+
+/historical/
+  ├── scripts/
+  │   ├── __init__.py
+  │   ├── deployment/
+  │   │   ├── __init__.py
+  │   │   └── create_superuser.py
+  │   ├── diagnostico/
+  │   │   ├── __init__.py
+  │   │   ├── verificar_sistema.py
+  │   │   ├── verificar_pdf_generado.py
+  │   │   ├── verificar_cache_imagenes.py
+  │   │   └── verificar_clima_bd.py
+  │   └── mantenimiento/
+  │       ├── __init__.py
+  │       └── actualizar_metadatos_espaciales.py
+  │
+  └── tests/
+      ├── __init__.py
+      ├── test_1_motor_analisis.py
+      ├── test_2_generacion_pdf.py
+      ├── test_3_views_django.py
+      ├── test_4_api_rest.py
+      ├── test_5_procesamiento_datos.py
+      ├── test_6_utils_temporales.py
+      ├── test_7_formatos_indices.py
+      ├── test_8_rangos_fechas.py
+      ├── test_9_api_informes.py
+      └── test_10_sistema_completo.py
+
+═══════════════════════════════════════════════════════════════════════════════

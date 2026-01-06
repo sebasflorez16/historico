@@ -1,0 +1,74 @@
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960 Generador de Informe Técnico inicializado correctamente
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960 ════════════════════════════════════════════════════════════════════════════════
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960 INICIO - Generación de Informe Técnico Profesional
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960 Parcela ID: 6 | Ventana temporal: 12 meses
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960 ════════════════════════════════════════════════════════════════════════════════
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960 [FASE 1/5] Validación y carga de datos...
+INFO 2026-01-06 11:40:00,560 generador_pdf 54978 8468776960   ✓ Parcela: Parcela #2
+INFO 2026-01-06 11:40:00,561 generador_pdf 54978 8468776960   ✓ Extensión: 61.41895755779824 hectáreas
+INFO 2026-01-06 11:40:00,561 generador_pdf 54978 8468776960   ✓ Cultivo: Maíz
+INFO 2026-01-06 11:40:00,563 generador_pdf 54978 8468776960   ✓ Período analizado: January 2025 - December 2025
+INFO 2026-01-06 11:40:00,563 generador_pdf 54978 8468776960   ✓ Total de registros mensuales: 12
+INFO 2026-01-06 11:40:00,564 generador_pdf 54978 8468776960   ✓ Imágenes satelitales en caché: 10
+INFO 2026-01-06 11:40:00,564 generador_pdf 54978 8468776960 [FASE 2/5] Preparación de datos para análisis...
+INFO 2026-01-06 11:40:00,564 generador_pdf 54978 8468776960   ✓ Series temporales normalizadas: 12 puntos
+INFO 2026-01-06 11:40:00,564 generador_pdf 54978 8468776960   ✓ NDVI - Rango: [0.443, 0.739]
+INFO 2026-01-06 11:40:00,564 generador_pdf 54978 8468776960 [FASE 3/5] Ejecución del motor de análisis agrícola...
+INFO 2026-01-06 11:41:23,546 gemini_service 58938 8468776960 ✅ GeminiService inicializado correctamente
+INFO 2026-01-06 11:41:23,546 gemini_service 58938 8468776960 ✅ GeminiService instanciado globalmente
+INFO 2026-01-06 11:41:43,642 gemini_service 60236 8468776960 ✅ GeminiService inicializado correctamente
+INFO 2026-01-06 11:41:43,642 gemini_service 60236 8468776960 ✅ GeminiService instanciado globalmente
+INFO 2026-01-06 11:41:43,754 generador_pdf 60236 8468776960 ✅ Usando análisis de Gemini desde caché (edad: -1 días)
+INFO 2026-01-06 11:44:12,642 gemini_service 61495 8468776960 ✅ GeminiService inicializado correctamente
+INFO 2026-01-06 11:44:12,643 gemini_service 61495 8468776960 ✅ GeminiService instanciado globalmente
+INFO 2026-01-06 11:44:12,750 generador_pdf 61495 8468776960 ✅ Usando análisis de Gemini desde caché (edad: -1 días)
+WARNING 2026-01-06 11:44:13,059 generador_pdf 61495 8468776960 ⚠️ Error en Gemini, usando análisis tradicional mejorado
+INFO 2026-01-06 11:44:13,074 gemini_service 61495 8468776960 🤖 Generando análisis global de 30 imágenes
+ERROR 2026-01-06 11:44:13,960 gemini_service 61495 8468776960 ❌ Error generando análisis global: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/usage?tab=rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.0-flash
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.0-flash
+Please retry in 46.026631163s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count"
+  quota_id: "GenerateContentInputTokensPerModelPerMinute-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+}
+, retry_delay {
+  seconds: 46
+}
+]

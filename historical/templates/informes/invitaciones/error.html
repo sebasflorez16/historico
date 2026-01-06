@@ -1,0 +1,174 @@
+{% extends 'informes/base_public.html' %}
+{% load static %}
+
+{% block title %}Invitación No Válida - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-container {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .error-card {
+        max-width: 500px;
+        text-align: center;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .error-icon {
+        font-size: 4rem;
+        color: #e74c3c;
+        margin-bottom: 1rem;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #2d5016 0%, #4a8234 100%);
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #1a3009 0%, #2d5016 100%);
+    }
+    
+    .help-box {
+        background: #f8f9fa;
+        border-left: 4px solid #4a8234;
+        padding: 15px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="card error-card">
+        <div class="card-body p-5">
+            {% if error_type == 'expirada' %}
+                <i class="fas fa-clock error-icon"></i>
+                <h2 class="text-danger mb-3">Invitación Expirada</h2>
+                <p class="text-muted mb-4">
+                    Esta invitación ha expirado el <strong>{{ fecha_vencimiento|date:"d/m/Y" }}</strong>.
+                    El tiempo límite para completar el registro ha vencido.
+                </p>
+                
+                <div class="help-box">
+                    <h6 class="text-success">¿Qué puedes hacer?</h6>
+                    <ul class="text-left small mb-0">
+                        <li>Contacta con nuestro equipo para solicitar una nueva invitación</li>
+                        <li>Verifica que no hayas recibido un enlace más reciente</li>
+                        <li>Revisa tu correo electrónico para invitaciones adicionales</li>
+                    </ul>
+                </div>
+                
+            {% elif error_type == 'completada' %}
+                <i class="fas fa-check-circle error-icon" style="color: #28a745;"></i>
+                <h2 class="text-success mb-3">Ya Registrado</h2>
+                <p class="text-muted mb-4">
+                    Esta invitación ya fue utilizada el <strong>{{ fecha_completada|date:"d/m/Y" }}</strong>.
+                    El registro de la parcela se completó exitosamente.
+                </p>
+                
+                <div class="help-box">
+                    <h6 class="text-success">Información</h6>
+                    <p class="small mb-0">
+                        Si necesitas realizar modificaciones o registrar una nueva parcela,
+                        contacta con nuestro equipo de soporte.
+                    </p>
+                </div>
+                
+            {% else %}
+                <i class="fas fa-exclamation-triangle error-icon"></i>
+                <h2 class="text-danger mb-3">Invitación No Válida</h2>
+                <p class="text-muted mb-4">
+                    El enlace que has utilizado no es válido o ha sido modificado.
+                    Por favor, verifica que hayas copiado correctamente la dirección completa.
+                </p>
+                
+                <div class="help-box">
+                    <h6 class="text-success">Posibles causas:</h6>
+                    <ul class="text-left small mb-0">
+                        <li>El enlace fue copiado incorrectamente</li>
+                        <li>La invitación fue eliminada o cancelada</li>
+                        <li>Hay un error en el código de invitación</li>
+                    </ul>
+                </div>
+            {% endif %}
+
+            <!-- Información de contacto -->
+            <div class="mt-4 pt-4 border-top">
+                <h6 class="text-success mb-3">
+                    <i class="fas fa-headset me-2"></i>
+                    Soporte Técnico
+                </h6>
+                
+                <div class="row text-center">
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 bg-light rounded">
+                            <i class="fas fa-envelope text-success mb-2"></i>
+                            <div class="small">
+                                <strong>Email</strong><br>
+                                <a href="mailto:soporte@agrotech.com">soporte@agrotech.com</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 bg-light rounded">
+                            <i class="fas fa-phone text-success mb-2"></i>
+                            <div class="small">
+                                <strong>Teléfono</strong><br>
+                                <a href="tel:+1234567890">+1 (234) 567-890</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="mt-4">
+                <button onclick="history.back()" class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </button>
+                
+                <a href="mailto:soporte@agrotech.com?subject=Problema con invitación&body=Tengo un problema con el enlace de invitación." 
+                   class="btn btn-primary">
+                    <i class="fas fa-envelope me-2"></i>Contactar Soporte
+                </a>
+            </div>
+            
+            <!-- Información técnica -->
+            {% if debug %}
+            <div class="mt-4 pt-3 border-top">
+                <details>
+                    <summary class="text-muted small">Información técnica</summary>
+                    <div class="text-left mt-2 p-3 bg-light rounded">
+                        <small>
+                            <strong>Error:</strong> {{ error_type }}<br>
+                            <strong>Token:</strong> {{ token|default:"No proporcionado" }}<br>
+                            <strong>Timestamp:</strong> {{ timestamp|date:"c" }}
+                        </small>
+                    </div>
+                </details>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Footer simple -->
+<div class="container-fluid mt-5">
+    <footer class="text-center py-4 border-top">
+        <div class="row">
+            <div class="col-12">
+                <p class="text-muted small mb-0">
+                    © 2024 AgroTech Histórico. Todos los derechos reservados.
+                </p>
+            </div>
+        </div>
+    </footer>
+</div>
+{% endblock %}

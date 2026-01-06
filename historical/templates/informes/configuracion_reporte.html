@@ -1,0 +1,509 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Configurar Reporte - {{ parcela.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .plan-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .plan-card:hover {
+        border-color: #4CAF50;
+        box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
+    }
+    
+    .plan-card.selected {
+        border-color: #4CAF50;
+        background-color: #f1f8f4;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+    
+    .plan-card input[type="radio"] {
+        margin-right: 10px;
+    }
+    
+    .plan-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .plan-name {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .plan-price {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #4CAF50;
+    }
+    
+    .plan-features {
+        list-style: none;
+        padding-left: 0;
+        margin-top: 10px;
+    }
+    
+    .plan-features li {
+        padding: 5px 0;
+        color: #555;
+    }
+    
+    .plan-features li:before {
+        content: "✓ ";
+        color: #4CAF50;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+    
+    .indices-section {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .indice-checkbox {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        margin: 10px 0;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .indice-checkbox:hover {
+        border-color: #4CAF50;
+        background-color: #f9f9f9;
+    }
+    
+    .indice-checkbox input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 15px;
+        cursor: pointer;
+    }
+    
+    .indice-info {
+        flex-grow: 1;
+    }
+    
+    .indice-name {
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #2c3e50;
+    }
+    
+    .indice-description {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+    
+    .indice-cost {
+        font-weight: bold;
+        color: #4CAF50;
+        font-size: 1.1em;
+    }
+    
+    .cost-calculator {
+        position: sticky;
+        top: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    .cost-total {
+        font-size: 2.5em;
+        font-weight: bold;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .cost-breakdown {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .cost-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .cost-item:last-child {
+        border-bottom: none;
+    }
+    
+    .btn-save-config {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.2em;
+        font-weight: bold;
+        background: white;
+        color: #667eea;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 20px;
+    }
+    
+    .btn-save-config:hover {
+        background: #f0f0f0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .period-slider {
+        width: 100%;
+        margin: 20px 0;
+    }
+    
+    .period-value {
+        text-align: center;
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #4CAF50;
+        margin: 10px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="config-container">
+    <div class="page-header">
+        <h1>⚙️ Configurar Reporte: {{ parcela.nombre }}</h1>
+        <p class="text-muted">Personaliza los datos que deseas incluir en tus reportes satelitales</p>
+    </div>
+    
+    <form method="POST" id="configForm">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Columna izquierda: Opciones -->
+            <div class="col-md-8">
+                <!-- Selección de Plan -->
+                <div class="indices-section">
+                    <h3>📋 Selecciona un Plan</h3>
+                    <p class="text-muted">Elige un plan predefinido o personaliza tu configuración</p>
+                    
+                    {% for codigo, nombre in planes %}
+                    <div class="plan-card" data-plan="{{ codigo }}" onclick="selectPlan('{{ codigo }}')">
+                        <input type="radio" name="plan" value="{{ codigo }}" id="plan_{{ codigo }}"
+                               {% if codigo == plan_actual %}checked{% endif %}>
+                        <label for="plan_{{ codigo }}" style="cursor: pointer; width: 100%; margin: 0;">
+                            <div class="plan-header">
+                                <span class="plan-name">{{ nombre }}</span>
+                                <span class="plan-price" id="price_{{ codigo }}">
+                                    {% if codigo == 'BASICO_6M' %}$50
+                                    {% elif codigo == 'ESTANDAR_1Y' %}$80
+                                    {% elif codigo == 'AVANZADO_2Y' %}$140
+                                    {% else %}Variable{% endif %}
+                                </span>
+                            </div>
+                            <ul class="plan-features">
+                                {% if codigo == 'BASICO_6M' %}
+                                    <li>6 meses de análisis</li>
+                                    <li>Índice NDVI incluido</li>
+                                    <li>Reportes mensuales</li>
+                                {% elif codigo == 'ESTANDAR_1Y' %}
+                                    <li>1 año de análisis</li>
+                                    <li>NDVI + NDMI incluidos</li>
+                                    <li>Reportes quincenales</li>
+                                {% elif codigo == 'AVANZADO_2Y' %}
+                                    <li>2 años de análisis</li>
+                                    <li>Todos los índices (NDVI, NDMI, SAVI)</li>
+                                    <li>Imágenes satelitales incluidas</li>
+                                    <li>Reportes semanales</li>
+                                {% else %}
+                                    <li>Periodo personalizable</li>
+                                    <li>Selecciona índices específicos</li>
+                                    <li>Opciones de imágenes y tiles</li>
+                                    <li>Pago por uso</li>
+                                {% endif %}
+                            </ul>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Periodo personalizado (solo para plan PERSONALIZADO) -->
+                <div class="indices-section" id="periodo-section" style="display: none;">
+                    <h3>📅 Periodo de Análisis</h3>
+                    <div class="period-value" id="period-display">6 meses</div>
+                    <input type="range" class="period-slider" name="periodo_meses" 
+                           min="3" max="24" step="1" value="{{ configuracion.periodo_meses }}"
+                           id="periodo-slider" oninput="updatePeriod(this.value)">
+                    <div class="d-flex justify-content-between text-muted">
+                        <span>3 meses</span>
+                        <span>24 meses</span>
+                    </div>
+                </div>
+                
+                <!-- Selección de Índices -->
+                <div class="indices-section">
+                    <h3>📊 Índices Vegetativos</h3>
+                    <p class="text-muted">Selecciona los índices que deseas incluir en el análisis</p>
+                    
+                    <div class="indice-checkbox">
+                        <input type="checkbox" name="incluir_ndvi" id="incluir_ndvi" 
+                               {% if configuracion.incluir_ndvi %}checked{% endif %}
+                               onchange="calculateCost()">
+                        <div class="indice-info">
+                            <div class="indice-name">NDVI - Índice de Vegetación</div>
+                            <div class="indice-description">
+                                Mide la salud y vigor de la vegetación. Fundamental para monitoreo agrícola.
+                            </div>
+                        </div>
+                        <div class="indice-cost">Incluido</div>
+                    </div>
+                    
+                    <div class="indice-checkbox">
+                        <input type="checkbox" name="incluir_ndmi" id="incluir_ndmi"
+                               {% if configuracion.incluir_ndmi %}checked{% endif %}
+                               onchange="calculateCost()">
+                        <div class="indice-info">
+                            <div class="indice-name">NDMI - Índice de Humedad</div>
+                            <div class="indice-description">
+                                Evalúa el contenido de agua en la vegetación. Útil para riego y estrés hídrico.
+                            </div>
+                        </div>
+                        <div class="indice-cost" id="cost-ndmi">+$15</div>
+                    </div>
+                    
+                    <div class="indice-checkbox">
+                        <input type="checkbox" name="incluir_savi" id="incluir_savi"
+                               {% if configuracion.incluir_savi %}checked{% endif %}
+                               onchange="calculateCost()">
+                        <div class="indice-info">
+                            <div class="indice-name">SAVI - Índice Ajustado por Suelo</div>
+                            <div class="indice-description">
+                                Minimiza efectos del suelo desnudo. Ideal para cultivos con baja cobertura.
+                            </div>
+                        </div>
+                        <div class="indice-cost" id="cost-savi">+$15</div>
+                    </div>
+                </div>
+                
+                <!-- Opciones Adicionales -->
+                <div class="indices-section">
+                    <h3>🛰️ Opciones Adicionales</h3>
+                    
+                    <div class="indice-checkbox">
+                        <input type="checkbox" name="incluir_imagenes" id="incluir_imagenes"
+                               {% if configuracion.incluir_imagenes %}checked{% endif %}
+                               onchange="calculateCost()">
+                        <div class="indice-info">
+                            <div class="indice-name">Imágenes Satelitales</div>
+                            <div class="indice-description">
+                                Imágenes RGB de alta resolución de tu parcela. Visualización detallada.
+                            </div>
+                        </div>
+                        <div class="indice-cost" id="cost-imagenes">+$25</div>
+                    </div>
+                    
+                    <div class="indice-checkbox">
+                        <input type="checkbox" name="incluir_tiles" id="incluir_tiles"
+                               {% if configuracion.incluir_tiles %}checked{% endif %}
+                               onchange="calculateCost()">
+                        <div class="indice-info">
+                            <div class="indice-name">Mapas Interactivos (Tiles)</div>
+                            <div class="indice-description">
+                                Tiles para visualización interactiva en mapas web. Navegación dinámica.
+                            </div>
+                        </div>
+                        <div class="indice-cost" id="cost-tiles">+$10</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Columna derecha: Calculadora de costos -->
+            <div class="col-md-4">
+                <div class="cost-calculator">
+                    <h4 style="text-align: center; margin-bottom: 10px;">💰 Costo Estimado</h4>
+                    <div class="cost-total" id="cost-total">${{ costo_actual }}</div>
+                    
+                    <div class="cost-breakdown">
+                        <h5>Desglose:</h5>
+                        <div class="cost-item">
+                            <span>Plan base</span>
+                            <span id="breakdown-base">$50</span>
+                        </div>
+                        <div class="cost-item" id="breakdown-indices-item" style="display: none;">
+                            <span>Índices adicionales</span>
+                            <span id="breakdown-indices">$0</span>
+                        </div>
+                        <div class="cost-item" id="breakdown-imagenes-item" style="display: none;">
+                            <span>Imágenes</span>
+                            <span id="breakdown-imagenes">$0</span>
+                        </div>
+                        <div class="cost-item" id="breakdown-tiles-item" style="display: none;">
+                            <span>Tiles</span>
+                            <span id="breakdown-tiles">$0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="cost-breakdown" style="margin-top: 15px;">
+                        <h5>Estimación de Uso:</h5>
+                        <div class="cost-item">
+                            <span>Requests EOSDA</span>
+                            <span id="requests-estimados">~12</span>
+                        </div>
+                        <div class="cost-item">
+                            <span>Ahorro con caché</span>
+                            <span id="ahorro-cache" style="color: #4CAF50;">~50%</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-save-config">
+                        💾 Guardar Configuración
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 15px; font-size: 0.9em; opacity: 0.8;">
+                        <p>✨ Caché inteligente incluido</p>
+                        <p>📈 Optimización automática de requests</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Precios configurables
+const PRECIOS = {{ precios|safe }};
+
+function selectPlan(planCode) {
+    // Actualizar radio button
+    document.getElementById('plan_' + planCode).checked = true;
+    
+    // Actualizar estilos
+    document.querySelectorAll('.plan-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    document.querySelector(`[data-plan="${planCode}"]`).classList.add('selected');
+    
+    // Mostrar/ocultar periodo personalizado
+    const periodoSection = document.getElementById('periodo-section');
+    if (planCode === 'PERSONALIZADO') {
+        periodoSection.style.display = 'block';
+    } else {
+        periodoSection.style.display = 'none';
+    }
+    
+    // Recalcular costo
+    calculateCost();
+}
+
+function updatePeriod(meses) {
+    document.getElementById('period-display').textContent = meses + ' meses';
+    calculateCost();
+}
+
+function calculateCost() {
+    const plan = document.querySelector('input[name="plan"]:checked').value;
+    const periodoMeses = parseInt(document.getElementById('periodo-slider').value);
+    
+    const incluirNdvi = document.getElementById('incluir_ndvi').checked;
+    const incluirNdmi = document.getElementById('incluir_ndmi').checked;
+    const incluirSavi = document.getElementById('incluir_savi').checked;
+    const incluirImagenes = document.getElementById('incluir_imagenes').checked;
+    const incluirTiles = document.getElementById('incluir_tiles').checked;
+    
+    // Calcular costo
+    let costoBase = PRECIOS.base[plan] || 0;
+    let costoIndices = 0;
+    let costoImagenes = 0;
+    let costoTiles = 0;
+    
+    if (plan === 'PERSONALIZADO') {
+        costoBase = periodoMeses * 5;
+        
+        const indicesCount = [incluirNdvi, incluirNdmi, incluirSavi].filter(x => x).length;
+        if (indicesCount > 0) {
+            costoIndices = indicesCount * PRECIOS.addon_indice;
+        }
+        
+        if (incluirImagenes) {
+            costoImagenes = PRECIOS.addon_imagen * Math.floor(periodoMeses / 3);
+        }
+        
+        if (incluirTiles) {
+            costoTiles = PRECIOS.addon_tiles;
+        }
+    }
+    
+    const costoTotal = costoBase + costoIndices + costoImagenes + costoTiles;
+    
+    // Actualizar UI
+    document.getElementById('cost-total').textContent = '$' + costoTotal;
+    document.getElementById('breakdown-base').textContent = '$' + costoBase;
+    
+    // Mostrar/ocultar items del desglose
+    if (costoIndices > 0) {
+        document.getElementById('breakdown-indices-item').style.display = 'flex';
+        document.getElementById('breakdown-indices').textContent = '$' + costoIndices;
+    } else {
+        document.getElementById('breakdown-indices-item').style.display = 'none';
+    }
+    
+    if (costoImagenes > 0) {
+        document.getElementById('breakdown-imagenes-item').style.display = 'flex';
+        document.getElementById('breakdown-imagenes').textContent = '$' + costoImagenes;
+    } else {
+        document.getElementById('breakdown-imagenes-item').style.display = 'none';
+    }
+    
+    if (costoTiles > 0) {
+        document.getElementById('breakdown-tiles-item').style.display = 'flex';
+        document.getElementById('breakdown-tiles').textContent = '$' + costoTiles;
+    } else {
+        document.getElementById('breakdown-tiles-item').style.display = 'none';
+    }
+    
+    // Calcular requests estimados
+    let requestsEstimados = 0;
+    if (incluirNdvi || incluirNdmi || incluirSavi) {
+        requestsEstimados += periodoMeses; // 1 request/mes con optimización
+    }
+    if (incluirImagenes) {
+        requestsEstimados += periodoMeses * 2;
+    }
+    
+    document.getElementById('requests-estimados').textContent = '~' + requestsEstimados;
+    const ahorro = Math.round(requestsEstimados * 0.5);
+    document.getElementById('ahorro-cache').textContent = '~' + ahorro + ' requests';
+}
+
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    const planActual = document.querySelector('input[name="plan"]:checked').value;
+    selectPlan(planActual);
+});
+</script>
+{% endblock %}

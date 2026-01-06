@@ -1,0 +1,52 @@
+Estimado/a {{ invitacion.nombre_cliente }},
+
+¡Saludos desde AgroTech Histórico!
+
+Ha sido invitado/a a registrar una parcela agrícola para análisis satelital especializado.
+
+DETALLES DEL SERVICIO:
+======================
+- Servicio: {{ invitacion.descripcion_servicio }}
+- Costo: ${{ invitacion.costo_servicio }} COP
+- Vigencia: {{ dias_vigencia }} días
+- Fecha límite: {{ invitacion.fecha_expiracion|date:"d/m/Y" }}
+
+CÓMO PROCEDER:
+==============
+1. Ingrese al siguiente enlace para registrar su parcela:
+   {{ url_invitacion }}
+
+2. Complete el formulario con los datos de su terreno
+
+3. Dibuje o ingrese las coordenadas de su parcela en el mapa interactivo
+
+4. Confirme el registro y nosotros procesaremos su solicitud
+
+QUÉ INCLUYE EL ANÁLISIS:
+========================
+✓ Índices de vegetación NDVI (Normalized Difference Vegetation Index)
+✓ Índices de humedad NDMI (Normalized Difference Moisture Index) 
+✓ Índices de suelo SAVI (Soil Adjusted Vegetation Index)
+✓ Análisis histórico de datos satelitales
+✓ Informe detallado con recomendaciones
+
+INFORMACIÓN TÉCNICA:
+===================
+- Datos satelitales de alta resolución
+- Análisis con inteligencia artificial
+- Monitoreo temporal de cultivos
+- Mapas interactivos y gráficos detallados
+
+Si tiene alguna pregunta o necesita asistencia, no dude en contactarnos.
+
+¡Esperamos poder ayudarle a optimizar su producción agrícola!
+
+Atentamente,
+El equipo de AgroTech Histórico
+
+---
+📧 Email: agrotechdigitalcolombia@gmail.com
+🌐 Análisis satelital agrícola profesional
+⏰ Esta invitación expira el {{ invitacion.fecha_expiracion|date:"d/m/Y" }}
+
+Nota: Este es un mensaje automático, por favor no responda a este email.

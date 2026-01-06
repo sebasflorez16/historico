@@ -1,0 +1,388 @@
+{
+  "timestamp": "2026-01-06T10:28:36.250213",
+  "estadisticas": {
+    "total_imagenes": 5,
+    "total_indices": 15,
+    "distribucion_calidad": {
+      "excelente": 5
+    },
+    "distribucion_fuente": {
+      "descarga_eosda": 5
+    },
+    "confianza_promedio": 0.95,
+    "nubosidad_promedio": 0.0,
+    "advertencias": [],
+    "imagenes_rechazadas": 0
+  },
+  "imagenes": [
+    {
+      "id_imagen": "eosda_30",
+      "fecha_adquisicion": "2025-08-29",
+      "periodo": "2025-08",
+      "fuente": "descarga_eosda",
+      "calidad": "excelente",
+      "nubosidad": "0.0%",
+      "resolucion": "10.0m",
+      "satelite": "Sentinel-2",
+      "nivel_confianza": "0.95",
+      "razon_seleccion": "mejor_calidad",
+      "descartadas": 0
+    },
+    {
+      "id_imagen": "eosda_38",
+      "fecha_adquisicion": "2025-09-21",
+      "periodo": "2025-09",
+      "fuente": "descarga_eosda",
+      "calidad": "excelente",
+      "nubosidad": "0.0%",
+      "resolucion": "10.0m",
+      "satelite": "Sentinel-2",
+      "nivel_confianza": "0.95",
+      "razon_seleccion": "mejor_calidad",
+      "descartadas": 0
+    },
+    {
+      "id_imagen": "eosda_31",
+      "fecha_adquisicion": "2025-10-01",
+      "periodo": "2025-10",
+      "fuente": "descarga_eosda",
+      "calidad": "excelente",
+      "nubosidad": "0.0%",
+      "resolucion": "10.0m",
+      "satelite": "Sentinel-2",
+      "nivel_confianza": "0.95",
+      "razon_seleccion": "mejor_calidad",
+      "descartadas": 0
+    },
+    {
+      "id_imagen": "eosda_32",
+      "fecha_adquisicion": "2025-11-27",
+      "periodo": "2025-11",
+      "fuente": "descarga_eosda",
+      "calidad": "excelente",
+      "nubosidad": "0.0%",
+      "resolucion": "10.0m",
+      "satelite": "Sentinel-2",
+      "nivel_confianza": "0.95",
+      "razon_seleccion": "mejor_calidad",
+      "descartadas": 0
+    },
+    {
+      "id_imagen": "eosda_34",
+      "fecha_adquisicion": "2025-12-20",
+      "periodo": "2025-12",
+      "fuente": "descarga_eosda",
+      "calidad": "excelente",
+      "nubosidad": "0.0%",
+      "resolucion": "10.0m",
+      "satelite": "Sentinel-2",
+      "nivel_confianza": "0.95",
+      "razon_seleccion": "mejor_calidad",
+      "descartadas": 0
+    }
+  ],
+  "indices": [
+    {
+      "indice": "NDVI",
+      "periodo": "2025-08",
+      "valor_promedio": 0.7389,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_30",
+        "fecha_adquisicion": "2025-08-29",
+        "periodo": "2025-08",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDMI",
+      "periodo": "2025-08",
+      "valor_promedio": 0.1742,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_30",
+        "fecha_adquisicion": "2025-08-29",
+        "periodo": "2025-08",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "SAVI",
+      "periodo": "2025-08",
+      "valor_promedio": 0.4973,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_30",
+        "fecha_adquisicion": "2025-08-29",
+        "periodo": "2025-08",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDVI",
+      "periodo": "2025-09",
+      "valor_promedio": 0.6939,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_38",
+        "fecha_adquisicion": "2025-09-21",
+        "periodo": "2025-09",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDMI",
+      "periodo": "2025-09",
+      "valor_promedio": 0.155,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_38",
+        "fecha_adquisicion": "2025-09-21",
+        "periodo": "2025-09",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "SAVI",
+      "periodo": "2025-09",
+      "valor_promedio": 0.4753,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_38",
+        "fecha_adquisicion": "2025-09-21",
+        "periodo": "2025-09",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDVI",
+      "periodo": "2025-10",
+      "valor_promedio": 0.7093,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_31",
+        "fecha_adquisicion": "2025-10-01",
+        "periodo": "2025-10",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDMI",
+      "periodo": "2025-10",
+      "valor_promedio": 0.1678,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_31",
+        "fecha_adquisicion": "2025-10-01",
+        "periodo": "2025-10",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "SAVI",
+      "periodo": "2025-10",
+      "valor_promedio": 0.4876,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_31",
+        "fecha_adquisicion": "2025-10-01",
+        "periodo": "2025-10",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDVI",
+      "periodo": "2025-11",
+      "valor_promedio": 0.6867,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_32",
+        "fecha_adquisicion": "2025-11-27",
+        "periodo": "2025-11",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDMI",
+      "periodo": "2025-11",
+      "valor_promedio": 0.1141,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_32",
+        "fecha_adquisicion": "2025-11-27",
+        "periodo": "2025-11",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "SAVI",
+      "periodo": "2025-11",
+      "valor_promedio": 0.4533,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_32",
+        "fecha_adquisicion": "2025-11-27",
+        "periodo": "2025-11",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDVI",
+      "periodo": "2025-12",
+      "valor_promedio": 0.5916,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_34",
+        "fecha_adquisicion": "2025-12-20",
+        "periodo": "2025-12",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "NDMI",
+      "periodo": "2025-12",
+      "valor_promedio": 0.0215,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_34",
+        "fecha_adquisicion": "2025-12-20",
+        "periodo": "2025-12",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    },
+    {
+      "indice": "SAVI",
+      "periodo": "2025-12",
+      "valor_promedio": 0.4046,
+      "nivel_confianza": 0.93,
+      "cobertura": "90.0%",
+      "imagen": {
+        "id_imagen": "eosda_34",
+        "fecha_adquisicion": "2025-12-20",
+        "periodo": "2025-12",
+        "fuente": "descarga_eosda",
+        "calidad": "excelente",
+        "nubosidad": "0.0%",
+        "resolucion": "10.0m",
+        "satelite": "Sentinel-2",
+        "nivel_confianza": "0.95",
+        "razon_seleccion": "mejor_calidad",
+        "descartadas": 0
+      }
+    }
+  ],
+  "transformaciones": [],
+  "advertencias": []
+}
