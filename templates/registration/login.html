@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - AgroTech Histórico</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-green: #4a5d23;
+            --light-green: #6b8f47;
+            --dark-gray: #2c3e50;
+            --light-gray: #ecf0f1;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--light-green) 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-header {
+            background: var(--primary-green);
+            color: white;
+            padding: 40px 30px 30px;
+            text-align: center;
+        }
+
+        .login-header i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .login-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .login-header p {
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .login-body {
+            padding: 40px 30px;
+        }
+
+        .form-floating {
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 0.2rem rgba(74, 93, 35, 0.25);
+        }
+
+        .btn-login {
+            background: var(--primary-green);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .btn-login:hover {
+            background: var(--light-green);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 93, 35, 0.3);
+        }
+
+        .btn-client {
+            background: #17a2b8;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            width: 100%;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-client:hover {
+            background: #138496;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .alert {
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 25px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #dee2e6;
+        }
+
+        .divider span {
+            background: white;
+            color: #6c757d;
+            padding: 0 15px;
+            font-size: 0.9rem;
+        }
+
+        .client-access {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .client-access h6 {
+            color: var(--dark-gray);
+            margin-bottom: 10px;
+        }
+
+        .client-access p {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 576px) {
+            .login-header {
+                padding: 30px 20px 20px;
+            }
+            
+            .login-body {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Header -->
+            <div class="login-header">
+                <i class="fas fa-leaf"></i>
+                <h1>AgroTech Histórico</h1>
+                <p>Análisis Satelital Agrícola</p>
+            </div>
+
+            <!-- Body -->
+            <div class="login-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Formulario de Login Administrativo -->
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Usuario" required>
+                        <label for="username"><i class="fas fa-user me-2"></i>Usuario</label>
+                    </div>
+
+                    <div class="form-floating">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Contraseña" required>
+                        <label for="password"><i class="fas fa-lock me-2"></i>Contraseña</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-login">
+                        <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión Administrativa
+                    </button>
+                </form>
+
+                <!-- Divider -->
+                <div class="divider">
+                    <span>o</span>
+                </div>
+
+                <!-- Acceso para Clientes -->
+                <div class="client-access">
+                    <h6><i class="fas fa-users me-2"></i>¿Eres Cliente?</h6>
+                    <p>Registra tu parcela sin necesidad de cuenta administrativa</p>
+                    <a href="{% url 'informes:registro_cliente' %}" class="btn btn-client">
+                        <i class="fas fa-map-marked-alt me-2"></i>Registrar Mi Parcela
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,846 @@
+{% extends 'informes/base.html' %}
+{% load humanize %}
+
+{% block title %}Dashboard - AgroTech Histórico{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">
+            <i class="fas fa-tachometer-alt me-1"></i>
+            Dashboard
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row fade-in-up">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 text-dark">
+                <i class="fas fa-seedling me-3" style="color: var(--agrotech-verde);"></i>
+                Dashboard AgroTech Histórico
+            </h1>
+            <a href="{% url 'informes:crear_parcela' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                Nueva Parcela
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Tarjetas de estadísticas -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Total Parcelas</h6>
+                        <h3 class="mb-0 text-dark">{{ total_parcelas }}</h3>
+                        <small class="text-muted">Activas en monitoreo</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-map fa-2x" style="color: var(--agrotech-verde);"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Datos Satelitales</h6>
+                        <h3 class="mb-0 text-dark">{{ total_indices }}</h3>
+                        <small class="text-muted">Registros mensuales</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-satellite-dish fa-2x" style="color: var(--agrotech-verde-claro);"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Informes</h6>
+                        <h3 class="mb-0 text-dark">{{ total_informes }}</h3>
+                        <small class="text-muted">Análisis generados</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-pdf fa-2x" style="color: var(--agrotech-amarillo);"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Estado API</h6>
+                        {% if conectividad_eosda.status == 'online' %}
+                            <h3 class="mb-0 text-success">Operativo</h3>
+                            <small class="text-muted">EOSDA conectado</small>
+                        {% else %}
+                            <h3 class="mb-0 text-warning">Limitado</h3>
+                            <small class="text-muted">Modo simulación</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-auto">
+                        {% if conectividad_eosda.status == 'online' %}
+                            <i class="fas fa-wifi fa-2x text-success"></i>
+                        {% else %}
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Económicas (Solo para administradores) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="text-dark mb-3">
+            <i class="fas fa-chart-line me-2"></i>
+            Panel Económico
+        </h4>
+    </div>
+    
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Ingresos</h6>
+                        <h4 class="mb-0 text-success">${{ estadisticas_economicas.ingresos_totales|floatformat:2 }} COP</h4>
+                        <small class="text-muted">Total facturado</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Hectáreas</h6>
+                        <h4 class="mb-0 text-primary">{{ estadisticas_economicas.total_hectareas }}</h4>
+                        <small class="text-muted">Bajo análisis</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-expand-arrows-alt fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Invitaciones</h6>
+                        <h4 class="mb-0 text-info">{{ estadisticas_economicas.total_invitaciones }}</h4>
+                        <small class="text-muted">Total enviadas</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-envelope fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Pendientes</h6>
+                        <h4 class="mb-0 text-warning">{{ estadisticas_economicas.invitaciones_pendientes }}</h4>
+                        <small class="text-muted">Sin completar</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clock fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Pagos</h6>
+                        <h4 class="mb-0 text-success">{{ estadisticas_economicas.servicios_pagados }}</h4>
+                        <small class="text-muted">Completados</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="text-uppercase text-muted mb-1">Por Cobrar</h6>
+                        <h4 class="mb-0 text-danger">{{ estadisticas_economicas.servicios_pendientes }}</h4>
+                        <small class="text-muted">Servicios</small>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-circle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_superuser and estadisticas_economicas %}
+<!-- Panel Financiero de Informes (NUEVO) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="text-dark mb-3">
+            <i class="fas fa-file-invoice-dollar me-2"></i>
+            Gestión Financiera de Informes
+        </h4>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Ingresos Totales</h6>
+                        <h3 class="mb-0 text-success">${{ estadisticas_economicas.total_ingresos_informes|floatformat:0|intcomma }} COP</h3>
+                        <small class="text-muted">{{ estadisticas_economicas.informes_pagados }} informes pagados</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-hand-holding-usd fa-3x text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Cuentas por Cobrar</h6>
+                        <h3 class="mb-0 text-warning">${{ estadisticas_economicas.cuentas_por_cobrar|floatformat:0|intcomma }} COP</h3>
+                        <small class="text-muted">{{ estadisticas_economicas.informes_pendientes }} informes pendientes</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-money-bill-wave fa-3x text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Informes Vencidos</h6>
+                        <h3 class="mb-0 text-danger">{{ estadisticas_economicas.informes_vencidos }}</h3>
+                        <small class="text-muted">Requieren atención urgente</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-exclamation-triangle fa-3x text-danger opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Por Vencer (7 días)</h6>
+                        <h3 class="mb-0 text-info">{{ estadisticas_economicas.informes_por_vencer }}</h3>
+                        <small class="text-muted">Próximos a vencimiento</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-calendar-alt fa-3x text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimos Pagos Registrados -->
+{% if estadisticas_economicas.ultimos_pagos %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Últimos Pagos Registrados
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Parcela</th>
+                                <th>Cliente</th>
+                                <th>Monto Pagado</th>
+                                <th>Saldo Pendiente</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pago in estadisticas_economicas.ultimos_pagos %}
+                            <tr>
+                                <td>{{ pago.fecha_actualizacion|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'informes:detalle_informe' pago.id %}">
+                                        {{ pago.parcela.nombre }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if pago.parcela.cliente %}
+                                        {{ pago.parcela.cliente.get_full_name }}
+                                    {% else %}
+                                        <span class="text-muted">Sin cliente</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-success fw-bold">${{ pago.monto_pagado|floatformat:0|intcomma }} COP</td>
+                                <td class="text-warning">${{ pago.saldo_pendiente|floatformat:0|intcomma }} COP</td>
+                                <td>
+                                    {% if pago.estado_pago == 'pagado' %}
+                                        <span class="badge bg-success">Pagado</span>
+                                    {% elif pago.estado_pago == 'parcial' %}
+                                        <span class="badge bg-warning text-dark">Parcial</span>
+                                    {% elif pago.estado_pago == 'pendiente' %}
+                                        <span class="badge bg-secondary">Pendiente</span>
+                                    {% elif pago.estado_pago == 'vencido' %}
+                                        <span class="badge bg-danger">Vencido</span>
+                                    {% elif pago.estado_pago == 'cortesia' %}
+                                        <span class="badge bg-info">Cortesía</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Estado de Servicios -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Estado General del Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Estado del Sistema -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <div class="alert alert-success mb-0" role="alert">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading mb-1">
+                                        <i class="fas fa-cogs me-1"></i> Sistema Operativo
+                                    </h6>
+                                    <p class="mb-0">Django 5.2.8 ejecutándose correctamente en puerto 8001</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="alert alert-success mb-0" role="alert">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <i class="fas fa-database fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading mb-1">
+                                        <i class="fas fa-server me-1"></i> Base de Datos
+                                    </h6>
+                                    <p class="mb-0">PostgreSQL 15 + PostGIS conectado</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Servicios Externos -->
+                <h6 class="mb-3"><i class="fas fa-plug me-2"></i>Servicios Externos</h6>
+                <div class="row">
+                    <!-- Estado EOSDA -->
+                    <div class="col-md-6 mb-3">
+                        {% if conectividad_eosda.status == 'online' %}
+                        <div class="alert alert-success mb-0" role="alert" style="border-left: 4px solid #2E8B57;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-satellite fa-2x text-success"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-success me-2">Operativo</span>
+                                        API EOSDA
+                                    </h6>
+                                    <p class="mb-2 small">{{ conectividad_eosda.message }}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Servicio de imágenes satelitales activo
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning mb-0" role="alert" style="border-left: 4px solid #FF7A00;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-warning text-dark me-2">Simulación</span>
+                                        API EOSDA
+                                    </h6>
+                                    <p class="mb-2 small"><strong>Estado:</strong> {{ conectividad_eosda.message }}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        El sistema funciona con datos de prueba hasta configurar la API de producción
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Estado Email -->
+                    <div class="col-md-6 mb-3">
+                        {% if estado_email.valido %}
+                        <div class="alert alert-success mb-0" role="alert" style="border-left: 4px solid #34A853;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-envelope fa-2x text-success"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-success me-2">Operativo</span>
+                                        Base de Datos
+                                    </h6>
+                                    <p class="mb-2 small">{{ estado_email.mensaje }}</p>
+                                    <div class="mt-2">
+                                        <form method="post" action="{% url 'informes:probar_email' %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <div class="input-group input-group-sm">
+                                                <input type="email" 
+                                                       class="form-control" 
+                                                       name="email_destino" 
+                                                       placeholder="Email para prueba" 
+                                                       value="agrotechdigitalcolombia@gmail.com">
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-paper-plane"></i> Probar
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-danger mb-0" role="alert" style="border-left: 4px solid #dc3545;">
+                            <div class="d-flex align-items-start">
+                                <div class="me-3">
+                                    <i class="fas fa-times-circle fa-2x text-danger"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-1">
+                                        <span class="badge bg-danger me-2">Error</span>
+                                        Servicio de Email
+                                    </h6>
+                                    <p class="mb-2 small">Error de configuración</p>
+                                    <small class="text-danger">
+                                        <strong>Error:</strong> {{ estado_email.error }}
+                                    </small>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#helpEmailModal">
+                                            <i class="fas fa-question-circle me-1"></i>
+                                            ¿Cómo configurar?
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contenido principal -->
+<div class="row">
+    <!-- Parcelas recientes -->
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-map me-2"></i>
+                    Parcelas Recientes
+                </h5>
+                <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-outline-light btn-sm">
+                    Ver todas
+                </a>
+            </div>
+            <div class="card-body">
+                {% if parcelas_recientes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Parcela</th>
+                                    <th>Propietario</th>
+                                    <th>Tipo Cultivo</th>
+                                    <th>Registro</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for parcela in parcelas_recientes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ parcela.nombre }}</strong>
+                                        {% if parcela.area_hectareas %}
+                                            <br>
+                                            <small class="text-muted">{{ parcela.area_hectareas|floatformat:1 }} ha</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ parcela.propietario }}</td>
+                                    <td>
+                                        {% if parcela.tipo_cultivo %}
+                                            <span class="badge bg-success">{{ parcela.tipo_cultivo }}</span>
+                                        {% else %}
+                                            <span class="text-muted">No especificado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ parcela.fecha_registro|date:"d/m/Y" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'informes:detalle_parcela' parcela.id %}" 
+                                               class="btn btn-outline-primary" 
+                                               title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'informes:mapa_parcela' parcela.id %}" 
+                                               class="btn btn-outline-success" 
+                                               title="Ver en mapa">
+                                                <i class="fas fa-map-marked-alt"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-map fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No hay parcelas registradas</h5>
+                        <p class="text-muted mb-3">Comienza creando tu primera parcela para monitoreo satelital</p>
+                        <a href="{% url 'informes:crear_parcela' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>
+                            Crear Primera Parcela
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Panel lateral -->
+    <div class="col-lg-4 mb-4">
+        <!-- Estado del sistema -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Estado del Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Conectividad EOSDA:</span>
+                        {% if conectividad_eosda.conexion_exitosa %}
+                            <span class="badge bg-success">Conectado</span>
+                        {% else %}
+                            <span class="badge bg-warning">Simulación</span>
+                        {% endif %}
+                    </div>
+                    {% if conectividad_eosda.tiempo_respuesta %}
+                        <small class="text-muted">Tiempo respuesta: {{ conectividad_eosda.tiempo_respuesta }}ms</small>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Configuración:</span>
+                        {% if conectividad_eosda.configuracion_valida %}
+                            <span class="badge bg-success">Válida</span>
+                        {% else %}
+                            <span class="badge bg-danger">Pendiente</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <a href="{% url 'informes:estado_sistema' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-chart-line me-1"></i>
+                        Ver Estado Completo
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Últimos informes -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-pdf me-2"></i>
+                    Últimos Informes
+                </h5>
+                <a href="{% url 'informes:lista_informes' %}" class="btn btn-outline-light btn-sm">
+                    Ver todos
+                </a>
+            </div>
+            <div class="card-body">
+                {% if informes_recientes %}
+                    {% for informe in informes_recientes %}
+                        <div class="d-flex align-items-center mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
+                            <div class="me-3">
+                                <i class="fas fa-file-pdf fa-2x" style="color: var(--agrotech-amarillo);"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <a href="{% url 'informes:detalle_informe' informe.id %}" 
+                                       class="text-decoration-none">
+                                        {{ informe.parcela.nombre }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    {{ informe.fecha_generacion|date:"d/m/Y H:i" }}
+                                    • {{ informe.periodo_analisis_meses }} meses
+                                </small>
+                            </div>
+                            <div>
+                                <span class="badge bg-success">{{ informe.estado_salud_general|truncatewords:2 }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-file-pdf fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No hay informes generados</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones rápidas -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>
+                    Acciones Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'informes:crear_parcela' %}" class="btn btn-outline-primary w-100 py-3">
+                            <i class="fas fa-plus fa-2x mb-2"></i>
+                            <br>
+                            <strong>Nueva Parcela</strong>
+                            <br>
+                            <small>Agregar terreno al sistema</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-outline-success w-100 py-3">
+                            <i class="fas fa-map fa-2x mb-2"></i>
+                            <br>
+                            <strong>Ver Parcelas</strong>
+                            <br>
+                            <small>Gestionar terrenos existentes</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'informes:lista_informes' %}" class="btn btn-outline-warning w-100 py-3">
+                            <i class="fas fa-chart-line fa-2x mb-2"></i>
+                            <br>
+                            <strong>Análisis</strong>
+                            <br>
+                            <small>Revisar informes satelitales</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <a href="{% url 'informes:estado_sistema' %}" class="btn btn-outline-secondary w-100 py-3">
+                            <i class="fas fa-cogs fa-2x mb-2"></i>
+                            <br>
+                            <strong>Sistema</strong>
+                            <br>
+                            <small>Monitorear estado general</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de ayuda para configuración de email -->
+<div class="modal fade" id="helpEmailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-envelope-open-text me-2"></i>
+                    Configurar Email para Invitaciones
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>Email configurado:</strong> agrotechdigitalcolombia@gmail.com
+                </div>
+                
+                <h6>Pasos para configurar Gmail:</h6>
+                <ol>
+                    <li><strong>Activar verificación en 2 pasos</strong>
+                        <ul>
+                            <li>Ve a <a href="https://myaccount.google.com/security" target="_blank">Seguridad de Google</a></li>
+                            <li>Activa la "Verificación en 2 pasos"</li>
+                        </ul>
+                    </li>
+                    
+                    <li><strong>Generar contraseña de aplicación</strong>
+                        <ul>
+                            <li>En Seguridad → Verificación en 2 pasos</li>
+                            <li>Busca "Contraseñas de aplicaciones"</li>
+                            <li>Selecciona "Correo" y "Otro (nombre personalizado)"</li>
+                            <li>Escribe "AgroTech Histórico"</li>
+                            <li>Copia la contraseña generada (16 caracteres)</li>
+                        </ul>
+                    </li>
+                    
+                    <li><strong>Configurar en el sistema</strong>
+                        <ul>
+                            <li>Edita el archivo <code>.env</code></li>
+                            <li>Cambia: <code>EMAIL_PASSWORD=tu_app_password_aqui</code></li>
+                            <li>Pega la contraseña de aplicación de Gmail</li>
+                            <li>Reinicia el servidor Django</li>
+                        </ul>
+                    </li>
+                </ol>
+                
+                <div class="alert alert-warning">
+                    <strong>Importante:</strong> Usa la contraseña de aplicación, NO tu contraseña normal de Gmail.
+                </div>
+                
+                <h6>Archivo .env de ejemplo:</h6>
+                <pre class="bg-light p-3 rounded"><code>EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=agrotechdigitalcolombia@gmail.com
+EMAIL_PASSWORD=abcd efgh ijkl mnop</code></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <a href="https://myaccount.google.com/security" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt me-2"></i>
+                    Ir a Seguridad de Google
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Verificar estado de conectividad cada 5 minutos
+    setInterval(function() {
+        fetch('/informes/sistema/estado/')
+            .then(response => response.text())
+            .then(data => {
+                // Actualizar indicadores de estado si es necesario
+                console.log('Estado del sistema verificado');
+            })
+            .catch(error => {
+                console.warn('Error verificando estado del sistema:', error);
+            });
+    }, 300000); // 5 minutos
+});
+</script>
+{% endblock %}

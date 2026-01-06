@@ -1,0 +1,154 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Registrar Pago - {{ informe.titulo }} - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-form-card {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        max-width: 700px;
+        margin: 30px auto;
+    }
+    
+    .payment-header {
+        background: linear-gradient(135deg, #FF7A00, #FF9533);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 16px rgba(255, 122, 0, 0.3);
+    }
+    
+    .info-box {
+        background: white;
+        border-left: 4px solid #2E8B57;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        padding: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #FF7A00;
+        box-shadow: 0 0 0 0.2rem rgba(255, 122, 0, 0.15);
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #2E8B57, #3BA567);
+        border: none;
+        color: white;
+        padding: 14px 40px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        box-shadow: 0 4px 16px rgba(46, 139, 87, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-submit:hover {
+        background: linear-gradient(135deg, #3BA567, #2E8B57);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 24px rgba(46, 139, 87, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="payment-header text-center">
+        <h1><i class="fas fa-cash-register me-2"></i>Registrar Pago</h1>
+        <p class="mb-0">Informe: <strong>{{ informe.titulo }}</strong></p>
+    </div>
+    
+    <div class="payment-form-card">
+        <!-- Información del informe -->
+        <div class="info-box">
+            <h4 style="color: #2E8B57; margin-bottom: 15px;">
+                <i class="fas fa-info-circle me-2"></i>Información del Informe
+            </h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Parcela:</strong> {{ informe.parcela.nombre }}</p>
+                    <p><strong>Precio Final:</strong> ${{ informe.precio_final|floatformat:0 }} COP</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Monto Pagado:</strong> ${{ informe.monto_pagado|floatformat:0 }} COP</p>
+                    <p><strong>Saldo Pendiente:</strong> 
+                        <span style="color: #dc3545; font-weight: bold;">
+                            ${{ informe.saldo_pendiente|floatformat:0 }} COP
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Formulario de pago -->
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label for="{{ form.monto.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-money-bill-wave me-2"></i>{{ form.monto.label }}
+                </label>
+                {{ form.monto }}
+                {% if form.monto.help_text %}
+                <div class="form-text">{{ form.monto.help_text }}</div>
+                {% endif %}
+                {% if form.monto.errors %}
+                <div class="text-danger mt-2">{{ form.monto.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <label for="{{ form.metodo_pago.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-credit-card me-2"></i>{{ form.metodo_pago.label }}
+                </label>
+                {{ form.metodo_pago }}
+                {% if form.metodo_pago.errors %}
+                <div class="text-danger mt-2">{{ form.metodo_pago.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <label for="{{ form.referencia_pago.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-hashtag me-2"></i>{{ form.referencia_pago.label }}
+                </label>
+                {{ form.referencia_pago }}
+                {% if form.referencia_pago.errors %}
+                <div class="text-danger mt-2">{{ form.referencia_pago.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <label for="{{ form.notas.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-comment me-2"></i>{{ form.notas.label }}
+                </label>
+                {{ form.notas }}
+                {% if form.notas.errors %}
+                <div class="text-danger mt-2">{{ form.notas.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'informes:detalle_informe' informe.id %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </a>
+                <button type="submit" class="btn btn-submit">
+                    <i class="fas fa-check me-2"></i>Registrar Pago
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

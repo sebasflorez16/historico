@@ -1,0 +1,792 @@
+{% extends "informes/base.html" %}
+{% load static %}
+
+{% block title %}Registro de Parcela - AgroTech{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <!-- Plugin de búsqueda -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+    <!-- Plugin de pantalla completa -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@3.0.2/Control.FullScreen.css" />
+<style>
+    .client-header {
+        background: linear-gradient(135deg, #4a5d23, #6b8e23);
+        color: white;
+        padding: 30px 0;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+    }
+    
+    .step {
+        background: #dee2e6;
+        color: #495057;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 15px;
+        position: relative;
+    }
+    
+    .step.active {
+        background: #4a5d23;
+        color: white;
+    }
+    
+    .step.completed {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 100%;
+        width: 30px;
+        height: 2px;
+        background: #dee2e6;
+        z-index: -1;
+    }
+    
+    .step:last-child::after {
+        display: none;
+    }
+    
+    .map-container {
+        height: 450px;
+        border: 3px solid #4a5d23;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    
+    .info-card {
+        background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+        border-left: 5px solid #4a5d23;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .coords-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .coord-input-row {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .area-result {
+        background: linear-gradient(135deg, #4a5d23, #6b8e23);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .method-toggle {
+        margin-bottom: 25px;
+        text-align: center;
+    }
+    
+    .btn-toggle {
+        min-width: 180px;
+        margin: 0 10px;
+    }
+    
+    .success-message {
+        background: linear-gradient(145deg, #d4edda, #c3e6cb);
+        border: 1px solid #c3e6cb;
+        border-radius: 10px;
+        padding: 25px;
+        text-align: center;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="client-header">
+    <div class="container">
+        <h1><i class="fas fa-leaf"></i> AgroTech - Registro de Parcela</h1>
+        <p class="mb-0">Defina los límites de su parcela para análisis satelital</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <!-- Indicador de pasos -->
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step" id="step2">2</div>
+                <div class="step" id="step3">3</div>
+            </div>
+
+            <form method="post" id="clientParcelaForm">
+                {% csrf_token %}
+                
+                <!-- Paso 1: Información básica -->
+                <div id="paso1" class="step-content">
+                    <div class="card shadow">
+                        <div class="card-header bg-success text-white">
+                            <h4><i class="fas fa-info-circle"></i> Paso 1: Información de la Parcela</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cliente_nombre" class="form-label">Nombre de la Parcela *</label>
+                                        <input type="text" class="form-control form-control-lg" id="cliente_nombre" 
+                                               name="nombre" required placeholder="Ej: Mi Finca Principal">
+                                        <div class="form-text">Nombre para identificar su parcela</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cliente_propietario" class="form-label">Su Nombre *</label>
+                                        <input type="text" class="form-control form-control-lg" id="cliente_propietario" 
+                                               name="propietario" required placeholder="Su nombre completo">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cliente_cultivo" class="form-label">Tipo de Cultivo</label>
+                                        <select class="form-control form-control-lg" id="cliente_cultivo" name="tipo_cultivo">
+                                            <option value="">¿Qué cultiva en esta parcela?</option>
+                                            <option value="Café">Café</option>
+                                            <option value="Maíz">Maíz</option>
+                                            <option value="Arroz">Arroz</option>
+                                            <option value="Cacao">Cacao</option>
+                                            <option value="Plátano">Plátano</option>
+                                            <option value="Aguacate">Aguacate</option>
+                                            <option value="Caña de azúcar">Caña de azúcar</option>
+                                            <option value="Fríjol">Fríjol</option>
+                                            <option value="Yuca">Yuca</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="cliente_email" class="form-label">Email de contacto</label>
+                                        <input type="email" class="form-control form-control-lg" id="cliente_email" 
+                                               name="email_contacto" placeholder="para enviarle el informe">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center">
+                                <button type="button" class="btn btn-success btn-lg" onclick="nextStep(2)">
+                                    Continuar <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paso 2: Definir límites -->
+                <div id="paso2" class="step-content" style="display: none;">
+                    <div class="card shadow">
+                        <div class="card-header bg-success text-white">
+                            <h4><i class="fas fa-map"></i> Paso 2: Definir Límites de la Parcela</h4>
+                        </div>
+                        <div class="card-body">
+                            
+                            <div class="info-card">
+                                <h5><i class="fas fa-lightbulb text-warning"></i> ¿Cómo definir los límites?</h5>
+                                <p class="mb-1"><strong>Opción 1 - Dibujar en el mapa:</strong> Ubique su parcela en el mapa y dibuje los límites haciendo clic en cada esquina.</p>
+                                <p class="mb-0"><strong>Opción 2 - Coordenadas GPS:</strong> Ingrese las coordenadas GPS de cada esquina de su parcela (mínimo 3 puntos).</p>
+                            </div>
+                            
+                            <div class="method-toggle">
+                                <button type="button" class="btn btn-outline-success btn-lg btn-toggle" id="btnClientMapMode" 
+                                        onclick="setClientMode('map')">
+                                    <i class="fas fa-draw-polygon"></i><br>Dibujar en Mapa
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-lg btn-toggle" id="btnClientCoordsMode" 
+                                        onclick="setClientMode('coords')">
+                                    <i class="fas fa-map-pin"></i><br>Coordenadas GPS
+                                </button>
+                            </div>
+
+                            <!-- Modo Mapa para Cliente -->
+                            <div id="clientMapMode" style="display: none;">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Instrucciones:</strong> 
+                                    1. Busque su parcela en el mapa 
+                                    2. Haga clic en el botón de polígono (□) 
+                                    3. Dibuje los límites haciendo clic en cada esquina
+                                </div>
+                                <div id="clientMap" class="map-container"></div>
+                            </div>
+
+                            <!-- Modo Coordenadas para Cliente -->
+                            <div id="clientCoordsMode" style="display: none;">
+                                <div class="coords-section">
+                                    <h6><i class="fas fa-map-pin"></i> Ingrese Coordenadas GPS</h6>
+                                    <p class="text-muted">Agregue las coordenadas de cada esquina de su parcela:</p>
+                                    
+                                    <div class="coord-input-row">
+                                        <div class="row align-items-end">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Latitud</label>
+                                                <input type="number" class="form-control" id="clientInputLat" 
+                                                       placeholder="4.5981" step="any">
+                                                <small class="form-text text-muted">Grados decimales</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Longitud</label>
+                                                <input type="number" class="form-control" id="clientInputLng" 
+                                                       placeholder="-74.0758" step="any">
+                                                <small class="form-text text-muted">Grados decimales</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button type="button" class="btn btn-success w-100" onclick="addClientCoordinate()">
+                                                    <i class="fas fa-plus"></i> Agregar Punto
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="clientCoordsList" style="display: none;">
+                                        <h6 class="mt-3">Puntos ingresados:</h6>
+                                        <div id="clientCoordinatesContainer"></div>
+                                        <button type="button" class="btn btn-warning btn-sm mt-2" onclick="clearClientCoordinates()">
+                                            <i class="fas fa-trash"></i> Limpiar todos
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Área calculada -->
+                            <div id="clientAreaDisplay" class="area-result" style="display: none;">
+                                <h4><i class="fas fa-ruler-combined"></i> Área de su Parcela</h4>
+                                <h2 id="clientAreaValue">0 hectáreas</h2>
+                                <p class="mb-0">Esta área será utilizada para el análisis satelital</p>
+                            </div>
+
+                            <!-- Campo oculto para geometría -->
+                            <input type="hidden" id="clientGeometria" name="geometria" required>
+                            <input type="hidden" name="fecha_inicio_monitoreo" id="clientFechaInicio">
+
+                            <div class="text-center mt-4">
+                                <button type="button" class="btn btn-secondary btn-lg me-3" onclick="prevStep(1)">
+                                    <i class="fas fa-arrow-left"></i> Anterior
+                                </button>
+                                <button type="button" class="btn btn-success btn-lg" onclick="nextStep(3)" id="btnToStep3" disabled>
+                                    Continuar <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paso 3: Confirmación -->
+                <div id="paso3" class="step-content" style="display: none;">
+                    <div class="card shadow">
+                        <div class="card-header bg-success text-white">
+                            <h4><i class="fas fa-check-circle"></i> Paso 3: Confirmación</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-card">
+                                <h5><i class="fas fa-info-circle"></i> ¿Qué sucede después?</h5>
+                                <ul>
+                                    <li>Su parcela será registrada en nuestro sistema</li>
+                                    <li>Iniciaremos el análisis satelital de su terreno</li>
+                                    <li>Le enviaremos un informe detallado con recomendaciones</li>
+                                    <li>El proceso toma aproximadamente 24-48 horas</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Resumen de su parcela:</h6>
+                                    <div id="resumenParcela"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert alert-warning">
+                                        <h6><i class="fas fa-exclamation-triangle"></i> Importante:</h6>
+                                        <p class="mb-0">Verifique que la información y el área sean correctos antes de continuar.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-center mt-4">
+                                <button type="button" class="btn btn-secondary btn-lg me-3" onclick="prevStep(2)">
+                                    <i class="fas fa-arrow-left"></i> Anterior
+                                </button>
+                                <button type="submit" class="btn btn-success btn-lg btn-lg">
+                                    <i class="fas fa-check"></i> Registrar Parcela
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Mensaje de éxito (oculto inicialmente) -->
+            <div id="successMessage" class="success-message" style="display: none;">
+                <h4><i class="fas fa-check-circle text-success"></i> ¡Parcela Registrada Exitosamente!</h4>
+                <p>Su parcela ha sido registrada correctamente. Recibirá el informe de análisis satelital en las próximas 24-48 horas.</p>
+                <p><strong>Área registrada:</strong> <span id="finalAreaDisplay"></span></p>
+                <div class="mt-3">
+                    <a href="/" class="btn btn-primary">Volver al Inicio</a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<!-- Plugin de búsqueda -->
+<script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+<!-- Plugin de pantalla completa -->
+<script src="https://unpkg.com/leaflet.fullscreen@3.0.2/Control.FullScreen.js"></script>
+<script>
+let clientMap;
+let clientDrawControl;
+let clientDrawnLayer;
+let clientCoordinates = [];
+let clientCurrentMode = null;
+let currentStep = 1;
+
+// Inicializar fecha por defecto
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('clientFechaInicio').value = today;
+});
+
+function nextStep(step) {
+    // Validar paso actual
+    if (step === 2) {
+        const nombre = document.getElementById('cliente_nombre').value;
+        const propietario = document.getElementById('cliente_propietario').value;
+        
+        if (!nombre || !propietario) {
+            alert('Por favor complete los campos requeridos');
+            return;
+        }
+    }
+    
+    if (step === 3) {
+        const geometria = document.getElementById('clientGeometria').value;
+        if (!geometria) {
+            alert('Por favor defina los límites de la parcela');
+            return;
+        }
+        
+        // Actualizar resumen
+        updateResumen();
+    }
+    
+    // Ocultar paso actual
+    document.getElementById(`paso${currentStep}`).style.display = 'none';
+    document.getElementById(`step${currentStep}`).className = 'step completed';
+    
+    // Mostrar nuevo paso
+    document.getElementById(`paso${step}`).style.display = 'block';
+    document.getElementById(`step${step}`).className = 'step active';
+    
+    currentStep = step;
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+}
+
+function prevStep(step) {
+    // Ocultar paso actual
+    document.getElementById(`paso${currentStep}`).style.display = 'none';
+    document.getElementById(`step${currentStep}`).className = 'step';
+    
+    // Mostrar paso anterior
+    document.getElementById(`paso${step}`).style.display = 'block';
+    document.getElementById(`step${step}`).className = 'step active';
+    
+    // Actualizar pasos siguientes
+    for (let i = step + 1; i <= 3; i++) {
+        document.getElementById(`step${i}`).className = 'step';
+    }
+    
+    currentStep = step;
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+}
+
+function setClientMode(mode) {
+    clientCurrentMode = mode;
+    
+    // Resetear botones
+    document.getElementById('btnClientMapMode').className = 'btn btn-outline-success btn-lg btn-toggle';
+    document.getElementById('btnClientCoordsMode').className = 'btn btn-outline-primary btn-lg btn-toggle';
+    
+    // Ocultar ambos modos
+    document.getElementById('clientMapMode').style.display = 'none';
+    document.getElementById('clientCoordsMode').style.display = 'none';
+    
+    if (mode === 'map') {
+        document.getElementById('btnClientMapMode').className = 'btn btn-success btn-lg btn-toggle';
+        document.getElementById('clientMapMode').style.display = 'block';
+        initializeClientMap();
+    } else {
+        document.getElementById('btnClientCoordsMode').className = 'btn btn-primary btn-lg btn-toggle';
+        document.getElementById('clientCoordsMode').style.display = 'block';
+    }
+    
+    clearClientData();
+}
+
+function initializeClientMap() {
+    if (clientMap) {
+        clientMap.remove();
+    }
+    
+    // Coordenadas de Colombia
+    clientMap = L.map('clientMap').setView([4.5709, -74.2973], 6);
+    
+    // Capa satelital de Esri como principal
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
+        maxZoom: 19
+    }).addTo(clientMap);
+    
+    // Capas alternativas
+    const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    });
+    
+    // Control de capas
+    const baseMaps = {
+        "📡 Vista Satelital": esriSatellite,
+        "🗺️ Mapa Simple": openStreetMap
+    };
+    
+    L.control.layers(baseMaps).addTo(clientMap);
+    
+    // Control de búsqueda para clientes
+    const geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: '🔍 Buscar mi ubicación...',
+        errorMessage: 'No encontramos esa ubicación',
+        showUniqueResult: true,
+        geocoder: L.Control.Geocoder.nominatim({
+            serviceUrl: 'https://nominatim.openstreetmap.org/',
+            geocodingQueryParams: {
+                countrycodes: 'co',
+                limit: 3
+            }
+        })
+    }).on('markgeocode', function(e) {
+        clientMap.setView(e.geocode.center, 15);
+        
+        // Marcador temporal más amigable
+        const marker = L.marker(e.geocode.center, {
+            icon: L.divIcon({
+                className: 'search-marker-client',
+                html: `<div style="background-color: #28a745; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">📍</div>`,
+                iconSize: [30, 30]
+            })
+        }).addTo(clientMap);
+        
+        setTimeout(() => {
+            clientMap.removeLayer(marker);
+        }, 5000);
+    }).addTo(clientMap);
+    
+    // Control de pantalla completa para clientes
+    clientMap.addControl(new L.Control.Fullscreen({
+        title: {
+            'false': '🔍 Ver en pantalla completa',
+            'true': '❌ Salir de pantalla completa'
+        }
+    }));
+    
+    // Grupo para elementos dibujados
+    const drawnItems = new L.FeatureGroup();
+    clientMap.addLayer(drawnItems);
+    
+    // Control de dibujo simplificado
+    clientDrawControl = new L.Control.Draw({
+        position: 'topleft',
+        draw: {
+            polygon: {
+                allowIntersection: false,
+                showArea: true,
+                drawError: {
+                    color: '#e1e100',
+                    message: '<strong>Error:</strong> Los bordes no pueden cruzarse'
+                },
+                shapeOptions: {
+                    color: '#4a5d23',
+                    weight: 4,
+                    fillOpacity: 0.3
+                }
+            },
+            polyline: false,
+            rectangle: false,
+            circle: false,
+            marker: false,
+            circlemarker: false
+        },
+        edit: {
+            featureGroup: drawnItems,
+            remove: true
+        }
+    });
+    
+    clientMap.addControl(clientDrawControl);
+    
+    // Eventos
+    clientMap.on(L.Draw.Event.CREATED, function (e) {
+        const layer = e.layer;
+        
+        drawnItems.clearLayers();
+        drawnItems.addLayer(layer);
+        clientDrawnLayer = layer;
+        
+        const coords = layer.getLatLngs()[0];
+        const geojson = layer.toGeoJSON();
+        
+        document.getElementById('clientGeometria').value = JSON.stringify(geojson);
+        calculateClientArea(coords);
+        enableStep3Button();
+    });
+    
+    clientMap.on(L.Draw.Event.EDITED, function (e) {
+        const layers = e.layers;
+        layers.eachLayer(function (layer) {
+            const coords = layer.getLatLngs()[0];
+            const geojson = layer.toGeoJSON();
+            document.getElementById('clientGeometria').value = JSON.stringify(geojson);
+            calculateClientArea(coords);
+        });
+    });
+    
+    clientMap.on(L.Draw.Event.DELETED, function (e) {
+        document.getElementById('clientGeometria').value = '';
+        hideClientAreaDisplay();
+        disableStep3Button();
+    });
+}
+
+function addClientCoordinate() {
+    const lat = parseFloat(document.getElementById('clientInputLat').value);
+    const lng = parseFloat(document.getElementById('clientInputLng').value);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+        alert('Por favor ingrese coordenadas válidas');
+        return;
+    }
+    
+    // Validar rango para Colombia
+    if (lat < -4 || lat > 15 || lng < -82 || lng > -66) {
+        if (!confirm('Las coordenadas parecen estar fuera de Colombia. ¿Desea continuar?')) {
+            return;
+        }
+    }
+    
+    clientCoordinates.push([lng, lat]);
+    
+    // Limpiar inputs
+    document.getElementById('clientInputLat').value = '';
+    document.getElementById('clientInputLng').value = '';
+    
+    updateClientCoordinatesList();
+    updateClientGeometryFromCoords();
+}
+
+function updateClientCoordinatesList() {
+    const container = document.getElementById('clientCoordinatesContainer');
+    const coordsList = document.getElementById('clientCoordsList');
+    
+    if (clientCoordinates.length === 0) {
+        coordsList.style.display = 'none';
+        return;
+    }
+    
+    coordsList.style.display = 'block';
+    
+    let html = '';
+    clientCoordinates.forEach((coord, index) => {
+        html += `
+            <div class="d-flex justify-content-between align-items-center p-2 mb-1 bg-white rounded">
+                <span><strong>Punto ${index + 1}:</strong> ${coord[1].toFixed(6)}, ${coord[0].toFixed(6)}</span>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeClientCoordinate(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function removeClientCoordinate(index) {
+    clientCoordinates.splice(index, 1);
+    updateClientCoordinatesList();
+    updateClientGeometryFromCoords();
+}
+
+function clearClientCoordinates() {
+    clientCoordinates = [];
+    updateClientCoordinatesList();
+    document.getElementById('clientGeometria').value = '';
+    hideClientAreaDisplay();
+    disableStep3Button();
+}
+
+function updateClientGeometryFromCoords() {
+    if (clientCoordinates.length < 3) {
+        document.getElementById('clientGeometria').value = '';
+        hideClientAreaDisplay();
+        disableStep3Button();
+        return;
+    }
+    
+    const closedCoords = [...clientCoordinates];
+    if (clientCoordinates.length > 0) {
+        const first = clientCoordinates[0];
+        const last = clientCoordinates[clientCoordinates.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+            closedCoords.push([first[0], first[1]]);
+        }
+    }
+    
+    const geojson = {
+        type: "Feature",
+        properties: {},
+        geometry: {
+            type: "Polygon",
+            coordinates: [closedCoords]
+        }
+    };
+    
+    document.getElementById('clientGeometria').value = JSON.stringify(geojson);
+    
+    const latLngCoords = clientCoordinates.map(coord => [coord[1], coord[0]]);
+    calculateClientAreaFromCoords(latLngCoords);
+    enableStep3Button();
+}
+
+function calculateClientArea(coords) {
+    let area = 0;
+    const n = coords.length;
+    
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += coords[i].lat * coords[j].lng;
+        area -= coords[j].lat * coords[i].lng;
+    }
+    
+    area = Math.abs(area) / 2;
+    const hectares = area * 111320 * 111320 / 10000;
+    
+    showClientAreaDisplay(hectares);
+}
+
+function calculateClientAreaFromCoords(coords) {
+    if (coords.length < 3) return;
+    
+    let area = 0;
+    const n = coords.length;
+    
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += coords[i][1] * coords[j][0];
+        area -= coords[j][1] * coords[i][0];
+    }
+    
+    area = Math.abs(area) / 2;
+    const hectares = area * 111320 * 111320 / 10000;
+    
+    showClientAreaDisplay(hectares);
+}
+
+function showClientAreaDisplay(hectares) {
+    const display = document.getElementById('clientAreaDisplay');
+    const value = document.getElementById('clientAreaValue');
+    
+    value.textContent = `${hectares.toFixed(2)} hectáreas`;
+    display.style.display = 'block';
+}
+
+function hideClientAreaDisplay() {
+    document.getElementById('clientAreaDisplay').style.display = 'none';
+}
+
+function enableStep3Button() {
+    document.getElementById('btnToStep3').disabled = false;
+}
+
+function disableStep3Button() {
+    document.getElementById('btnToStep3').disabled = true;
+}
+
+function clearClientData() {
+    clientCoordinates = [];
+    document.getElementById('clientGeometria').value = '';
+    document.getElementById('clientCoordinatesContainer').innerHTML = '';
+    document.getElementById('clientCoordsList').style.display = 'none';
+    hideClientAreaDisplay();
+    disableStep3Button();
+    
+    if (clientMap && clientDrawnLayer) {
+        clientMap.removeLayer(clientDrawnLayer);
+    }
+}
+
+function updateResumen() {
+    const nombre = document.getElementById('cliente_nombre').value;
+    const propietario = document.getElementById('cliente_propietario').value;
+    const cultivo = document.getElementById('cliente_cultivo').value;
+    const area = document.getElementById('clientAreaValue').textContent;
+    
+    const html = `
+        <p><strong>Parcela:</strong> ${nombre}</p>
+        <p><strong>Propietario:</strong> ${propietario}</p>
+        <p><strong>Cultivo:</strong> ${cultivo || 'No especificado'}</p>
+        <p><strong>Área:</strong> ${area}</p>
+    `;
+    
+    document.getElementById('resumenParcela').innerHTML = html;
+}
+
+// Validación del formulario
+document.getElementById('clientParcelaForm').addEventListener('submit', function(e) {
+    const geometria = document.getElementById('clientGeometria').value;
+    
+    if (!geometria) {
+        e.preventDefault();
+        alert('Por favor defina los límites de la parcela.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+INVITACIÓN ENVIADA
+============================================================
+
+Cliente: Juan Sebastián Flórez Escobar
+Email: juansebastianflorezescobar@gmail.com
+Token: TaVn2v6JzEF_rIY7wR1711QH_yjkbZhy
+URL: http://127.0.0.1:8000/informes/cliente/TaVn2v6JzEF_rIY7wR1711QH_yjkbZhy/
+Fecha Creación: 29/12/2025 22:08:59
+Fecha Expiración: 13/01/2026 22:08:59
+Costo: $150,000.00 COP

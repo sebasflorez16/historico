@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <defs>
+    <linearGradient id="agrotechGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2E8B57;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#34A853;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF7A00;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fondo sutil -->
+  <rect width="200" height="60" rx="8" fill="#F5F7FA" opacity="0.8"/>
+  
+  <!-- Icono de hoja -->
+  <path d="M20 30 Q20 15, 35 15 Q40 15, 40 25 Q40 35, 35 35 Q20 35, 20 30 Z" 
+        fill="url(#agrotechGrad)" opacity="0.9"/>
+  <path d="M25 25 Q30 20, 35 25" stroke="#fff" stroke-width="1.5" fill="none"/>
+  
+  <!-- Texto agrotech -->
+  <text x="50" y="40" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" 
+        font-size="28" font-weight="800" fill="url(#agrotechGrad)" letter-spacing="-1">
+    agrotech
+  </text>
+  
+  <!-- Punto decorativo -->
+  <circle cx="188" cy="38" r="3" fill="#FF7A00"/>
+</svg>

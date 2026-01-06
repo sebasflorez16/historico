@@ -1,0 +1,1186 @@
+{% extends "informes/base.html" %}
+{% load static %}
+
+{% block title %}{{ parcela.nombre }} - Detalle Parcela{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    /* ========================================
+       🌿 DETALLE PARCELA - NEUMÓRFICO LUMINOSO
+       ======================================== */
+    
+    .parcela-header {
+        background: var(--neuro-bg-secondary);
+        color: var(--agrotech-green);
+        padding: 40px;
+        border-radius: 32px;
+        margin-bottom: 40px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s ease;
+    }
+    
+    .parcela-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
+    }
+    
+    .parcela-header:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .parcela-header h1 {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .parcela-header h1 i {
+        padding: 16px;
+        background: var(--neuro-bg-primary);
+        border-radius: 20px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        color: var(--agrotech-orange);
+    }
+    
+    .parcela-header p {
+        margin-bottom: 12px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .parcela-header strong {
+        color: var(--agrotech-green);
+    }
+    
+    /* Cards de información neumórficos */
+    .info-card {
+        background: var(--neuro-bg-secondary);
+        border-radius: 28px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        margin-bottom: 30px;
+        overflow: visible;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .info-card::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: 20px;
+        right: 20px;
+        height: 5px;
+        background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
+        border-radius: 28px 28px 0 0;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    .info-card:hover::before {
+        opacity: 1;
+    }
+    
+    .info-card-header {
+        background: linear-gradient(145deg, 
+            rgba(46, 139, 87, 0.08), 
+            rgba(255, 122, 0, 0.08));
+        color: var(--agrotech-green);
+        padding: 24px 28px;
+        font-weight: 800;
+        border-radius: 28px 28px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.3rem;
+    }
+    
+    .info-card-header i {
+        color: var(--agrotech-orange);
+        font-size: 1.4rem;
+    }
+    
+    .info-card-body {
+        padding: 32px;
+    }
+    
+    /* Cajas de estadísticas neumórficas */
+    .stat-box {
+        text-align: center;
+        padding: 28px;
+        border-radius: 24px;
+        background: var(--neuro-bg-primary);
+        margin-bottom: 20px;
+        box-shadow: inset -4px -4px 8px rgba(255, 255, 255, 0.7),
+                    inset 4px 4px 8px rgba(46, 139, 87, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-box:hover {
+        transform: scale(1.05);
+        box-shadow: inset -6px -6px 12px rgba(255, 255, 255, 0.8),
+                    inset 6px 6px 12px rgba(46, 139, 87, 0.15);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--agrotech-green);
+        display: block;
+        margin-bottom: 8px;
+        text-shadow: 0 2px 4px rgba(46, 139, 87, 0.2);
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: block;
+    }
+    
+    /* Grupos de botones responsive */
+    .btn-group-responsive {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .btn-group-responsive .btn {
+        flex: 1 1 auto;
+        min-width: 180px;
+    }
+    
+    /* Badge mejorado */
+    .badge {
+        padding: 10px 18px;
+        border-radius: 16px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+    }
+    
+    /* Mapa neumórfico */
+    #mapa-detalle {
+        height: 450px;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        transition: all 0.3s ease;
+    }
+    
+    #mapa-detalle:hover {
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    /* Responsive para detalle de parcela */
+    @media (max-width: 991px) {
+        .parcela-header h1 {
+            font-size: 1.8rem;
+        }
+        
+        .btn-group-responsive {
+            flex-direction: column;
+        }
+        
+        .btn-group-responsive .btn {
+            width: 100%;
+            min-width: 100%;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .parcela-header {
+            padding: 24px;
+            border-radius: 24px;
+        }
+        
+        .parcela-header h1 {
+            font-size: 1.5rem;
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .info-card {
+            margin-bottom: 20px;
+        }
+        
+        .info-card-header {
+            font-size: 1.1rem;
+            padding: 18px 20px;
+        }
+        
+        .info-card-body {
+            padding: 20px;
+        }
+        
+        .stat-box {
+            padding: 20px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+        }
+        
+        #mapa-detalle {
+            height: 350px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .parcela-header {
+            padding: 20px;
+            border-radius: 20px;
+        }
+        
+        .parcela-header h1 {
+            font-size: 1.3rem;
+        }
+        
+        .parcela-header h1 i {
+            padding: 12px;
+            font-size: 1.2rem;
+        }
+        
+        .info-card-header {
+            font-size: 1rem;
+            padding: 16px 18px;
+        }
+        
+        .stat-number {
+            font-size: 1.8rem;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+        }
+        
+        #mapa-detalle {
+            height: 280px;
+            border-radius: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header de la parcela -->
+    <div class="parcela-header">
+        <div class="row align-items-center">
+            <div class="col-md-2 text-center mb-3 mb-md-0">
+                <img src="{% static 'img/Agro Tech logo solo.png' %}" alt="AgroTech" style="max-width: 120px; height: auto;">
+            </div>
+            <div class="col-md-6">
+                <h1><i class="fas fa-map-marked-alt"></i> {{ parcela.nombre }}</h1>
+                <p class="mb-2"><strong>Propietario:</strong> {{ parcela.propietario }}</p>
+                <p class="mb-0"><strong>Tipo de Cultivo:</strong> {{ parcela.tipo_cultivo|default:"No especificado" }}</p>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex flex-column gap-2">
+                    <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-light">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+                
+                <!-- Indicador de Datos Disponibles -->
+                {% if parcela.eosda_sincronizada %}
+                    {% if rango_datos %}
+                    <div class="info-card mb-3" style="border-left: 4px solid var(--agrotech-green); background: linear-gradient(135deg, #f0f9f4 0%, #ffffff 100%);">
+                        <div class="d-flex align-items-center p-3">
+                            <div class="flex-shrink-0" style="width: 50px; height: 50px; background: var(--agrotech-green); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-database" style="color: white; font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong style="color: var(--agrotech-green); font-size: 1rem;">📊 Datos Disponibles</strong>
+                                <div class="text-muted" style="font-size: 0.85rem; margin-top: 2px;">
+                                    <strong>{{ rango_datos.meses }} meses</strong> de datos 
+                                    <span class="d-none d-md-inline">({{ rango_datos.fecha_inicio|date:"M Y" }} - {{ rango_datos.fecha_fin|date:"M Y" }})</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="info-card mb-3" style="border-left: 4px solid #ffc107; background: linear-gradient(135deg, #fffbf0 0%, #ffffff 100%);">
+                        <div class="d-flex align-items-center p-3">
+                            <div class="flex-shrink-0" style="width: 50px; height: 50px; background: #ffc107; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-info-circle" style="color: white; font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong style="color: #d39e00; font-size: 1rem;">⚠️ Sin Datos Históricos</strong>
+                                <div class="text-muted" style="font-size: 0.85rem; margin-top: 2px;">
+                                    Selecciona un período y obtén datos satelitales
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+                
+                <!-- Selector de Rango de Fechas -->
+                {% if parcela.eosda_sincronizada %}
+                <div class="info-card mb-3 p-3">
+                    <label class="form-label fw-bold mb-3" style="color: var(--agrotech-green); font-size: 1.05rem;">
+                        <i class="fas fa-calendar-alt me-2"></i>Período de Análisis
+                    </label>
+                    
+                    <!-- Selector de rangos responsive -->
+                    <div class="row g-2 mb-3" id="rangoSelector">
+                        <div class="col-6 col-md-3">
+                            <input type="radio" class="btn-check" name="rango" id="rango6m" value="6" checked>
+                            <label class="btn btn-outline-success w-100" for="rango6m" style="border-radius: 12px; font-weight: 600;">
+                                <div class="d-none d-md-block" style="font-size: 1.2rem;">6</div>
+                                <div style="font-size: 0.85rem;">meses</div>
+                            </label>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <input type="radio" class="btn-check" name="rango" id="rango12m" value="12">
+                            <label class="btn btn-outline-success w-100" for="rango12m" style="border-radius: 12px; font-weight: 600;">
+                                <div class="d-none d-md-block" style="font-size: 1.2rem;">12</div>
+                                <div style="font-size: 0.85rem;">meses</div>
+                            </label>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <input type="radio" class="btn-check" name="rango" id="rango24m" value="24">
+                            <label class="btn btn-outline-success w-100" for="rango24m" style="border-radius: 12px; font-weight: 600;">
+                                <div class="d-none d-md-block" style="font-size: 1.2rem;">24</div>
+                                <div style="font-size: 0.85rem;">meses</div>
+                            </label>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <input type="radio" class="btn-check" name="rango" id="rangoCustom" value="custom">
+                            <label class="btn btn-outline-success w-100" for="rangoCustom" style="border-radius: 12px; font-weight: 600;">
+                                <div class="d-none d-md-block"><i class="fas fa-calendar-day"></i></div>
+                                <div style="font-size: 0.85rem;">Personalizado</div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos para rango personalizado (ocultos por defecto) -->
+                    <div id="fechasPersonalizadas" class="mt-2" style="display: none;">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label for="fechaInicio" class="form-label small fw-bold text-muted">
+                                    <i class="fas fa-calendar-plus me-1"></i>Fecha Inicio
+                                </label>
+                                <input type="date" class="form-control" id="fechaInicio" max="{{ fecha_actual }}" style="border-radius: 8px;">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="fechaFin" class="form-label small fw-bold text-muted">
+                                    <i class="fas fa-calendar-check me-1"></i>Fecha Fin
+                                </label>
+                                <input type="date" class="form-control" id="fechaFin" value="{{ fecha_actual }}" max="{{ fecha_actual }}" style="border-radius: 8px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Botones de acción organizados y responsive -->
+                <div class="d-flex flex-column gap-2">
+                    {% if parcela.eosda_sincronizada %}
+                        <button id="btnObtenerDatos" class="btn btn-success btn-lg" style="border-radius: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(74, 93, 35, 0.3);"
+                           title="Obtener datos satelitales reales desde EOSDA">
+                            <i class="fas fa-satellite me-2"></i>Datos EOSDA
+                        </button>
+                        <div class="btn btn-outline-success" style="border-radius: 12px; pointer-events: none;" title="Sincronizada con EOSDA Field ID: {{ parcela.eosda_field_id }}">
+                            <i class="fas fa-check-circle me-2"></i>Sincronizada
+                        </div>
+                    {% else %}
+                        <a href="{% url 'informes:sincronizar_con_eosda' parcela.id %}" class="btn btn-warning btn-lg" style="border-radius: 12px; font-weight: 600;"
+                           title="Sincronizar parcela con EOSDA primero">
+                            <i class="fas fa-sync-alt me-2"></i>Sincronizar EOSDA
+                        </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'informes:ver_datos_guardados' parcela.id %}" class="btn btn-info btn-lg" style="border-radius: 12px; font-weight: 600;"
+                       title="Ver datos históricos guardados">
+                        <i class="fas fa-database me-2"></i>Datos Guardados
+                    </a>
+                    
+                    <button id="btnGenerarInforme" class="btn btn-primary btn-lg" style="border-radius: 12px; font-weight: 600;"
+                       title="Generar informe PDF con análisis inteligente">
+                        <i class="fas fa-file-download me-2"></i>Generar Informe
+                    </button>
+                    
+                    {% if user.is_superuser %}
+                    <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#modalEliminarParcela" 
+                            style="border-radius: 12px; font-weight: 600;"
+                            title="🗑️ Eliminar parcela (solo superusuarios)">
+                        <i class="fas fa-trash-alt me-2"></i>Eliminar Parcela
+                    </button>
+                    {% endif %}
+                    
+                    {% if rango_datos and rango_datos.meses > 0 %}
+                    <a href="{% url 'informes:timeline_parcela' parcela.id %}" class="btn btn-lg" 
+                       style="border-radius: 12px; font-weight: 600; background: linear-gradient(135deg, #2e8b57 0%, #ff7a00 100%); color: white; border: none; box-shadow: 0 4px 15px rgba(46, 139, 87, 0.4);"
+                       title="Ver evolución temporal interactiva con imágenes satelitales">
+                        <i class="fas fa-film me-2"></i>Timeline Visual
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de progreso para generación de informe -->
+    <div class="modal fade" id="modalGenerandoInforme" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-body text-center p-5">
+                    <div class="mb-4">
+                        <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+                            <span class="visually-hidden">Generando informe...</span>
+                        </div>
+                    </div>
+                    <h4 class="mb-3">🤖 Generando Informe Inteligente</h4>
+                    <p class="text-muted mb-4" id="estadoGeneracion">Recopilando datos satelitales...</p>
+                    
+                    <!-- Barra de progreso -->
+                    <div class="progress mb-3" style="height: 25px; border-radius: 12px;">
+                        <div id="barraProgreso" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                             role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            <span class="fw-bold">0%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Pasos del proceso -->
+                    <div class="text-start mt-4" style="font-size: 0.9rem;">
+                        <div class="d-flex align-items-center mb-2" id="paso1">
+                            <i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>
+                            <span class="text-muted">Recopilando datos satelitales</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2" id="paso2">
+                            <i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>
+                            <span class="text-muted">Analizando imágenes con Gemini AI</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2" id="paso3">
+                            <i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>
+                            <span class="text-muted">Generando análisis global consolidado</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2" id="paso4">
+                            <i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>
+                            <span class="text-muted">Creando PDF profesional</span>
+                        </div>
+                        <div class="d-flex align-items-center" id="paso5">
+                            <i class="fas fa-circle text-muted me-2" style="font-size: 0.5rem;"></i>
+                            <span class="text-muted">Preparando descarga</span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-muted mt-4 mb-0" style="font-size: 0.85rem;">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Este proceso puede tardar 1-3 minutos
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información general -->
+        <div class="col-md-4">
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="fas fa-info-circle"></i> Información General
+                </div>
+                <div class="info-card-body">
+                    <div class="stat-box">
+                        <span class="stat-number">{{ parcela.area_hectareas|floatformat:2 }}</span>
+                        <span class="stat-label">Hectáreas</span>
+                    </div>
+                    
+                    <div class="stat-box">
+                        <span class="stat-number">{{ parcela.perimetro_metros|floatformat:0 }}</span>
+                        <span class="stat-label">Metros de Perímetro</span>
+                    </div>
+                    
+                    <p><strong>Fecha de Registro:</strong><br>{{ parcela.fecha_registro|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Inicio Monitoreo:</strong><br>{{ parcela.fecha_inicio_monitoreo|date:"d/m/Y" }}</p>
+                    <p><strong>Estado:</strong><br>
+                        <span class="badge bg-{% if parcela.activa %}success{% else %}secondary{% endif %}">
+                            {% if parcela.activa %}Activa{% else %}Inactiva{% endif %}
+                        </span>
+                    </p>
+                    
+                    <!-- Estado EOSDA -->
+                    <p><strong>Estado EOSDA:</strong><br>
+                        {% if parcela.eosda_sincronizada %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> Sincronizada
+                            </span>
+                            {% if parcela.eosda_field_id %}
+                                <small class="text-muted d-block mt-1">
+                                    Field ID: {{ parcela.eosda_field_id|truncatechars:20 }}
+                                </small>
+                            {% endif %}
+                            {% if parcela.eosda_fecha_sincronizacion %}
+                                <small class="text-muted d-block">
+                                    Sync: {{ parcela.eosda_fecha_sincronizacion|date:"d/m/Y H:i" }}
+                                </small>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-exclamation"></i> Pendiente
+                            </span>
+                            {% if parcela.eosda_errores %}
+                                <small class="text-danger d-block mt-1">
+                                    Error: {{ parcela.eosda_errores|truncatechars:50 }}
+                                </small>
+                            {% endif %}
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            {% if parcela.invitacion_cliente %}
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="fas fa-user"></i> Información del Cliente
+                </div>
+                <div class="info-card-body">
+                    <p><strong>Cliente:</strong> {{ parcela.invitacion_cliente.nombre_cliente }}</p>
+                    {% if parcela.invitacion_cliente.email_cliente %}
+                    <p><strong>Email:</strong> {{ parcela.invitacion_cliente.email_cliente }}</p>
+                    {% endif %}
+                    {% if parcela.invitacion_cliente.telefono_cliente %}
+                    <p><strong>Teléfono:</strong> {{ parcela.invitacion_cliente.telefono_cliente }}</p>
+                    {% endif %}
+                    <p><strong>Costo Servicio:</strong> ${{ parcela.invitacion_cliente.costo_servicio|floatformat:2 }} COP</p>
+                    <p><strong>Estado Pago:</strong>
+                        <span class="badge bg-{% if parcela.invitacion_cliente.pagado %}success{% else %}warning{% endif %}">
+                            {% if parcela.invitacion_cliente.pagado %}Pagado{% else %}Pendiente{% endif %}
+                        </span>
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Mapa -->
+        <div class="col-md-8">
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="fas fa-globe"></i> Ubicación y Geometría
+                </div>
+                <div class="info-card-body">
+                    <div id="mapa-detalle" class="mapa-detalle"></div>
+                    
+                    <!-- Tooltip informativo sobre imágenes satelitales (Colapsable) -->
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-info w-100 d-flex align-items-center justify-content-between" 
+                                type="button" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#infoImagenes" 
+                                aria-expanded="false" 
+                                aria-controls="infoImagenes"
+                                style="border-radius: 10px; font-weight: 600;">
+                            <span>
+                                <i class="fas fa-satellite me-2"></i>
+                                ¿Cómo se seleccionan las imágenes satelitales?
+                            </span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="collapse mt-2" id="infoImagenes">
+                            <div class="alert alert-info mb-0" style="background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%); border-left: 4px solid #2196f3; border-radius: 10px; font-size: 0.9rem;">
+                                <p class="mb-2" style="color: #424242; line-height: 1.5;">
+                                    El sistema analiza <strong>todas las escenas disponibles</strong> del mes y selecciona automáticamente la <strong>mejor imagen</strong> según:
+                                </p>
+                                <ul class="mb-2 ps-3" style="font-size: 0.85rem; color: #616161;">
+                                    <li><strong>Menor nubosidad</strong> - Cielo despejado</li>
+                                    <li><strong>Mayor calidad</strong> - Mejor resolución</li>
+                                    <li><strong>Una por mes</strong> - Misma escena para todos los índices</li>
+                                </ul>
+                                <div class="p-2" style="background: rgba(33, 150, 243, 0.1); border-radius: 8px; font-size: 0.8rem; color: #1565c0;">
+                                    <i class="fas fa-lightbulb me-1"></i> La fecha corresponde al día de captura de la mejor escena.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if parcela.notas %}
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="fas fa-sticky-note"></i> Notas Adicionales
+                </div>
+                <div class="info-card-body">
+                    <pre style="white-space: pre-wrap;">{{ parcela.notas }}</pre>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Registros económicos si existen -->
+    {% if registros_economicos %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="fas fa-dollar-sign"></i> Registros Económicos
+                </div>
+                <div class="info-card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo Servicio</th>
+                                    <th>Descripción</th>
+                                    <th>Valor</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for registro in registros_economicos %}
+                                <tr>
+                                    <td>{{ registro.fecha_servicio|date:"d/m/Y" }}</td>
+                                    <td>{{ registro.get_tipo_servicio_display }}</td>
+                                    <td>{{ registro.descripcion|truncatechars:50 }}</td>
+                                    <td>${{ registro.valor_final|floatformat:2 }} COP</td>
+                                    <td>
+                                        <span class="badge bg-{% if registro.pagado %}success{% else %}warning{% endif %}">
+                                            {% if registro.pagado %}Pagado{% else %}Pendiente{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Iniciando carga del mapa de detalle de parcela...');
+    
+    // Verificar datos del servidor con manejo seguro de tipos
+    const centroLatRaw = '{{ centro_lat|default:"" }}';
+    const centroLonRaw = '{{ centro_lon|default:"" }}';
+    
+    const centroLat = centroLatRaw !== '' ? parseFloat(centroLatRaw) : null;
+    const centroLon = centroLonRaw !== '' ? parseFloat(centroLonRaw) : null;
+    const geometriaRaw = '{{ parcela.poligono_geojson|safe|escapejs }}';
+    
+    console.log('Centro lat raw:', centroLatRaw, '-> parsed:', centroLat);
+    console.log('Centro lon raw:', centroLonRaw, '-> parsed:', centroLon);
+    console.log('GeoJSON raw:', geometriaRaw.substring(0, 100) + '...');
+    
+    // Verificar que tenemos datos válidos
+    if (centroLat !== null && centroLon !== null && !isNaN(centroLat) && !isNaN(centroLon)) {
+        try {
+            // Inicializar mapa con coordenadas válidas
+            console.log('Inicializando mapa en:', [centroLat, centroLon]);
+            const mapaDetalle = L.map('mapa-detalle').setView([centroLat, centroLon], 15);
+            
+            // Capa satelital
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19,
+                errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1IiIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE4Ij5TaW4gaW1hZ2VuPC90ZXh0Pjwvc3ZnPg=='
+            }).addTo(mapaDetalle);
+            
+            // Procesar geometría si existe
+            if (geometriaRaw && geometriaRaw.trim() !== '') {
+                try {
+                    const geometriaParcela = JSON.parse(geometriaRaw);
+                    console.log('Geometría parseada:', geometriaParcela);
+                    
+                    if (geometriaParcela && (geometriaParcela.type === 'Polygon' || (geometriaParcela.geometry && geometriaParcela.geometry.type === 'Polygon'))) {
+                        // Manejar tanto GeoJSON directo como Feature
+                        const geoJsonData = geometriaParcela.geometry ? geometriaParcela : {
+                            type: "Feature",
+                            geometry: geometriaParcela,
+                            properties: {
+                                name: "{{ parcela.nombre|escapejs }}"
+                            }
+                        };
+                        
+                        const parcelaLayer = L.geoJSON(geoJsonData, {
+                            style: {
+                                color: '#e65100',           // Naranja oscuro para el borde
+                                weight: 4,                  // Borde más grueso
+                                opacity: 0.9,              // Borde más visible
+                                fillOpacity: 0.4,          // Relleno más visible
+                                fillColor: '#ff9800',      // Naranja brillante para relleno
+                                dashArray: '5, 5'          // Línea discontinua para mejor visibilidad
+                            },
+                            onEachFeature: function(feature, layer) {
+                                // Efecto hover para interactividad
+                                layer.on({
+                                    mouseover: function(e) {
+                                        const layer = e.target;
+                                        layer.setStyle({
+                                            weight: 5,
+                                            color: '#bf360c',
+                                            fillOpacity: 0.6,
+                                            fillColor: '#ffab40'
+                                        });
+                                    },
+                                    mouseout: function(e) {
+                                        const layer = e.target;
+                                        layer.setStyle({
+                                            color: '#e65100',
+                                            weight: 4,
+                                            opacity: 0.9,
+                                            fillOpacity: 0.4,
+                                            fillColor: '#ff9800'
+                                        });
+                                    }
+                                });
+                            }
+                        }).addTo(mapaDetalle);
+                        
+                        // Ajustar vista al polígono with padding
+                        if (parcelaLayer.getBounds && parcelaLayer.getBounds().isValid()) {
+                            mapaDetalle.fitBounds(parcelaLayer.getBounds(), { padding: [20, 20] });
+                        }
+                        
+                        // Agregar popup con información
+                        parcelaLayer.bindPopup(`
+                            <div style="text-align: center; min-width: 200px;">
+                                <h6 style="color: #4a5d23; margin-bottom: 10px;">{{ parcela.nombre|escapejs }}</h6>
+                                <p><strong>Área:</strong> {{ parcela.area_hectareas|floatformat:2 }} ha</p>
+                                <p><strong>Propietario:</strong> {{ parcela.propietario|escapejs }}</p>
+                                <p><strong>Tipo:</strong> {{ parcela.tipo_cultivo|default:"No especificado"|escapejs }}</p>
+                            </div>
+                        `);
+                        
+                        console.log('✅ Geometría de parcela cargada correctamente');
+                        
+                    } else {
+                        console.error('❌ Formato de geometría no válido:', geometriaParcela);
+                        throw new Error('Formato de geometría no válido');
+                    }
+                } catch (parseError) {
+                    console.error('❌ Error al parsear GeoJSON:', parseError);
+                    throw parseError;
+                }
+            } else {
+                console.warn('⚠️ No hay datos de geometría disponibles');
+                // Agregar marcador en el centro
+                L.marker([centroLat, centroLon]).addTo(mapaDetalle)
+                    .bindPopup(`
+                        <div style="text-align: center;">
+                            <h6>{{ parcela.nombre|escapejs }}</h6>
+                            <p><strong>⚠️ Geometría no disponible</strong></p>
+                            <p>Solo se muestra la ubicación aproximada</p>
+                        </div>
+                    `);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error en inicialización del mapa:', error);
+            // Fallback: mostrar mensaje de error en el contenedor
+            document.getElementById('mapa-detalle').innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3" style="color: #ffc107;"></i>
+                        <h6>Error cargando el mapa</h6>
+                        <p>No se pudo cargar la visualización del mapa.<br>Verifique la conexión a internet.</p>
+                        <small>Error: ${error.message}</small>
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        console.error('❌ Coordenadas del centro no válidas:', { centroLat, centroLon });
+        // Mostrar mapa por defecto de Colombia
+        const mapaDetalle = L.map('mapa-detalle').setView([4.5709, -74.2973], 6);
+        
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles © Esri',
+            maxZoom: 19
+        }).addTo(mapaDetalle);
+        
+        // Mostrar mensaje de error
+        L.popup()
+            .setLatLng([4.5709, -74.2973])
+            .setContent(`
+                <div style="text-align: center;">
+                    <strong>❌ Error de coordenadas</strong><br>
+                    No se pudieron cargar las coordenadas de la parcela.<br>
+                    <small>Centro lat: ${centroLat}, lon: ${centroLon}</small>
+                </div>
+            `)
+            .openOn(mapaDetalle);
+    }
+});
+
+// ========================================
+// 📅 LÓGICA DEL SELECTOR DE RANGOS
+// ========================================
+document.addEventListener('DOMContentLoaded', function() {
+    const rangoSelector = document.getElementById('rangoSelector');
+    const fechasPersonalizadas = document.getElementById('fechasPersonalizadas');
+    const btnObtenerDatos = document.getElementById('btnObtenerDatos');
+    
+    if (!rangoSelector || !btnObtenerDatos) return;
+    
+    // Mostrar/ocultar campos personalizados según selección
+    rangoSelector.addEventListener('change', function(e) {
+        if (e.target.value === 'custom') {
+            fechasPersonalizadas.style.display = 'block';
+        } else {
+            fechasPersonalizadas.style.display = 'none';
+        }
+    });
+    
+    // Función para calcular fechas según rango seleccionado
+    function calcularFechas() {
+        const rangoSeleccionado = document.querySelector('input[name="rango"]:checked');
+        if (!rangoSeleccionado) return null;
+        
+        const hoy = new Date();
+        const fechaFin = new Date(hoy); // Hoy
+        let fechaInicio;
+        
+        if (rangoSeleccionado.value === 'custom') {
+            // Rango personalizado: usar valores de los inputs
+            const inputInicio = document.getElementById('fechaInicio').value;
+            const inputFin = document.getElementById('fechaFin').value;
+            
+            if (!inputInicio || !inputFin) {
+                alert('Por favor, seleccione las fechas de inicio y fin.');
+                return null;
+            }
+            
+            return {
+                fecha_inicio: inputInicio,
+                fecha_fin: inputFin
+            };
+        } else {
+            // Rango predeterminado: calcular desde hoy hacia atrás
+            const meses = parseInt(rangoSeleccionado.value);
+            fechaInicio = new Date(hoy);
+            fechaInicio.setMonth(fechaInicio.getMonth() - meses);
+            
+            // Formatear fechas a YYYY-MM-DD
+            const formatoFecha = (fecha) => {
+                const año = fecha.getFullYear();
+                const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+                const dia = String(fecha.getDate()).padStart(2, '0');
+                return `${año}-${mes}-${dia}`;
+            };
+            
+            return {
+                fecha_inicio: formatoFecha(fechaInicio),
+                fecha_fin: formatoFecha(fechaFin)
+            };
+        }
+    }
+    
+    // Evento del botón "Datos EOSDA"
+    btnObtenerDatos.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const fechas = calcularFechas();
+        if (!fechas) return;
+        
+        // Mostrar indicador de carga
+        const textoOriginal = btnObtenerDatos.innerHTML;
+        btnObtenerDatos.disabled = true;
+        btnObtenerDatos.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obteniendo datos...';
+        
+        // Construir URL con parámetros de fecha
+        const url = new URL('{% url "informes:obtener_datos_historicos" parcela.id %}', window.location.origin);
+        url.searchParams.append('fecha_inicio', fechas.fecha_inicio);
+        url.searchParams.append('fecha_fin', fechas.fecha_fin);
+        
+        // Redirigir a la vista con los parámetros
+        window.location.href = url.toString();
+    });
+    
+    // Inicializar fecha máxima para campos personalizados (hoy)
+    const fechaFin = document.getElementById('fechaFin');
+    const fechaInicio = document.getElementById('fechaInicio');
+    if (fechaFin && fechaInicio) {
+        const hoy = new Date();
+        const fechaMax = hoy.toISOString().split('T')[0];
+        fechaFin.max = fechaMax;
+        fechaInicio.max = fechaMax;
+        
+        // Establecer fecha fin por defecto como hoy
+        fechaFin.value = fechaMax;
+        
+        // Establecer fecha inicio por defecto como 6 meses atrás
+        const hace6Meses = new Date(hoy);
+        hace6Meses.setMonth(hace6Meses.getMonth() - 6);
+        fechaInicio.value = hace6Meses.toISOString().split('T')[0];
+    }
+    
+    // ============================================
+    // GENERACIÓN DE INFORME CON PROGRESO
+    // ============================================
+    
+    const btnGenerarInforme = document.getElementById('btnGenerarInforme');
+    const modalGenerando = new bootstrap.Modal(document.getElementById('modalGenerandoInforme'));
+    
+    if (btnGenerarInforme) {
+        btnGenerarInforme.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Mostrar modal de progreso
+            modalGenerando.show();
+            
+            // Simular progreso mientras se genera el informe
+            let progreso = 0;
+            let pasoActual = 1;
+            const barraProgreso = document.getElementById('barraProgreso');
+            const estadoGeneracion = document.getElementById('estadoGeneracion');
+            
+            const pasos = [
+                { progreso: 20, texto: 'Recopilando datos satelitales...', id: 'paso1' },
+                { progreso: 40, texto: 'Analizando imágenes con Gemini AI...', id: 'paso2' },
+                { progreso: 60, texto: 'Generando análisis global consolidado...', id: 'paso3' },
+                { progreso: 80, texto: 'Creando PDF profesional...', id: 'paso4' },
+                { progreso: 95, texto: 'Preparando descarga...', id: 'paso5' }
+            ];
+            
+            const actualizarPaso = (indice) => {
+                if (indice < pasos.length) {
+                    const paso = pasos[indice];
+                    progreso = paso.progreso;
+                    
+                    // Actualizar barra de progreso
+                    barraProgreso.style.width = progreso + '%';
+                    barraProgreso.setAttribute('aria-valuenow', progreso);
+                    barraProgreso.innerHTML = `<span class="fw-bold">${progreso}%</span>`;
+                    
+                    // Actualizar texto de estado
+                    estadoGeneracion.textContent = paso.texto;
+                    
+                    // Marcar paso como completado (verde)
+                    const elementoPaso = document.getElementById(paso.id);
+                    if (elementoPaso) {
+                        const icono = elementoPaso.querySelector('i');
+                        const texto = elementoPaso.querySelector('span');
+                        icono.className = 'fas fa-check-circle text-success me-2';
+                        texto.className = 'text-success fw-bold';
+                    }
+                }
+            };
+            
+            // Simular progreso (más rápido: 1.5 segundos por paso = 7.5 segundos total)
+            let intervalo = setInterval(() => {
+                if (pasoActual <= pasos.length) {
+                    actualizarPaso(pasoActual - 1);
+                    pasoActual++;
+                }
+            }, 1500); // Cada 1.5 segundos cambia de paso
+            
+            // Iniciar descarga del PDF usando window.location
+            const url = '{% url "informes:generar_informe_pdf" parcela.id %}';
+            
+            // Iniciar descarga directa (NO usar iframe para PDFs)
+            window.location.href = url;
+            
+            // Cerrar modal automáticamente después de un tiempo razonable
+            setTimeout(() => {
+                clearInterval(intervalo);
+                
+                // Completar al 100%
+                progreso = 100;
+                barraProgreso.style.width = '100%';
+                barraProgreso.setAttribute('aria-valuenow', 100);
+                barraProgreso.innerHTML = '<span class="fw-bold">100%</span>';
+                barraProgreso.classList.remove('progress-bar-animated');
+                barraProgreso.classList.add('bg-success');
+                estadoGeneracion.textContent = '¡Informe generado exitosamente! ✓';
+                estadoGeneracion.className = 'text-success fw-bold mb-4';
+                
+                // Marcar último paso como completado
+                actualizarPaso(pasos.length - 1);
+                
+                // Cerrar modal después de 1.5 segundos adicionales
+                setTimeout(() => {
+                    modalGenerando.hide();
+                    
+                    // Resetear modal para próxima vez
+                    setTimeout(() => {
+                        progreso = 0;
+                        pasoActual = 1;
+                        barraProgreso.style.width = '0%';
+                        barraProgreso.setAttribute('aria-valuenow', 0);
+                        barraProgreso.innerHTML = '<span class="fw-bold">0%</span>';
+                        barraProgreso.classList.add('progress-bar-animated');
+                        barraProgreso.classList.remove('bg-success');
+                        barraProgreso.classList.add('bg-primary');
+                        estadoGeneracion.textContent = 'Recopilando datos satelitales...';
+                        estadoGeneracion.className = 'text-muted mb-4';
+                        
+                        // Resetear pasos
+                        for (let i = 1; i <= 5; i++) {
+                            const elementoPaso = document.getElementById('paso' + i);
+                            if (elementoPaso) {
+                                const icono = elementoPaso.querySelector('i');
+                                const texto = elementoPaso.querySelector('span');
+                                icono.className = 'fas fa-circle text-muted me-2';
+                                texto.className = 'text-muted';
+                            }
+                        }
+                    }, 500);
+                }, 1500);
+            }, 9000); // Total: 9 segundos (7.5s de pasos + 1.5s de cierre)
+        });
+    }
+});
+</script>
+
+<!-- Modal de confirmación para eliminar parcela -->
+{% if user.is_superuser %}
+<div class="modal fade" id="modalEliminarParcela" tabindex="-1" aria-labelledby="modalEliminarParcelaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 15px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-danger text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title fw-bold" id="modalEliminarParcelaLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>⚠️ Confirmar Eliminación de Parcela
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-danger d-flex align-items-center mb-4" role="alert" style="border-radius: 12px;">
+                    <i class="fas fa-fire-alt me-3 fs-3"></i>
+                    <div>
+                        <p class="mb-0"><strong>¡PELIGRO!</strong> Esta acción <strong>NO se puede deshacer</strong>. Se eliminará:</p>
+                    </div>
+                </div>
+                <ul class="list-unstyled mb-4">
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> La parcela <strong>{{ parcela.nombre }}</strong></li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> Todos los informes asociados</li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> Todos los índices mensuales guardados</li>
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> Todos los archivos PDF generados</li>
+                    {% if parcela.eosda_sincronizada and parcela.eosda_field_id %}
+                    <li class="mb-2"><i class="fas fa-check-circle text-danger me-2"></i> El campo sincronizado en EOSDA (Field ID: {{ parcela.eosda_field_id }})</li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="modal-footer" style="border-top: 2px solid #f0f0f0;">
+                <form method="post" action="{% url 'informes:eliminar_parcela' parcela.id %}" id="formEliminarParcela">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="confirmacionEliminarParcela" class="form-label fw-bold">
+                            Para confirmar, escriba el nombre exacto de la parcela:
+                        </label>
+                        <div class="input-group" style="border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <span class="input-group-text bg-light border-0" style="padding: 12px 16px;">
+                                <i class="fas fa-keyboard text-muted"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control border-0" 
+                                   name="confirmacion" 
+                                   id="confirmacionEliminarParcela" 
+                                   required 
+                                   placeholder="{{ parcela.nombre }}"
+                                   style="padding: 12px; font-size: 1rem;">
+                        </div>
+                        <div class="form-text mt-2" style="font-size: 0.9rem;">
+                            <i class="fas fa-info-circle me-1"></i>Escriba exactamente: <code style="background: #f8f9fa; padding: 2px 8px; border-radius: 4px;">{{ parcela.nombre }}</code>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-3 justify-content-end">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal" style="border-radius: 12px; font-weight: 600;">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </button>
+                        <button type="button" class="btn btn-danger px-4" id="btnConfirmarEliminarParcela" style="border-radius: 12px; font-weight: 600; box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);">
+                            <i class="fas fa-trash-alt me-2"></i>Eliminar Definitivamente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnConfirmar = document.getElementById('btnConfirmarEliminarParcela');
+    const inputConfirmacion = document.getElementById('confirmacionEliminarParcela');
+    const formEliminar = document.getElementById('formEliminarParcela');
+    const nombreParcela = "{{ parcela.nombre }}";
+    
+    if (btnConfirmar && inputConfirmacion && formEliminar) {
+        btnConfirmar.addEventListener('click', function() {
+            const valorIngresado = inputConfirmacion.value.trim();
+            
+            if (valorIngresado !== nombreParcela) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Confirmación incorrecta',
+                        html: 'Debe escribir exactamente el nombre de la parcela: <br><strong>' + nombreParcela + '</strong>',
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#dc3545'
+                    });
+                } else {
+                    alert('Error: Debe escribir exactamente el nombre de la parcela: ' + nombreParcela);
+                }
+                return;
+            }
+            
+            // Confirmación final
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '¿Está completamente seguro?',
+                    html: '<p>Esta acción es <strong>IRREVERSIBLE</strong></p>' +
+                          '<p>Se eliminarán <strong>TODOS</strong> los datos asociados a esta parcela.</p>' +
+                          {% if parcela.eosda_sincronizada and parcela.eosda_field_id %}
+                          '<p class="text-danger mt-3"><i class="fas fa-satellite me-2"></i>También se eliminará el campo en EOSDA</p>' +
+                          {% endif %}
+                          '<p class="mt-3">¿Desea continuar?</p>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, eliminar definitivamente',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        formEliminar.submit();
+                    }
+                });
+            } else {
+                if (confirm('¿Está COMPLETAMENTE SEGURO de que desea eliminar esta parcela?\n\nEsta acción NO se puede deshacer.')) {
+                    formEliminar.submit();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endif %}
+
+<!-- SweetAlert2 para notificaciones bonitas -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{% endblock %}

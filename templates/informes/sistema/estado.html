@@ -1,0 +1,287 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Estado del Sistema - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-card {
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+    
+    .status-card.online {
+        border-left-color: #28a745;
+    }
+    
+    .status-card.offline {
+        border-left-color: #dc3545;
+    }
+    
+    .status-card.warning {
+        border-left-color: #ffc107;
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    
+    .status-indicator.green {
+        background: #28a745;
+        box-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
+    }
+    
+    .status-indicator.red {
+        background: #dc3545;
+        box-shadow: 0 0 8px rgba(220, 53, 69, 0.5);
+    }
+    
+    .status-indicator.yellow {
+        background: #ffc107;
+        box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 text-dark">
+                    <i class="fas fa-server me-2"></i>
+                    Estado del Sistema
+                </h1>
+                <button onclick="location.reload()" class="btn btn-outline-secondary">
+                    <i class="fas fa-sync-alt me-2"></i>Actualizar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado General -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Estado General del Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error al cargar el estado del sistema: {{ error }}
+                        </div>
+                    {% else %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>
+                                    <span class="status-indicator green"></span>
+                                    Sistema Operativo
+                                </h6>
+                                <p class="text-muted mb-3">
+                                    Django 5.2.8 ejecutándose correctamente en puerto 8001
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>
+                                    <span class="status-indicator green"></span>
+                                    Base de Datos
+                                </h6>
+                                <p class="text-muted mb-3">
+                                    PostgreSQL 15 + PostGIS conectado
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Servicios del Sistema -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card status-card warning h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-satellite-dish me-2"></i>
+                        API EOSDA
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Estado:</span>
+                        <span class="badge bg-warning">
+                            <span class="status-indicator yellow"></span>
+                            Simulación
+                        </span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Mensaje:</strong><br>
+                        <span class="text-muted">Servicio temporalmente deshabilitado</span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Modo:</strong><br>
+                        <span class="text-warning">Datos simulados para desarrollo</span>
+                    </div>
+                    
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        El sistema funciona con datos de prueba hasta configurar la API de producción
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card status-card online h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>
+                        Sistema de Email
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Estado:</span>
+                        {% if estado_email.valido %}
+                        <span class="badge bg-success">
+                            <span class="status-indicator green"></span>
+                            Operativo
+                        </span>
+                        {% else %}
+                        <span class="badge bg-warning">
+                            <span class="status-indicator yellow"></span>
+                            No Configurado
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Configuración:</strong><br>
+                        {% if estado_email.valido %}
+                        <span class="text-success">✓ Email configurado correctamente</span>
+                        {% else %}
+                        <span class="text-muted">Pendiente de configurar</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Email desde:</strong><br>
+                        <span class="text-muted">{{ estado_email.email_from|default:"No configurado" }}</span>
+                    </div>
+                    
+                    <a href="{% url 'informes:probar_email' %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-paper-plane me-2"></i>Probar Envío
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas del Sistema -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Estadísticas de Uso
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center mb-3">
+                            <h4 class="text-primary">{{ total_parcelas|default:0 }}</h4>
+                            <p class="text-muted mb-0">Parcelas Activas</p>
+                        </div>
+                        <div class="col-md-3 text-center mb-3">
+                            <h4 class="text-success">{{ total_indices|default:0 }}</h4>
+                            <p class="text-muted mb-0">Datos Satelitales</p>
+                        </div>
+                        <div class="col-md-3 text-center mb-3">
+                            <h4 class="text-warning">{{ total_informes|default:0 }}</h4>
+                            <p class="text-muted mb-0">Informes Generados</p>
+                        </div>
+                        <div class="col-md-3 text-center mb-3">
+                            <h4 class="text-info">{{ total_usuarios|default:1 }}</h4>
+                            <p class="text-muted mb-0">Usuarios Registrados</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del Sistema -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Información Técnica
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Framework</h6>
+                            <ul class="list-unstyled text-muted mb-3">
+                                <li><i class="fab fa-python me-2"></i>Django 5.2.8</li>
+                                <li><i class="fas fa-database me-2"></i>PostgreSQL 15</li>
+                                <li><i class="fas fa-map me-2"></i>PostGIS Spatial Extension</li>
+                                <li><i class="fas fa-leaf me-2"></i>Leaflet Maps</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Funcionalidades</h6>
+                            <ul class="list-unstyled text-muted mb-3">
+                                <li><i class="fas fa-check text-success me-2"></i>Gestión de Parcelas</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Sistema de Invitaciones</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Mapas Full-Screen</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Análisis Económico</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>AgroTech Histórico</strong> - Sistema completo para análisis satelital agrícola con gestión económica integrada.
+                    </div>
+                    
+                    <!-- Herramientas del Sistema -->
+                    <div class="mt-4">
+                        <h6>🔧 Herramientas del Sistema</h6>
+                        <div class="row mt-3">
+                            <div class="col-md-6 mb-2">
+                                <a href="{% url 'informes:probar_email' %}" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-envelope me-2"></i>
+                                    Probar Email
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a href="{% url 'informes:verificar_eosda' %}" class="btn btn-outline-success w-100">
+                                    <i class="fas fa-satellite me-2"></i>
+                                    Verificar EOSDA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
