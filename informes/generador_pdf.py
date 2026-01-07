@@ -138,6 +138,65 @@ class GeneradorPDFProfesional:
         # Estilos
         self.estilos = self._crear_estilos()
     
+    def _obtener_path_imagen_correcto(self, imagen_field):
+        """
+        Obtiene el path correcto de una imagen, manejando paths relativos y absolutos
+        """
+        if not imagen_field:
+            return None
+        
+        try:
+            # Obtener el path string del campo
+            path_str = str(imagen_field).strip()
+            
+            if not path_str:
+                return None
+            
+            # Lista de paths a probar en orden de prioridad
+            paths_a_probar = []
+            
+            # 1. Intentar obtener .path del campo ImageField
+            try:
+                if hasattr(imagen_field, 'path'):
+                    paths_a_probar.append(imagen_field.path)
+            except:
+                pass
+            
+            # 2. Si es una ruta relativa (como imagenes_satelitales/2025/12/ndvi/...)
+            if not path_str.startswith('/'):
+                # Construir desde MEDIA_ROOT
+                if hasattr(settings, 'MEDIA_ROOT'):
+                    path_desde_media = os.path.join(settings.MEDIA_ROOT, path_str)
+                    paths_a_probar.append(path_desde_media)
+                
+                # Construir desde BASE_DIR/media
+                path_desde_base = os.path.join(settings.BASE_DIR, 'media', path_str)
+                paths_a_probar.append(path_desde_base)
+            
+            # 3. Si contiene historical/media, corregir a media
+            if 'historical/media' in path_str:
+                path_corregido = path_str.replace('historical/media/', 'media/')
+                paths_a_probar.append(path_corregido)
+                
+                path_absoluto = os.path.join(settings.BASE_DIR, path_corregido)
+                paths_a_probar.append(path_absoluto)
+            
+            # 4. Path absoluto directo
+            if path_str.startswith('/'):
+                paths_a_probar.append(path_str)
+            
+            # Probar cada path hasta encontrar uno que exista
+            for path in paths_a_probar:
+                if path and os.path.exists(path):
+                    return path
+            
+            # Si ninguno existe, retornar None
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error obteniendo path de imagen: {e}")
+            return None
+    
     def formato_mes_año_español(self, fecha: date) -> str:
         """Formatea fecha en español (Enero 2025)"""
         meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -1355,10 +1414,12 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         for idx in indices:
             tiene_imagenes = False
             
-            # Verificar si hay imágenes para este mes
-            if (idx.imagen_ndvi and os.path.exists(idx.imagen_ndvi.path)) or \
-               (idx.imagen_ndmi and os.path.exists(idx.imagen_ndmi.path)) or \
-               (idx.imagen_savi and os.path.exists(idx.imagen_savi.path)):
+            # Verificar si hay imágenes para este mes usando la función de corrección de paths
+            path_ndvi = self._obtener_path_imagen_correcto(idx.imagen_ndvi)
+            path_ndmi = self._obtener_path_imagen_correcto(idx.imagen_ndmi)
+            path_savi = self._obtener_path_imagen_correcto(idx.imagen_savi)
+            
+            if path_ndvi or path_ndmi or path_savi:
                 tiene_imagenes = True
             
             # Si hay imágenes para este mes, procesarlas
@@ -1426,11 +1487,11 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 imagenes_mes = []
                 
                 # NDVI
-                if idx.imagen_ndvi and os.path.exists(idx.imagen_ndvi.path):
+                if path_ndvi:
                     imagenes_encontradas += 1
                     imagenes_mes.append({
                         'tipo': 'NDVI',
-                        'path': idx.imagen_ndvi.path,
+                        'path': path_ndvi,
                         'promedio': idx.ndvi_promedio or 0,
                         'minimo': idx.ndvi_minimo or 0,
                         'maximo': idx.ndvi_maximo or 0,
@@ -1439,11 +1500,11 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     })
                 
                 # NDMI
-                if idx.imagen_ndmi and os.path.exists(idx.imagen_ndmi.path):
+                if path_ndmi:
                     imagenes_encontradas += 1
                     imagenes_mes.append({
                         'tipo': 'NDMI',
-                        'path': idx.imagen_ndmi.path,
+                        'path': path_ndmi,
                         'promedio': idx.ndmi_promedio or 0,
                         'minimo': idx.ndmi_minimo or 0,
                         'maximo': idx.ndmi_maximo or 0,
@@ -1452,11 +1513,11 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     })
                 
                 # SAVI
-                if idx.imagen_savi and os.path.exists(idx.imagen_savi.path):
+                if path_savi:
                     imagenes_encontradas += 1
                     imagenes_mes.append({
                         'tipo': 'SAVI',
-                        'path': idx.imagen_savi.path,
+                        'path': path_savi,
                         'promedio': idx.savi_promedio or 0,
                         'minimo': idx.savi_minimo or 0,
                         'maximo': idx.savi_maximo or 0,
@@ -1636,9 +1697,10 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         for idx in indices:
             # NDVI
-            if idx.imagen_ndvi and os.path.exists(idx.imagen_ndvi.path) and idx.ndvi_promedio:
+            path_ndvi = self._obtener_path_imagen_correcto(idx.imagen_ndvi)
+            if path_ndvi and idx.ndvi_promedio:
                 imagenes_datos.append({
-                    'imagen_path': idx.imagen_ndvi.path,
+                    'imagen_path': path_ndvi,
                     'tipo_indice': 'NDVI',
                     'valor_promedio': idx.ndvi_promedio,
                     'mes': idx.periodo_texto,
@@ -1646,9 +1708,10 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 })
             
             # NDMI
-            if idx.imagen_ndmi and os.path.exists(idx.imagen_ndmi.path) and idx.ndmi_promedio:
+            path_ndmi = self._obtener_path_imagen_correcto(idx.imagen_ndmi)
+            if path_ndmi and idx.ndmi_promedio:
                 imagenes_datos.append({
-                    'imagen_path': idx.imagen_ndmi.path,
+                    'imagen_path': path_ndmi,
                     'tipo_indice': 'NDMI',
                     'valor_promedio': idx.ndmi_promedio,
                     'mes': idx.periodo_texto,
@@ -1656,9 +1719,10 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 })
             
             # SAVI
-            if idx.imagen_savi and os.path.exists(idx.imagen_savi.path) and idx.savi_promedio:
+            path_savi = self._obtener_path_imagen_correcto(idx.imagen_savi)
+            if path_savi and idx.savi_promedio:
                 imagenes_datos.append({
-                    'imagen_path': idx.imagen_savi.path,
+                    'imagen_path': path_savi,
                     'tipo_indice': 'SAVI',
                     'valor_promedio': idx.savi_promedio,
                     'mes': idx.periodo_texto,
@@ -2162,41 +2226,46 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         return "".join(analisis_partes)
     
     def _crear_tabla_datos(self, datos: List[Dict]) -> List:
-        """Crea tabla con datos mensuales"""
+        """Crea tabla con datos mensuales, usando Paragraphs y limpieza de HTML en todas las celdas"""
         elements = []
-        
         titulo = Paragraph("📋 Datos Mensuales Detallados", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
-        
-        # Preparar datos de la tabla
-        table_data = [['Período', 'NDVI', 'NDMI', 'SAVI', 'Temp (°C)', 'Precip (mm)']]
-        
+
+        # Encabezados
+        headers = [
+            Paragraph("<b>Período</b>", self.estilos['TextoNormal']),
+            Paragraph("<b>NDVI</b>", self.estilos['TextoNormal']),
+            Paragraph("<b>NDMI</b>", self.estilos['TextoNormal']),
+            Paragraph("<b>SAVI</b>", self.estilos['TextoNormal']),
+            Paragraph("<b>Temp (°C)</b>", self.estilos['TextoNormal']),
+            Paragraph("<b>Precip (mm)</b>", self.estilos['TextoNormal'])
+        ]
+        table_data = [headers]
+
         for dato in datos:
-            table_data.append([
-                dato['periodo'],
-                f"{dato.get('ndvi', 0):.3f}" if dato.get('ndvi') else 'N/D',
-                f"{dato.get('ndmi', 0):.3f}" if dato.get('ndmi') else 'N/D',
-                f"{dato.get('savi', 0):.3f}" if dato.get('savi') else 'N/D',
-                f"{dato.get('temperatura', 0):.1f}" if dato.get('temperatura') else 'N/D',
-                f"{dato.get('precipitacion', 0):.1f}" if dato.get('precipitacion') else 'N/D'
-            ])
-        
-        # Crear tabla con estilo moderno difuminado
+            row = [
+                Paragraph(limpiar_html_completo(str(dato['periodo'])), self.estilos['TextoNormal']),
+                Paragraph(limpiar_html_completo(f"{dato.get('ndvi', 0):.3f}") if dato.get('ndvi') else 'N/D', self.estilos['TextoNormal']),
+                Paragraph(limpiar_html_completo(f"{dato.get('ndmi', 0):.3f}") if dato.get('ndmi') else 'N/D', self.estilos['TextoNormal']),
+                Paragraph(limpiar_html_completo(f"{dato.get('savi', 0):.3f}") if dato.get('savi') else 'N/D', self.estilos['TextoNormal']),
+                Paragraph(limpiar_html_completo(f"{dato.get('temperatura', 0):.1f}") if dato.get('temperatura') else 'N/D', self.estilos['TextoNormal']),
+                Paragraph(limpiar_html_completo(f"{dato.get('precipitacion', 0):.1f}") if dato.get('precipitacion') else 'N/D', self.estilos['TextoNormal'])
+            ]
+            table_data.append(row)
+
         tabla = Table(table_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 3*cm])
         tabla.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),  # Verde AgroTech
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # Filas alternadas con verde muy claro (difuminado sutil)
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F1F8F4')]),
-            # Bordes sutiles y difuminados
             ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#2E7D32')),
             ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
             ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC')),
@@ -2205,10 +2274,8 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             ('LEFTPADDING', (0, 0), (-1, -1), 8),
             ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ]))
-        
         elements.append(tabla)
-        
-        return elements    
+        return elements
     def _crear_pagina_creditos(self) -> List:
         """Crea página final con créditos e información legal"""
         elements = []
