@@ -72,3 +72,252 @@ violations {
   seconds: 46
 }
 ]
+INFO 2026-01-08 10:26:23,121 eosda_api 14477 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:26:23,122 eosda_api 14477 8724760576    Período: 2025-10-10 a 2026-01-08 (4 meses)
+INFO 2026-01-08 10:26:23,122 eosda_api 14477 8724760576    Mínimo requerido: 2 meses con datos
+INFO 2026-01-08 10:26:23,122 eosda_api 14477 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:26:23,136 eosda_api 14477 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:26:23,136 eosda_api 14477 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:26:23,136 eosda_api 14477 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:26:23,137 eosda_api 14477 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:26:23,902 eosda_api 14477 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:26:23,903 eosda_api 14477 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:26:23,911 eosda_api 14477 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:26:23,912 eosda_api 14477 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:26:23,912 eosda_api 14477 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:26:23,935 eosda_api 14477 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:26:23,935 eosda_api 14477 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:26:23,935 eosda_api 14477 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:26:23,935 eosda_api 14477 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:26:24,108 eosda_api 14477 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:26:24,108 eosda_api 14477 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:26:24,109 eosda_api 14477 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:26:24,110 eosda_api 14477 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:26:24,110 eosda_api 14477 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:26:24,121 eosda_api 14477 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:26:24,121 eosda_api 14477 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:26:24,121 eosda_api 14477 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:26:24,121 eosda_api 14477 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:26:24,295 eosda_api 14477 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:26:24,295 eosda_api 14477 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:26:24,298 eosda_api 14477 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:26:24,298 eosda_api 14477 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+ERROR 2026-01-08 10:26:24,298 eosda_api 14477 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:28:34,093 eosda_api 14720 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:28:34,094 eosda_api 14720 8724760576    Período: 2025-10-10 a 2026-01-08 (4 meses)
+INFO 2026-01-08 10:28:34,094 eosda_api 14720 8724760576    Mínimo requerido: 2 meses con datos
+INFO 2026-01-08 10:28:34,094 eosda_api 14720 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:28:34,104 eosda_api 14720 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:28:34,104 eosda_api 14720 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:28:34,104 eosda_api 14720 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:28:34,104 eosda_api 14720 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:28:34,866 eosda_api 14720 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:28:34,866 eosda_api 14720 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:28:34,871 eosda_api 14720 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:28:34,871 eosda_api 14720 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:28:34,871 eosda_api 14720 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:28:34,888 eosda_api 14720 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:28:34,888 eosda_api 14720 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:28:34,888 eosda_api 14720 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:28:34,888 eosda_api 14720 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:28:35,070 eosda_api 14720 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:28:35,070 eosda_api 14720 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:28:35,072 eosda_api 14720 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:28:35,072 eosda_api 14720 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:28:35,072 eosda_api 14720 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:28:35,095 eosda_api 14720 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:28:35,095 eosda_api 14720 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:28:35,095 eosda_api 14720 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:28:35,095 eosda_api 14720 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:28:35,269 eosda_api 14720 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:28:35,269 eosda_api 14720 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:28:35,272 eosda_api 14720 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:28:35,272 eosda_api 14720 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+ERROR 2026-01-08 10:28:35,272 eosda_api 14720 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:30:22,611 eosda_api 15247 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:30:22,611 eosda_api 15247 8724760576    Período: 2025-10-10 a 2026-01-08 (4 meses)
+INFO 2026-01-08 10:30:22,611 eosda_api 15247 8724760576    Mínimo requerido: 2 meses con datos
+INFO 2026-01-08 10:30:22,611 eosda_api 15247 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:30:22,621 eosda_api 15247 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:30:22,621 eosda_api 15247 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:30:22,621 eosda_api 15247 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:30:22,621 eosda_api 15247 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:30:23,398 eosda_api 15247 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:30:23,398 eosda_api 15247 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:30:23,404 eosda_api 15247 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:30:23,404 eosda_api 15247 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:30:23,404 eosda_api 15247 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:30:23,426 eosda_api 15247 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:30:23,426 eosda_api 15247 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:30:23,426 eosda_api 15247 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:30:23,426 eosda_api 15247 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:30:23,599 eosda_api 15247 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:30:23,600 eosda_api 15247 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:30:23,602 eosda_api 15247 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:30:23,603 eosda_api 15247 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:30:23,603 eosda_api 15247 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:30:23,623 eosda_api 15247 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:30:23,623 eosda_api 15247 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:30:23,623 eosda_api 15247 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:30:23,623 eosda_api 15247 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:30:23,795 eosda_api 15247 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:30:23,795 eosda_api 15247 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:30:23,798 eosda_api 15247 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:30:23,798 eosda_api 15247 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+ERROR 2026-01-08 10:30:23,798 eosda_api 15247 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:32:55,417 eosda_api 16420 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:32:55,417 eosda_api 16420 8724760576    Período: 2025-10-10 a 2026-01-08 (4 meses)
+INFO 2026-01-08 10:32:55,417 eosda_api 16420 8724760576    Mínimo requerido: 2 meses con datos
+INFO 2026-01-08 10:32:55,417 eosda_api 16420 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:32:55,434 eosda_api 16420 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:32:55,434 eosda_api 16420 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:32:55,438 eosda_api 16420 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:32:55,438 eosda_api 16420 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:32:56,194 eosda_api 16420 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:32:56,194 eosda_api 16420 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:32:56,199 eosda_api 16420 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:32:56,199 eosda_api 16420 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:32:56,199 eosda_api 16420 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:32:56,217 eosda_api 16420 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:32:56,217 eosda_api 16420 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:32:56,217 eosda_api 16420 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:32:56,217 eosda_api 16420 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:32:56,394 eosda_api 16420 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:32:56,395 eosda_api 16420 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:32:56,397 eosda_api 16420 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:32:56,397 eosda_api 16420 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+INFO 2026-01-08 10:32:56,397 eosda_api 16420 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:32:56,416 eosda_api 16420 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:32:56,416 eosda_api 16420 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:32:56,416 eosda_api 16420 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:32:56,416 eosda_api 16420 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:32:56,587 eosda_api 16420 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:32:56,587 eosda_api 16420 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:32:56,588 eosda_api 16420 8724760576    📊 Encontradas 0 escenas cubriendo 0/4 meses (0.0%)
+WARNING 2026-01-08 10:32:56,589 eosda_api 16420 8724760576    ⚠️ Insuficiente cobertura (0/2 meses)
+ERROR 2026-01-08 10:32:56,589 eosda_api 16420 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:34:37,925 eosda_api 16635 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:34:37,925 eosda_api 16635 8724760576    Período: 2025-01-08 a 2026-01-08 (13 meses)
+INFO 2026-01-08 10:34:37,925 eosda_api 16635 8724760576    Mínimo requerido: 6 meses con datos
+INFO 2026-01-08 10:34:37,925 eosda_api 16635 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:34:37,939 eosda_api 16635 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:34:37,939 eosda_api 16635 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:34:37,939 eosda_api 16635 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:34:37,940 eosda_api 16635 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:34:38,688 eosda_api 16635 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:34:38,688 eosda_api 16635 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:34:38,692 eosda_api 16635 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:34:38,692 eosda_api 16635 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-08 10:34:38,692 eosda_api 16635 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:34:38,707 eosda_api 16635 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:34:38,707 eosda_api 16635 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:34:38,707 eosda_api 16635 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:34:38,707 eosda_api 16635 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:34:38,879 eosda_api 16635 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:34:38,880 eosda_api 16635 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:34:38,882 eosda_api 16635 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:34:38,882 eosda_api 16635 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-08 10:34:38,882 eosda_api 16635 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:34:38,899 eosda_api 16635 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:34:38,899 eosda_api 16635 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:34:38,899 eosda_api 16635 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:34:38,899 eosda_api 16635 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:34:39,072 eosda_api 16635 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:34:39,072 eosda_api 16635 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:34:39,075 eosda_api 16635 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:34:39,076 eosda_api 16635 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+ERROR 2026-01-08 10:34:39,076 eosda_api 16635 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:36:12,439 eosda_api 16851 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:36:12,439 eosda_api 16851 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:36:12,439 eosda_api 16851 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:36:12,439 eosda_api 16851 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:36:13,187 eosda_api 16851 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:36:13,187 eosda_api 16851 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:36:13,192 eosda_api 16851 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:36:13,192 eosda_api 16851 8724760576    Período: 2025-01-08 a 2026-01-08 (13 meses)
+INFO 2026-01-08 10:36:13,192 eosda_api 16851 8724760576    Mínimo requerido: 6 meses con datos
+INFO 2026-01-08 10:36:13,193 eosda_api 16851 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:36:13,215 eosda_api 16851 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:36:13,215 eosda_api 16851 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:36:13,215 eosda_api 16851 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:36:13,215 eosda_api 16851 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:36:13,390 eosda_api 16851 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:36:13,390 eosda_api 16851 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:36:13,392 eosda_api 16851 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:36:13,392 eosda_api 16851 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-08 10:36:13,392 eosda_api 16851 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:36:13,414 eosda_api 16851 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:36:13,414 eosda_api 16851 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:36:13,414 eosda_api 16851 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:36:13,414 eosda_api 16851 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:36:13,588 eosda_api 16851 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:36:13,589 eosda_api 16851 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:36:13,591 eosda_api 16851 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:36:13,591 eosda_api 16851 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-08 10:36:13,591 eosda_api 16851 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:36:13,613 eosda_api 16851 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:36:13,614 eosda_api 16851 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:36:13,614 eosda_api 16851 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:36:13,614 eosda_api 16851 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:36:13,788 eosda_api 16851 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:36:13,788 eosda_api 16851 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:36:13,791 eosda_api 16851 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:36:13,791 eosda_api 16851 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+ERROR 2026-01-08 10:36:13,791 eosda_api 16851 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:37:24,912 eosda_api 17059 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:37:24,912 eosda_api 17059 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:37:24,912 eosda_api 17059 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:37:24,912 eosda_api 17059 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:37:25,613 eosda_api 17059 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:37:25,613 eosda_api 17059 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:37:25,618 eosda_api 17059 8724760576 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-08 10:37:25,618 eosda_api 17059 8724760576    Período: 2025-01-08 a 2026-01-08 (13 meses)
+INFO 2026-01-08 10:37:25,618 eosda_api 17059 8724760576    Mínimo requerido: 6 meses con datos
+INFO 2026-01-08 10:37:25,619 eosda_api 17059 8724760576 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-08 10:37:25,633 eosda_api 17059 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:37:25,633 eosda_api 17059 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:37:25,633 eosda_api 17059 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:37:25,633 eosda_api 17059 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:37:25,811 eosda_api 17059 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:37:25,811 eosda_api 17059 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:37:25,813 eosda_api 17059 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:37:25,813 eosda_api 17059 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-08 10:37:25,813 eosda_api 17059 8724760576 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-08 10:37:25,825 eosda_api 17059 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:37:25,825 eosda_api 17059 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:37:25,825 eosda_api 17059 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:37:25,826 eosda_api 17059 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:37:26,010 eosda_api 17059 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:37:26,010 eosda_api 17059 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:37:26,014 eosda_api 17059 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:37:26,014 eosda_api 17059 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-08 10:37:26,014 eosda_api 17059 8724760576 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-08 10:37:26,035 eosda_api 17059 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:37:26,035 eosda_api 17059 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:37:26,035 eosda_api 17059 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:37:26,035 eosda_api 17059 8724760576    Geometría: Polygon con 10 puntos
+ERROR 2026-01-08 10:37:26,213 eosda_api 17059 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:37:26,214 eosda_api 17059 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-08 10:37:26,216 eosda_api 17059 8724760576    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-08 10:37:26,216 eosda_api 17059 8724760576    ⚠️ Insuficiente cobertura (0/6 meses)
+ERROR 2026-01-08 10:37:26,216 eosda_api 17059 8724760576 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+INFO 2026-01-08 10:51:08,962 eosda_api 18412 8724760576 Cultivo mapeado: 'Arroz' -> 'Rice'
+INFO 2026-01-08 10:51:08,962 eosda_api 18412 8724760576 Creando campo en EOSDA para parcela: Bio Energy
+INFO 2026-01-08 10:51:10,879 eosda_api 18412 8724760576 Respuesta EOSDA - Status: 201
+ERROR 2026-01-08 10:51:10,887 eosda_api 18412 8724760576 Error en sincronizar_parcela_con_eosda: OGR failure.
+INFO 2026-01-08 10:51:35,908 eosda_api 18601 8724760576 Cultivo mapeado: 'Arroz' -> 'Rice'
+INFO 2026-01-08 10:51:35,908 eosda_api 18601 8724760576 Creando campo en EOSDA para parcela: Bio Energy
+INFO 2026-01-08 10:51:36,951 eosda_api 18601 8724760576 Respuesta EOSDA - Status: 201
+ERROR 2026-01-08 10:51:36,971 eosda_api 18601 8724760576 Error en sincronizar_parcela_con_eosda: OGR failure.
+INFO 2026-01-08 10:52:30,220 eosda_api 18806 8724760576 Cultivo mapeado: 'Arroz' -> 'Rice'
+INFO 2026-01-08 10:52:30,221 eosda_api 18806 8724760576 Creando campo en EOSDA para parcela: Bio Energy
+INFO 2026-01-08 10:52:31,268 eosda_api 18806 8724760576 Respuesta EOSDA - Status: 201
+ERROR 2026-01-08 10:52:31,276 eosda_api 18806 8724760576 Error marcando parcela como sincronizada: OGR failure.
+INFO 2026-01-08 10:52:31,279 eosda_api 18806 8724760576 ✅ Campo creado exitosamente en EOSDA con ID: 10848947
+INFO 2026-01-08 10:52:31,279 eosda_api 18806 8724760576 Parcela Bio Energy sincronizada exitosamente con EOSDA
+INFO 2026-01-08 10:53:21,537 eosda_api 19005 8724760576 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-08 10:53:21,539 eosda_api 19005 8724760576 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-08 10:53:21,539 eosda_api 19005 8724760576    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-08 10:53:21,539 eosda_api 19005 8724760576    Geometría: Polygon con 12 puntos
+ERROR 2026-01-08 10:53:22,209 eosda_api 19005 8724760576 ❌ Error EOSDA: 403
+ERROR 2026-01-08 10:53:22,209 eosda_api 19005 8724760576    Respuesta: 403: Forbidden

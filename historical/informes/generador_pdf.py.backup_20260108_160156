@@ -36,7 +36,7 @@ from reportlab.pdfgen import canvas
 
 # Matplotlib para gráficos (usar backend no-GUI para evitar problemas con threads)
 import matplotlib
-matplotlib.use('Agg')  #  Backend no-GUI, seguro para threads y servidores web
+matplotlib.use('Agg')  # ✅ Backend no-GUI, seguro para threads y servidores web
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.figure import Figure
@@ -351,10 +351,6 @@ class GeneradorPDFProfesional:
         story.extend(self._crear_tabla_datos(datos_analisis))
         story.append(PageBreak())
         
-        # Galería de imágenes satelitales
-        story.extend(self._crear_galeria_imagenes_satelitales(parcela, indices))
-        story.append(PageBreak())
-        
         # Página de créditos
         story.extend(self._crear_pagina_creditos())
         
@@ -649,19 +645,18 @@ class GeneradorPDFProfesional:
         )
         elements.append(pie)
         return elements
-    
-    def _decorar_seccion(self, img_name, height=1.2*cm):
-        """Devuelve una banda decorativa para usar como separador de secciones"""
-        from reportlab.platypus import Image
-        img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
-        if os.path.exists(img_path):
-            try:
-                banda = Image(img_path, width=15*cm, height=height, kind='proportional')
-                banda.hAlign = 'CENTER'
-                return [banda, Spacer(1, 0.2*cm)]
-            except Exception as e:
-                logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
-        return []
+        def _decorar_seccion(self, img_name, height=1.2*cm):
+            """Devuelve una banda decorativa para usar como separador de secciones"""
+            from reportlab.platypus import Image
+            img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
+            if os.path.exists(img_path):
+                try:
+                    banda = Image(img_path, width=15*cm, height=height, kind='proportional')
+                    banda.hAlign = 'CENTER'
+                    return [banda, Spacer(1, 0.2*cm)]
+                except Exception as e:
+                    logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
+            return []
     
     def _crear_header_footer(self, canvas_obj, doc):
         """Crea header y footer en cada página"""
@@ -705,17 +700,16 @@ class GeneradorPDFProfesional:
         elements.extend(self._decorar_seccion('5.png', height=1*cm))
         
         # Título de la sección
-        titulo = Paragraph("Metodología de Análisis", self.estilos['TituloSeccion'])
+        titulo = Paragraph("🔬 Metodología de Análisis", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
         # Introducción
         intro = Paragraph(
             """
-            <strong>El presente informe se basa en el Motor de Análisis Automatizado AgroTech, un sistema 
-            de análisis satelital determinístico que procesa imágenes satelitales de alta resolución y aplica 
-            algoritmos científicamente validados para evaluar la condición del terreno, ya sea con cultivos establecidos 
-            o en evaluación para planificación agrícola y primera siembra.</strong>
+            <strong>El presente informe se basa en un sistema de análisis satelital determinístico que procesa 
+            imágenes satelitales de alta resolución y aplica algoritmos científicamente validados para evaluar 
+            la salud y condición de los cultivos.</strong>
             """,
             self.estilos['TextoNormal']
         )
@@ -723,7 +717,7 @@ class GeneradorPDFProfesional:
         elements.append(Spacer(1, 0.4*cm))
         
         # 1. Fuentes de Datos
-        subtitulo1 = Paragraph("<strong>1. Fuentes de Datos Satelitales</strong>", self.estilos['SubtituloSeccion'])
+        subtitulo1 = Paragraph("📡 <strong>1. Fuentes de Datos Satelitales</strong>", self.estilos['SubtituloSeccion'])
         elements.append(subtitulo1)
         elements.append(Spacer(1, 0.2*cm))
         
@@ -741,35 +735,30 @@ class GeneradorPDFProfesional:
         elements.append(Spacer(1, 0.4*cm))
         
         # 2. Índices Espectrales Calculados
-        subtitulo2 = Paragraph("<strong>2. Índices Espectrales Calculados</strong>", self.estilos['SubtituloSeccion'])
+        subtitulo2 = Paragraph("📊 <strong>2. Índices Espectrales Calculados</strong>", self.estilos['SubtituloSeccion'])
         elements.append(subtitulo2)
         elements.append(Spacer(1, 0.2*cm))
         
         # Tabla de índices
         datos_indices = [
+            ['Índice', 'Fórmula', 'Interpretación', 'Umbrales'],
             [
-                Paragraph('<b>Índice</b>', self.estilos['TextoNormal']),
-                Paragraph('<b>Fórmula</b>', self.estilos['TextoNormal']),
-                Paragraph('<b>Interpretación</b>', self.estilos['TextoNormal']),
-                Paragraph('<b>Umbrales</b>', self.estilos['TextoNormal'])
+                '<strong>NDVI</strong><br/>(Vigor Vegetal)',
+                '(NIR - Red) / (NIR + Red)',
+                'Mide la cantidad y salud de la vegetación. Valores altos indican vegetación densa y saludable.',
+                '< 0.2: Suelo desnudo<br/>0.2-0.4: Vegetación escasa<br/>0.4-0.6: Vegetación moderada<br/>> 0.6: Vegetación densa'
             ],
             [
-                Paragraph('<b>NDVI</b><br/>(Vigor Vegetal)', self.estilos['TextoNormal']),
-                Paragraph('(NIR - Red) / (NIR + Red)', self.estilos['TextoNormal']),
-                Paragraph('Mide la cantidad y salud de la vegetación presente. Valores altos indican vegetación densa y saludable, o potencial productivo en terrenos sin cultivo.', self.estilos['TextoNormal']),
-                Paragraph('&lt; 0.2: Suelo desnudo<br/>0.2-0.4: Vegetación escasa<br/>0.4-0.6: Vegetación moderada<br/>&gt; 0.6: Vegetación densa', self.estilos['TextoNormal'])
+                '<strong>NDMI</strong><br/>(Humedad)',
+                '(NIR - SWIR) / (NIR + SWIR)',
+                'Evalúa el contenido de humedad en la vegetación. Fundamental para detectar estrés hídrico.',
+                '< 0.2: Estrés hídrico severo<br/>0.2-0.4: Estrés moderado<br/>0.4-0.6: Humedad adecuada<br/>> 0.6: Alta humedad'
             ],
             [
-                Paragraph('<b>NDMI</b><br/>(Humedad)', self.estilos['TextoNormal']),
-                Paragraph('(NIR - SWIR) / (NIR + SWIR)', self.estilos['TextoNormal']),
-                Paragraph('Evalúa el contenido de humedad en la vegetación o suelo. Fundamental para detectar estrés hídrico o condiciones de humedad del terreno.', self.estilos['TextoNormal']),
-                Paragraph('&lt; 0.2: Estrés hídrico severo<br/>0.2-0.4: Estrés moderado<br/>0.4-0.6: Humedad adecuada<br/>&gt; 0.6: Alta humedad', self.estilos['TextoNormal'])
-            ],
-            [
-                Paragraph('<b>SAVI</b><br/>(Cobertura)', self.estilos['TextoNormal']),
-                Paragraph('(NIR - Red) / (NIR + Red + L) × (1 + L)<br/>L = 0.5', self.estilos['TextoNormal']),
-                Paragraph('Ajusta el NDVI para áreas con cobertura vegetal parcial o suelo expuesto, proporcionando una estimación indirecta y relativa de la cobertura.', self.estilos['TextoNormal']),
-                Paragraph('&lt; 0.2: Suelo predominante<br/>0.2-0.4: Cobertura baja<br/>0.4-0.6: Cobertura moderada<br/>&gt; 0.6: Cobertura alta', self.estilos['TextoNormal'])
+                '<strong>SAVI</strong><br/>(Cobertura)',
+                '(NIR - Red) / (NIR + Red + L) × (1 + L)<br/>L = 0.5',
+                'Ajusta el NDVI para áreas con cobertura vegetal parcial, minimizando el efecto del suelo expuesto.',
+                '< 0.2: Suelo predominante<br/>0.2-0.4: Cobertura baja<br/>0.4-0.6: Cobertura moderada<br/>> 0.6: Cobertura alta'
             ]
         ]
         
@@ -780,7 +769,7 @@ class GeneradorPDFProfesional:
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('BACKGROUND', (0, 0), (-1, 0), self.colores['verde_principal']),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.colores['gris_claro']]),
@@ -793,7 +782,7 @@ class GeneradorPDFProfesional:
         elements.append(Spacer(1, 0.4*cm))
         
         # 3. Procesamiento y Análisis
-        subtitulo3 = Paragraph("<strong>3. Procesamiento y Análisis de Datos</strong>", self.estilos['SubtituloSeccion'])
+        subtitulo3 = Paragraph("⚙️ <strong>3. Procesamiento y Análisis de Datos</strong>", self.estilos['SubtituloSeccion'])
         elements.append(subtitulo3)
         elements.append(Spacer(1, 0.2*cm))
         
@@ -821,7 +810,7 @@ class GeneradorPDFProfesional:
         elements.append(Spacer(1, 0.4*cm))
         
         # 4. Generación de Recomendaciones
-        subtitulo4 = Paragraph("<strong>4. Generación de Recomendaciones Agronómicas</strong>", self.estilos['SubtituloSeccion'])
+        subtitulo4 = Paragraph("💡 <strong>4. Generación de Recomendaciones Agronómicas</strong>", self.estilos['SubtituloSeccion'])
         elements.append(subtitulo4)
         elements.append(Spacer(1, 0.2*cm))
         
@@ -841,7 +830,7 @@ class GeneradorPDFProfesional:
         elements.append(Spacer(1, 0.4*cm))
         
         # 5. Resumen del Período Analizado
-        subtitulo5 = Paragraph("<strong>5. Datos del Período Analizado</strong>", self.estilos['SubtituloSeccion'])
+        subtitulo5 = Paragraph("📅 <strong>5. Datos del Período Analizado</strong>", self.estilos['SubtituloSeccion'])
         elements.append(subtitulo5)
         elements.append(Spacer(1, 0.2*cm))
         
@@ -935,8 +924,8 @@ class GeneradorPDFProfesional:
         # Resumen de análisis
         resumen = Paragraph(
             f"""
-            Durante el período analizado ({datos[0]['periodo']} a 
-            {datos[-1]['periodo']}), se observaron las siguientes tendencias:
+            Durante el período analizado ({self.formato_mes_año_español(datos[0]['mes'])} a 
+            {self.formato_mes_año_español(datos[-1]['mes'])}), se observaron las siguientes tendencias:
             <ul>
                 <li><strong>NDVI:</strong> {analisis['ndvi']['tendencia']}.</li>
                 <li><strong>NDMI:</strong> {analisis['ndmi']['tendencia']}.</li>
@@ -1017,105 +1006,32 @@ class GeneradorPDFProfesional:
 
         return elements
     
-    def _crear_info_parcela(self, parcela: Parcela) -> List:
-        """Crea sección de información de la parcela"""
-        elements = []
-        
-        titulo = Paragraph("Información de la Parcela", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        
-        # Coordenadas del centroide
-        if parcela.centroide:
-            lat = parcela.centroide.y
-            lon = parcela.centroide.x
-            coordenadas = f"{lat:.6f}, {lon:.6f}"
-        else:
-            coordenadas = "No disponible"
-        
-        info_texto = f"""
-<strong>Nombre:</strong> {parcela.nombre}<br/>
-<strong>Propietario:</strong> {parcela.propietario}<br/>
-<strong>Tipo de Cultivo:</strong> {parcela.tipo_cultivo or 'No especificado'}<br/>
-<strong>Área:</strong> {parcela.area_hectareas:.2f} hectáreas<br/>
-<strong>Ubicación (Centro):</strong> {coordenadas}<br/>
-<strong>Fecha de Inicio de Monitoreo:</strong> {parcela.fecha_inicio_monitoreo.strftime('%d/%m/%Y') if parcela.fecha_inicio_monitoreo else 'No especificado'}<br/>
-"""
-        
-        info = Paragraph(info_texto, self.estilos['TextoNormal'])
-        elements.append(info)
-        
-        return elements
-    
-    def _crear_tabla_datos(self, datos: List[Dict]) -> List:
-        """Crea tabla con datos mensuales"""
-        elements = []
-        titulo = Paragraph("Tabla de Datos Mensuales", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        # Preparar datos para la tabla
-        tabla_data = [['Período', 'NDVI', 'NDMI', 'SAVI', 'Temp (°C)', 'Precip (mm)']]
-        for d in datos:
-            tabla_data.append([
-                d['periodo'],
-                f"{d.get('ndvi', 0):.3f}" if d.get('ndvi') else 'N/D',
-                f"{d.get('ndmi', 0):.3f}" if d.get('ndmi') else 'N/D',
-                f"{d.get('savi', 0):.3f}" if d.get('savi') else 'N/D',
-                f"{d.get('temperatura', 0):.1f}" if d.get('temperatura') else 'N/D',
-                f"{d.get('precipitacion', 0):.1f}" if d.get('precipitacion') else 'N/D'
-            ])
-        
-        tabla = Table(tabla_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
-        tabla.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('BACKGROUND', (0, 0), (-1, 0), self.colores['verde_principal']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.colores['gris_claro']]),
-        ]))
-        elements.append(tabla)
-        
-        return elements
-    
-    def _crear_pagina_creditos(self) -> List:
-        """Crea página de créditos"""
-        elements = []
-        titulo = Paragraph("Créditos", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        creditos_texto = """
-<strong>Sistema AgroTech - Análisis Satelital Agrícola</strong><br/><br/>
-<strong>Fuente de Datos Satelitales:</strong> Sentinel-2 (ESA)<br/>
-<strong>Motor de Análisis:</strong> Motor de Análisis Automatizado AgroTech<br/>
-<strong>Procesamiento:</strong> Python + Django + GeoDjango<br/>
-<strong>Visualización:</strong> ReportLab + Matplotlib<br/><br/>
-<i>Este informe ha sido generado automáticamente utilizando datos satelitales de alta resolución 
-y algoritmos científicamente validados para el análisis de vegetación.</i>
-"""
-        creditos = Paragraph(creditos_texto, self.estilos['TextoNormal'])
-        elements.append(creditos)
-        
-        return elements
-    
     def _crear_seccion_ndvi(self, analisis_ndvi: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis NDVI"""
+        """Crea sección de análisis NDVI con impacto productivo y nivel de riesgo"""
         elements = []
         # Título
         titulo = Paragraph("Análisis NDVI", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
 
+        # Impacto productivo estimado y nivel de riesgo
+        impacto = Paragraph(
+            f"""
+            <strong>Impacto productivo estimado:</strong> {analisis_ndvi['impacto']}<br/>
+            <strong>Nivel de riesgo:</strong> {analisis_ndvi['riesgo']}
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(impacto)
+        elements.append(Spacer(1, 0.5*cm))
+
         # Estado
         estado = analisis_ndvi['estado']
         estado_texto = f"""
-<strong>Estado General:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
+<strong>Estado General:</strong> {estado['icono']} {estado['etiqueta']}<br/>
 <strong>NDVI Promedio:</strong> {analisis_ndvi['estadisticas']['promedio']:.3f}<br/>
-<strong>Puntuación:</strong> {analisis_ndvi.get('puntuacion', 0)}/10<br/>
+<strong>Puntuación:</strong> {analisis_ndvi['puntuacion']}/10<br/>
+<strong>Cobertura Estimada:</strong> {analisis_ndvi['cobertura_estimada']}%<br/>
 """
         elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
@@ -1143,7 +1059,7 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         return elements
     
     def _crear_seccion_ndmi(self, analisis: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis NDMI"""
+        """Crea sección de análisis NDMI con impacto productivo y nivel de riesgo"""
         elements = []
 
         # Título
@@ -1151,13 +1067,24 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
 
+        # Impacto productivo estimado y nivel de riesgo
+        impacto = Paragraph(
+            f"""
+            <strong>Impacto productivo estimado:</strong> {analisis['impacto']}<br/>
+            <strong>Nivel de riesgo:</strong> {analisis['riesgo']}
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(impacto)
+        elements.append(Spacer(1, 0.5*cm))
+
         # Estado
         estado = analisis['estado']
         estado_texto = f"""
 <strong>Estado Hídrico:</strong> {estado['etiqueta']}<br/>
 <strong>NDMI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
-<strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10<br/>
-<strong>Riesgo Hídrico:</strong> {analisis.get('riesgo_hidrico', 'No determinado')}<br/>
+<strong>Puntuación:</strong> {analisis['puntuacion']}/10<br/>
+<strong>Riesgo Hídrico:</strong> {analisis['riesgo_hidrico']}<br/>
 """
         elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
@@ -1183,19 +1110,31 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         return elements
     
     def _crear_seccion_savi(self, analisis: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis SAVI"""
+        """Crea sección de análisis SAVI con impacto productivo y nivel de riesgo"""
         elements = []
         # Título
         titulo = Paragraph("Análisis SAVI", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
 
+        # Impacto productivo estimado y nivel de riesgo
+        impacto = Paragraph(
+            f"""
+            <strong>Impacto productivo estimado:</strong> {analisis['impacto']}<br/>
+            <strong>Nivel de riesgo:</strong> {analisis['riesgo']}
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(impacto)
+        elements.append(Spacer(1, 0.5*cm))
+
         # Estado
         estado = analisis['estado']
         estado_texto = f"""
-<strong>Estado General:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
+<strong>Estado General:</strong> {estado['icono']} {estado['etiqueta']}<br/>
 <strong>SAVI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
-<strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10<br/>
+<strong>Puntuación:</strong> {analisis['puntuacion']}/10<br/>
+<strong>Cobertura Estimada:</strong> {analisis['cobertura_estimada']}%<br/>
 """
         elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
@@ -1224,7 +1163,7 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         """Crea sección de análisis de tendencias"""
         elements = []
         
-        titulo = Paragraph("Análisis de Tendencias Temporales", self.estilos['TituloSeccion'])
+        titulo = Paragraph("📈 Análisis de Tendencias Temporales", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
@@ -1275,7 +1214,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         """Crea sección de recomendaciones"""
         elements = []
         
-        titulo = Paragraph("Recomendaciones Agronómicas", self.estilos['TituloSeccion'])
+        titulo = Paragraph("💡 Recomendaciones Agronómicas", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
@@ -1299,7 +1238,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             if por_prioridad[prioridad]:
                 # Título de prioridad
                 if prioridad == 'alta':
-                    titulo_prioridad = " Prioridad Alta"
+                    titulo_prioridad = "🔴 Prioridad Alta"
                 elif prioridad == 'media':
                     titulo_prioridad = "🟡 Prioridad Media"
                 else:
@@ -1348,14 +1287,14 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
     
     def _crear_seccion_analisis_gemini(self, analisis_gemini: Dict) -> List:
         """
-        Crea sección con análisis detallado de Motor de Análisis Automatizado AgroTech
+        Crea sección con análisis detallado de Gemini AI
         Incluye: Análisis de Tendencias, Recomendaciones IA y Alertas
         """
         elements = []
         
         # Título principal de la sección
         titulo = Paragraph(
-            " Análisis Inteligente con IA", 
+            "🤖 Análisis Inteligente con IA", 
             self.estilos['TituloSeccion']
         )
         elements.append(titulo)
@@ -1363,7 +1302,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         # Badge informativo
         badge = Paragraph(
             '<para alignment="center"><font color="#17a2b8" size="9">'
-            '<i>Los siguientes análisis han sido generados por Motor de Análisis Automatizado AgroTech '
+            '<i>Los siguientes análisis han sido generados por inteligencia artificial '
             'especializada en agronomía y teledetección satelital.</i></font></para>',
             self.estilos['TextoNormal']
         )
@@ -1372,7 +1311,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         # === ANÁLISIS DE TENDENCIAS ===
         if analisis_gemini.get('analisis_tendencias'):
-            subtitulo = Paragraph("Análisis de Tendencias", self.estilos['SubtituloSeccion'])
+            subtitulo = Paragraph("📈 Análisis de Tendencias", self.estilos['SubtituloSeccion'])
             elements.append(subtitulo)
             elements.append(Spacer(1, 0.3*cm))
             
@@ -1388,7 +1327,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             # Solo mostrar si hay análisis visual real (no el mensaje por defecto)
             if analisis_visual_texto and 'no disponible' not in analisis_visual_texto.lower():
-                subtitulo = Paragraph("Análisis Visual de Imágenes Satelitales", self.estilos['SubtituloSeccion'])
+                subtitulo = Paragraph("🛰️ Análisis Visual de Imágenes Satelitales", self.estilos['SubtituloSeccion'])
                 elements.append(subtitulo)
                 elements.append(Spacer(1, 0.3*cm))
                 
@@ -1412,7 +1351,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         # === RECOMENDACIONES IA ===
         if analisis_gemini.get('recomendaciones'):
-            subtitulo = Paragraph("Recomendaciones del Sistema Experto", self.estilos['SubtituloSeccion'])
+            subtitulo = Paragraph("💡 Recomendaciones del Experto IA", self.estilos['SubtituloSeccion'])
             elements.append(subtitulo)
             elements.append(Spacer(1, 0.3*cm))
             
@@ -1441,7 +1380,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             # Solo mostrar si hay alertas reales (no el mensaje por defecto)
             if alertas_texto and 'No se detectaron alertas' not in alertas_texto:
-                subtitulo = Paragraph("Alertas y Situaciones Críticas", self.estilos['SubtituloSeccion'])
+                subtitulo = Paragraph("⚠️ Alertas y Situaciones Críticas", self.estilos['SubtituloSeccion'])
                 elements.append(subtitulo)
                 elements.append(Spacer(1, 0.3*cm))
                 
@@ -1468,7 +1407,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 # Mensaje positivo si no hay alertas
                 sin_alertas = Paragraph(
                     '<para alignment="center"><font color="green" size="10">'
-                    '<b> No se detectaron situaciones críticas que requieran atención inmediata.</b>'
+                    '<b>✅ No se detectaron situaciones críticas que requieran atención inmediata.</b>'
                     '</font></para>',
                     self.estilos['TextoNormal']
                 )
@@ -1478,14 +1417,13 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         # Nota al pie de la sección
         nota = Paragraph(
             '<para alignment="right"><font size="8" color="#666666">'
-            '<i>Análisis generado por Motor de Análisis Automatizado AgroTech.</i>'
+            '<i>Análisis generado por IA avanzada.</i>'
             '</font></para>',
             self.estilos['TextoNormal']
         )
         elements.append(nota)
         
         return elements
-    
     def _evaluar_calidad_imagen(self, tipo_indice: str, valor_promedio: float, 
                                 valor_minimo: float, valor_maximo: float) -> Dict:
         """Evalúa cualitativamente la calidad de una imagen satelital"""
@@ -1502,27 +1440,27 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             elif valor_promedio >= 0.3:
                 return {'etiqueta': 'Regular', 'icono': '🟡', 'color': '#FFC107'}
             else:
-                return {'etiqueta': 'Pobre', 'icono': '', 'color': '#F44336'}
+                return {'etiqueta': 'Pobre', 'icono': '🔴', 'color': '#F44336'}
         
         elif tipo_indice == 'NDMI':
             if valor_promedio >= 0.2:
-                return {'etiqueta': 'Excelente', 'icono': '', 'color': '#2196F3'}
+                return {'etiqueta': 'Excelente', 'icono': '💧', 'color': '#2196F3'}
             elif valor_promedio >= 0.0:
-                return {'etiqueta': 'Bueno', 'icono': '', 'color': '#03A9F4'}
+                return {'etiqueta': 'Bueno', 'icono': '💧', 'color': '#03A9F4'}
             elif valor_promedio >= -0.2:
-                return {'etiqueta': 'Regular', 'icono': '', 'color': '#FFC107'}
+                return {'etiqueta': 'Regular', 'icono': '⚠️', 'color': '#FFC107'}
             else:
-                return {'etiqueta': 'Bajo', 'icono': '', 'color': '#F44336'}
+                return {'etiqueta': 'Bajo', 'icono': '🔴', 'color': '#F44336'}
         
         elif tipo_indice == 'SAVI':
             if valor_promedio >= 0.5:
-                return {'etiqueta': 'Excelente', 'icono': '', 'color': '#4CAF50'}
+                return {'etiqueta': 'Excelente', 'icono': '🌾', 'color': '#4CAF50'}
             elif valor_promedio >= 0.3:
-                return {'etiqueta': 'Bueno', 'icono': '', 'color': '#8BC34A'}
+                return {'etiqueta': 'Bueno', 'icono': '🌾', 'color': '#8BC34A'}
             else:
-                return {'etiqueta': 'Bajo', 'icono': '', 'color': '#FFC107'}
+                return {'etiqueta': 'Bajo', 'icono': '⚠️', 'color': '#FFC107'}
         
-        return {'etiqueta': 'N/D', 'icono': '', 'color': '#999999'}
+        return {'etiqueta': 'N/D', 'icono': '❓', 'color': '#999999'}
     
     def _crear_galeria_imagenes_satelitales(self, parcela: Parcela, indices: List[IndiceMensual], analisis_gemini: Dict = None) -> List:
         """
@@ -1534,7 +1472,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         elements.extend(self._decorar_seccion('6.png', height=1*cm))
         # Título de la sección con diseño mejorado
         titulo = Paragraph(
-            '<font size="16"><strong>Imágenes Satelitales y Análisis Visual Detallado</strong></font>',
+            '📸 <font size="16"><strong>Imágenes Satelitales y Análisis Visual Detallado</strong></font>',
             self.estilos['TituloSeccion']
         )
         elements.append(titulo)
@@ -1545,15 +1483,12 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             """
             <strong>Esta sección presenta un análisis visual detallado de las imágenes satelitales capturadas mes a mes.</strong>
             <br/><br/>
-            Cada imagen es evaluada mediante algoritmos determinísticos del Motor de Análisis Automatizado AgroTech que analizan 
-            los valores espectrales para identificar patrones espaciales, zonas específicas y cambios temporales. 
-            Este análisis es aplicable tanto a terrenos con cultivos establecidos como a lotes en evaluación para planificación de siembra.
+            Cada imagen es evaluada mediante algoritmos determinísticos que analizan los valores espectrales para 
+            identificar patrones espaciales, zonas específicas y cambios temporales. Los colores en las imágenes representan:
             <br/><br/>
-            Los colores en las imágenes representan:
-            <br/><br/>
-            • <strong>NDVI (Vigor Vegetal):</strong> Verde oscuro = alta biomasa, amarillo/marrón = baja vegetación o suelo desnudo<br/>
+            • <strong>NDVI (Vigor Vegetal):</strong> Verde oscuro = alta biomasa, amarillo/marrón = baja vegetación<br/>
             • <strong>NDMI (Contenido de Humedad):</strong> Azul/verde = alta humedad, rojo/amarillo = baja humedad<br/>
-            • <strong>SAVI (Cobertura del Suelo):</strong> Verde = buena cobertura, marrón = suelo predominantemente visible
+            • <strong>SAVI (Cobertura del Suelo):</strong> Verde = buena cobertura, marrón = suelo desnudo visible
             """,
             self.estilos['TextoNormal']
         )
@@ -1603,7 +1538,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 
                 # === TÍTULO DEL MES CON DISEÑO DESTACADO ===
                 titulo_mes = Paragraph(
-                    f'<font size="13" color="#2E8B57"><strong> {idx.periodo_texto}</strong></font>',
+                    f'<font size="13" color="#2E8B57"><strong>📅 {idx.periodo_texto}</strong></font>',
                     self.estilos['SubtituloSeccion']
                 )
                 elements.append(titulo_mes)
@@ -1616,13 +1551,13 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     coord_texto = f"{parcela.centroide.y:.6f}, {parcela.centroide.x:.6f}"
                 
                 metadatos_data = [
-                    [' Fecha de captura:', idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'],
-                    [' Satélite:', idx.satelite_imagen or 'Sentinel-2'],
-                    [' Resolución espacial:', f"{idx.resolucion_imagen or 10} metros/píxel"],
-                    [' Nubosidad:', f"{idx.nubosidad_imagen or 0:.1f}%"],
-                    [' Coordenadas:', coord_texto],
-                    [' Temperatura promedio:', f"{idx.temperatura_promedio:.1f}°C" if idx.temperatura_promedio else 'N/D'],
-                    [' Precipitación (total mensual):', f"{idx.precipitacion_total:.1f} mm" if idx.precipitacion_total else 'N/D']
+                    ['📅 Fecha de captura:', idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'],
+                    ['🛰️ Satélite:', idx.satelite_imagen or 'Sentinel-2'],
+                    ['📏 Resolución espacial:', f"{idx.resolucion_imagen or 10} metros/píxel"],
+                    ['☁️ Nubosidad:', f"{idx.nubosidad_imagen or 0:.1f}%"],
+                    ['🌍 Coordenadas:', coord_texto],
+                    ['🌡️ Temperatura promedio:', f"{idx.temperatura_promedio:.1f}°C" if idx.temperatura_promedio else 'N/D'],
+                    ['💧 Precipitación total:', f"{idx.precipitacion_total:.1f} mm" if idx.precipitacion_total else 'N/D']
                 ]
                 
                 tabla_metadatos = Table(metadatos_data, colWidths=[4*cm, 11*cm])
@@ -1632,7 +1567,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     ('FONTSIZE', (0, 0), (-1, -1), 9),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                     ('TEXTCOLOR', (0, 1), (-1, -1), self.colores['gris_oscuro']),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.colores['gris_claro']]),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
@@ -1760,7 +1695,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                         # Rellenar con celdas vacías si faltan imágenes
                         while len(celdas_imagenes) < 3:
                             celda_vacia = Paragraph(
-                                '<para align="center"><font size="10" color="#CCCCCC"></font></para>',
+                                '<para align="center"><font size="10" color="#CCCCCC">─</font></para>',
                                 self.estilos['TextoNormal']
                             )
                             celdas_imagenes.append(celda_vacia)
@@ -1780,46 +1715,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                         elements.append(tabla_horizontal)
                         elements.append(Spacer(1, 0.7*cm))
                         
-                        # === IMPACTO PRODUCTIVO Y NIVEL DE RIESGO AL FINAL DE CADA MES ===
-                        # Calcular impacto y riesgo basado en NDVI promedio
-                        ndvi_val = idx.ndvi_promedio or 0
-                        ndmi_val = idx.ndmi_promedio or 0
-                        
-                        if ndvi_val >= 0.6 and ndmi_val >= 0.2:
-                            impacto_prod = "Favorable - Condiciones óptimas para desarrollo vegetal"
-                            nivel_riesgo = "Bajo"
-                            color_riesgo = "#4CAF50"
-                        elif ndvi_val >= 0.4 or ndmi_val >= 0.0:
-                            impacto_prod = "Moderado - Condiciones aceptables con áreas de mejora"
-                            nivel_riesgo = "Medio"
-                            color_riesgo = "#FF9800"
-                        else:
-                            impacto_prod = "Desfavorable - Requiere atención inmediata"
-                            nivel_riesgo = "Alto"
-                            color_riesgo = "#f44336"
-                        
-                        resumen_mes = Paragraph(
-                            f'<para leftIndent="10" rightIndent="10">'
-                            f'<font size="9"><strong>Impacto productivo estimado:</strong> {impacto_prod}<br/>'
-                            f'<strong>Nivel de riesgo:</strong> <font color="{color_riesgo}"><b>{nivel_riesgo}</b></font></font>'
-                            f'</para>',
-                            self.estilos['TextoNormal']
-                        )
-                        
-                        tabla_resumen = Table([[resumen_mes]], colWidths=[15*cm])
-                        tabla_resumen.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f5f5f5')),
-                            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#cccccc')),
-                            ('TOPPADDING', (0, 0), (-1, -1), 8),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                        ]))
-                        
-                        elements.append(tabla_resumen)
-                        elements.append(Spacer(1, 0.5*cm))
-                        
-                        # Análisis Motor de Análisis Automatizado AgroTech consolidado para el mes (si está disponible)
+                        # Análisis Gemini consolidado para el mes (si está disponible)
                         if hasattr(idx, 'analisis_gemini') and idx.analisis_gemini:
                             elements.extend(self._crear_analisis_gemini_mes(idx, parcela))
         
@@ -1827,7 +1723,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         if imagenes_encontradas == 0:
             sin_imagenes = Paragraph(
                 '<para alignment="center"><font color="#999999" size="11">'
-                '<b> No hay imágenes satelitales disponibles para este período</b><br/><br/>'
+                '<b>📭 No hay imágenes satelitales disponibles para este período</b><br/><br/>'
                 '<i>Las imágenes se descargarán automáticamente y estarán disponibles en el sistema una vez procesadas.</i>'
                 '<br/><br/><br/>'
                 '</font></para>',
@@ -1848,7 +1744,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             # Nota al final con resumen
             nota_final = Paragraph(
                 f'<para alignment="right"><font size="9" color="#2E8B57">'
-                f'<strong> Total de imágenes analizadas: {imagenes_encontradas}</strong> | '
+                f'<strong>✓ Total de imágenes analizadas: {imagenes_encontradas}</strong> | '
                 f'Meses procesados: {meses_procesados}'
                 f'</font></para>',
                 self.estilos['TextoNormal']
@@ -1879,7 +1775,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         # Título de la sección
         titulo_global = Paragraph(
-            ' <font size="14"><strong>Análisis Global Consolidado del Período</strong></font>',
+            '🎯 <font size="14"><strong>Análisis Global Consolidado del Período</strong></font>',
             self.estilos['TituloSeccion']
         )
         elements.append(titulo_global)
@@ -1894,7 +1790,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         elements.append(subtitulo)
         elements.append(Spacer(1, 0.5*cm))
         
-        # Preparar datos para Motor de Análisis Automatizado AgroTech
+        # Preparar datos para Gemini
         imagenes_datos = []
         
         for idx in indices:
@@ -1948,7 +1844,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             header_ndvi = Paragraph(
                 '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b> 01. NDVI - VIGOR VEGETAL</b></font>'
+                '<font size="10" color="white"><b>🌱 01. NDVI - VIGOR VEGETAL</b></font>'
                 '</para>',
                 self.estilos['TextoNormal']
             )
@@ -1982,7 +1878,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             header_ndmi = Paragraph(
                 '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b> 02. NDMI - CONTENIDO DE HUMEDAD</b></font>'
+                '<font size="10" color="white"><b>💧 02. NDMI - CONTENIDO DE HUMEDAD</b></font>'
                 '</para>',
                 self.estilos['TextoNormal']
             )
@@ -2016,7 +1912,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             header_savi = Paragraph(
                 '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b> 03. SAVI - COBERTURA DEL SUELO</b></font>'
+                '<font size="10" color="white"><b>🌾 03. SAVI - COBERTURA DEL SUELO</b></font>'
                 '</para>',
                 self.estilos['TextoNormal']
             )
@@ -2082,14 +1978,14 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
     
     def _crear_seccion_analisis_gemini(self, analisis_gemini: Dict) -> List:
         """
-        Crea sección con análisis detallado de Motor de Análisis Automatizado AgroTech
+        Crea sección con análisis detallado de Gemini AI
         Incluye: Análisis de Tendencias, Recomendaciones IA y Alertas
         """
         elements = []
         
         # Título principal de la sección
         titulo = Paragraph(
-            " Análisis Inteligente con IA", 
+            "🤖 Análisis Inteligente con IA", 
             self.estilos['TituloSeccion']
         )
         elements.append(titulo)
@@ -2097,7 +1993,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         # Badge informativo
         badge = Paragraph(
             '<para alignment="center"><font color="#17a2b8" size="9">'
-            '<i>Los siguientes análisis han sido generados por Motor de Análisis Automatizado AgroTech '
+            '<i>Los siguientes análisis han sido generados por inteligencia artificial '
             'especializada en agronomía y teledetección satelital.</i></font></para>',
             self.estilos['TextoNormal']
         )
@@ -2106,7 +2002,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         # === ANÁLISIS DE TENDENCIAS ===
         if analisis_gemini.get('analisis_tendencias'):
-            subtitulo = Paragraph("Análisis de Tendencias", self.estilos['SubtituloSeccion'])
+            subtitulo = Paragraph("📈 Análisis de Tendencias", self.estilos['SubtituloSeccion'])
             elements.append(subtitulo)
             elements.append(Spacer(1, 0.3*cm))
             
@@ -2122,7 +2018,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             # Solo mostrar si hay análisis visual real (no el mensaje por defecto)
             if analisis_visual_texto and 'no disponible' not in analisis_visual_texto.lower():
-                subtitulo = Paragraph("Análisis Visual de Imágenes Satelitales", self.estilos['SubtituloSeccion'])
+                subtitulo = Paragraph("🛰️ Análisis Visual de Imágenes Satelitales", self.estilos['SubtituloSeccion'])
                 elements.append(subtitulo)
                 elements.append(Spacer(1, 0.3*cm))
                 
@@ -2146,7 +2042,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         
         # === RECOMENDACIONES IA ===
         if analisis_gemini.get('recomendaciones'):
-            subtitulo = Paragraph("Recomendaciones del Sistema Experto", self.estilos['SubtituloSeccion'])
+            subtitulo = Paragraph("💡 Recomendaciones del Experto IA", self.estilos['SubtituloSeccion'])
             elements.append(subtitulo)
             elements.append(Spacer(1, 0.3*cm))
             
@@ -2175,7 +2071,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             
             # Solo mostrar si hay alertas reales (no el mensaje por defecto)
             if alertas_texto and 'No se detectaron alertas' not in alertas_texto:
-                subtitulo = Paragraph("Alertas y Situaciones Críticas", self.estilos['SubtituloSeccion'])
+                subtitulo = Paragraph("⚠️ Alertas y Situaciones Críticas", self.estilos['SubtituloSeccion'])
                 elements.append(subtitulo)
                 elements.append(Spacer(1, 0.3*cm))
                 
@@ -2202,7 +2098,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 # Mensaje positivo si no hay alertas
                 sin_alertas = Paragraph(
                     '<para alignment="center"><font color="green" size="10">'
-                    '<b> No se detectaron situaciones críticas que requieran atención inmediata.</b>'
+                    '<b>✅ No se detectaron situaciones críticas que requieran atención inmediata.</b>'
                     '</font></para>',
                     self.estilos['TextoNormal']
                 )
@@ -2212,7 +2108,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         # Nota al pie de la sección
         nota = Paragraph(
             '<para alignment="right"><font size="8" color="#666666">'
-            '<i>Análisis generado por Motor de Análisis Automatizado AgroTech.</i>'
+            '<i>Análisis generado por IA avanzada.</i>'
             '</font></para>',
             self.estilos['TextoNormal']
         )

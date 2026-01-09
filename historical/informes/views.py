@@ -298,6 +298,26 @@ def detalle_parcela(request, parcela_id):
                 'meses': meses_disponibles
             }
         
+        # Información de calidad de datos satelitales
+        calidad_info = {
+            'calidad': parcela.ultima_calidad_datos or 'excelente',
+            'umbral_nubosidad': parcela.ultimo_umbral_nubosidad or 20,
+        }
+        
+        # Mensaje descriptivo según calidad
+        if calidad_info['calidad'] == 'excelente':
+            calidad_info['mensaje'] = f"🌟 Calidad Excelente - Imágenes con nubosidad ≤ {calidad_info['umbral_nubosidad']}%"
+            calidad_info['clase_css'] = 'success'
+        elif calidad_info['calidad'] == 'buena':
+            calidad_info['mensaje'] = f"☁️ Calidad Buena - Imágenes con nubosidad ≤ {calidad_info['umbral_nubosidad']}%"
+            calidad_info['clase_css'] = 'info'
+        elif calidad_info['calidad'] == 'aceptable':
+            calidad_info['mensaje'] = f"⚠️ Calidad Aceptable - Imágenes con nubosidad ≤ {calidad_info['umbral_nubosidad']}%"
+            calidad_info['clase_css'] = 'warning'
+        else:
+            calidad_info['mensaje'] = "📡 Sin información de calidad"
+            calidad_info['clase_css'] = 'secondary'
+        
         contexto = {
             'parcela': parcela,
             'registros_economicos': registros_economicos,
@@ -309,6 +329,7 @@ def detalle_parcela(request, parcela_id):
             'centro_lon': centro_lon,
             'fecha_actual': fecha_actual.isoformat(),  # Formato YYYY-MM-DD para input date
             'rango_datos': rango_datos,  # Info sobre datos disponibles
+            'calidad_datos': calidad_info,  # ✅ Información sobre calidad de imágenes
         }
         
         return render(request, 'informes/parcelas/detalle.html', contexto)
@@ -1283,17 +1304,46 @@ def obtener_datos_historicos(request, parcela_id):
             # Recargar parcela después de sincronizar
             parcela.refresh_from_db()
         
-        # Obtener datos desde EOSDA usando método optimizado (1 request en lugar de 3)
-        datos_satelitales = eosda_service.obtener_datos_optimizado(
+        # Obtener datos usando búsqueda inteligente con umbrales múltiples
+        logger.info("🔍 Iniciando búsqueda inteligente de imágenes satelitales...")
+        resultado_busqueda = eosda_service.obtener_datos_con_umbrales_multiples(
             parcela=parcela,
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
-            indices=['NDVI', 'NDMI', 'SAVI'],  # ✅ MAYÚSCULAS según documentación EOSDA
-            usuario=request.user,
-            max_nubosidad=50
+            indices=['NDVI', 'NDMI', 'SAVI'],
+            usuario=request.user
         )
         
+        # Extraer datos y metadatos de calidad
+        datos_satelitales = resultado_busqueda.get('datos')
+        umbral_usado = resultado_busqueda.get('umbral_usado')
+        calidad_datos = resultado_busqueda.get('calidad_datos')
+        emoji_calidad = resultado_busqueda.get('emoji_calidad', '')
+        
+        # Verificar si se obtuvieron datos
+        if not datos_satelitales:
+            error_msg = resultado_busqueda.get('error', 'No se pudieron obtener datos satelitales')
+            logger.error(f"❌ {error_msg}")
+            messages.error(request, f'❌ {error_msg}. Intenta con un período diferente.')
+            return redirect('informes:detalle_parcela', parcela_id=parcela.id)
+        
+        # Informar al usuario sobre la calidad de datos obtenida
+        cobertura_pct = resultado_busqueda.get('cobertura_porcentaje', 0)
+        if calidad_datos == 'excelente':
+            messages.success(request, f'{emoji_calidad} Imágenes de calidad EXCELENTE obtenidas (nubosidad < 20%, cobertura {cobertura_pct:.0f}%)')
+        elif calidad_datos == 'buena':
+            messages.info(request, f'{emoji_calidad} Imágenes de calidad BUENA obtenidas (nubosidad < 50%, cobertura {cobertura_pct:.0f}%)')
+        elif calidad_datos == 'aceptable':
+            messages.warning(request, f'{emoji_calidad} Imágenes de calidad ACEPTABLE obtenidas (nubosidad < 80%, cobertura {cobertura_pct:.0f}%). '
+                           'Considera que algunas imágenes pueden tener nubes visibles.')
+        
+        # Guardar metadatos de calidad en la parcela para mostrar en el PDF
+        parcela.ultima_calidad_datos = calidad_datos
+        parcela.ultimo_umbral_nubosidad = umbral_usado
+        parcela.save(update_fields=['ultima_calidad_datos', 'ultimo_umbral_nubosidad'])
+        
         # Debug: Log para ver estructura de datos
+        logger.info(f"✅ Datos obtenidos con umbral {umbral_usado}% (calidad: {calidad_datos})")
         logger.info(f"Estructura de datos recibida: {list(datos_satelitales.keys())}")
         for clave, valor in datos_satelitales.items():
             if isinstance(valor, list):

@@ -1,3 +1,0 @@
-Token: VnTvPWbrpeNY9YXZDcSMd7HC8kE7mT5B
-URL: http://127.0.0.1:8000/informes/cliente/VnTvPWbrpeNY9YXZDcSMd7HC8kE7mT5B/
-Fecha: 29/12/2025 16:32:56

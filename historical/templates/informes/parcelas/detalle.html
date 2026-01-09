@@ -317,6 +317,26 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- ✨ Indicador de Calidad de Imágenes Satelitales -->
+                    {% if calidad_datos %}
+                    <div class="alert alert-{{ calidad_datos.clase_css }} d-flex align-items-center mb-3" role="alert" style="border-radius: 16px; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                        <div class="me-3" style="font-size: 1.8rem;">
+                            {% if calidad_datos.calidad == 'excelente' %}🌟
+                            {% elif calidad_datos.calidad == 'buena' %}☁️
+                            {% elif calidad_datos.calidad == 'aceptable' %}⚠️
+                            {% else %}📡{% endif %}
+                        </div>
+                        <div>
+                            <strong style="font-size: 0.95rem; display: block; margin-bottom: 4px;">Calidad de Imágenes</strong>
+                            <span style="font-size: 0.85rem;">{{ calidad_datos.mensaje }}</span>
+                            <div class="mt-1" style="font-size: 0.75rem; opacity: 0.8;">
+                                <i class="fas fa-info-circle"></i> Se selecciona automáticamente la mejor imagen por mes
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     {% else %}
                     <div class="info-card mb-3" style="border-left: 4px solid #ffc107; background: linear-gradient(135deg, #fffbf0 0%, #ffffff 100%);">
                         <div class="d-flex align-items-center p-3">

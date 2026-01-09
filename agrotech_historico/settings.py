@@ -79,9 +79,9 @@ WSGI_APPLICATION = "agrotech_historico.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": os.getenv('DATABASE_NAME', 'agrotech_historico'),
-        "USER": os.getenv('DATABASE_USER', 'agrotech_user'),
-        "PASSWORD": os.getenv('DATABASE_PASSWORD', 'agrotech_password'),
+        "NAME": os.getenv('DATABASE_NAME', 'historical'),  # Nombre correcto de la BD
+        "USER": os.getenv('DATABASE_USER', 'postgres'),  # Usuario por defecto de PostgreSQL
+        "PASSWORD": os.getenv('DATABASE_PASSWORD', 'agrotech'),  # Contraseña correcta
         "HOST": os.getenv('DATABASE_HOST', 'localhost'),
         "PORT": os.getenv('DATABASE_PORT', '5432'),
         "OPTIONS": {

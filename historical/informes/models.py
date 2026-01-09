@@ -112,6 +112,23 @@ class Parcela(gis_models.Model):
         help_text="Perímetro calculado automáticamente"
     )
     
+    # Metadatos de calidad de datos satelitales (última descarga)
+    ultima_calidad_datos = models.CharField(
+        max_length=20, null=True, blank=True,
+        choices=[
+            ('excelente', 'Excelente (< 20% nubosidad)'),
+            ('buena', 'Buena (< 50% nubosidad)'),
+            ('aceptable', 'Aceptable (< 80% nubosidad)'),
+        ],
+        verbose_name="Última Calidad de Datos",
+        help_text="Calidad de las últimas imágenes satelitales descargadas"
+    )
+    ultimo_umbral_nubosidad = models.IntegerField(
+        null=True, blank=True,
+        verbose_name="Último Umbral de Nubosidad Usado",
+        help_text="Umbral de nubosidad máximo usado en la última descarga (%)"
+    )
+    
     class Meta:
         verbose_name = "Parcela"
         verbose_name_plural = "Parcelas"

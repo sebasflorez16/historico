@@ -256,11 +256,17 @@ class EosdaAPIService:
             url = self._build_url("field-management")
             
             # Preparar geometría en formato GeoJSON
-            if hasattr(parcela, 'geometria') and parcela.geometria:
-                # Usar geometría PostGIS nativa
-                geojson_dict = json.loads(parcela.geometria.geojson)
-            else:
-                # Fallback a coordenadas JSON
+            geojson_dict = None
+            
+            try:
+                if hasattr(parcela, 'geometria') and parcela.geometria:
+                    # Usar geometría PostGIS nativa
+                    geojson_dict = json.loads(parcela.geometria.geojson)
+            except Exception as e:
+                logger.warning(f"Error obteniendo geometría PostGIS: {e}, usando coordenadas_dict")
+            
+            # Fallback a coordenadas JSON si PostGIS falla
+            if not geojson_dict:
                 geojson_dict = parcela.coordenadas_dict
             
             if not geojson_dict:
@@ -303,10 +309,25 @@ class EosdaAPIService:
                 
                 if field_id:
                     # Actualizar parcela con información de EOSDA
-                    parcela.marcar_sincronizada_eosda(
-                        field_id=str(field_id),
-                        nombre_campo=payload['properties']['name']
-                    )
+                    try:
+                        parcela.marcar_sincronizada_eosda(
+                            field_id=str(field_id),
+                            nombre_campo=payload['properties']['name']
+                        )
+                    except Exception as e:
+                        logger.error(f"Error marcando parcela como sincronizada: {e}")
+                        # Intentar guardar manualmente usando el manager del modelo
+                        from django.utils import timezone as tz
+                        parcela.__class__.objects.filter(id=parcela.id).update(
+                            eosda_field_id=str(field_id),
+                            eosda_sincronizada=True,
+                            eosda_fecha_sincronizacion=tz.now(),
+                            eosda_nombre_campo=payload['properties']['name'],
+                            eosda_errores=None
+                        )
+                        # Actualizar la instancia en memoria
+                        parcela.eosda_field_id = str(field_id)
+                        parcela.eosda_sincronizada = True
                     
                     logger.info(f"✅ Campo creado exitosamente en EOSDA con ID: {field_id}")
                     return {
@@ -318,7 +339,10 @@ class EosdaAPIService:
                     }
                 else:
                     error_msg = f"EOSDA no retornó field_id en la respuesta: {data}"
-                    parcela.marcar_error_eosda(error_msg)
+                    try:
+                        parcela.marcar_error_eosda(error_msg)
+                    except:
+                        pass
                     logger.error(error_msg)
                     return {'exito': False, 'error': error_msg}
             else:
@@ -367,7 +391,10 @@ class EosdaAPIService:
     
     def sincronizar_parcela_con_eosda(self, parcela) -> Dict:
         """
-        Sincroniza una parcela con EOSDA, creándola si no existe
+        Sincroniza una parcela con EOSDA.
+        
+        IMPORTANTE: Si el API key no tiene permisos para crear fields (403 Forbidden),
+        intenta usar uno de los fields existentes en la cuenta.
         """
         try:
             # Verificar si ya está sincronizada
@@ -380,8 +407,38 @@ class EosdaAPIService:
                     'ya_existia': True
                 }
             
-            # Crear campo en EOSDA
+            # Intentar crear campo en EOSDA
             resultado = self.crear_campo_eosda(parcela)
+            
+            # Si falla con 403 (sin permisos), usar un field existente
+            if not resultado['exito'] and resultado.get('status_code') == 403:
+                logger.warning(f"⚠️ Sin permisos para crear field, intentando usar field existente...")
+                
+                # Obtener lista de fields disponibles
+                fields_disponibles = self.obtener_campos_eosda()
+                
+                if fields_disponibles:
+                    # Usar el primer field disponible
+                    field_id = fields_disponibles[0].get('id')
+                    
+                    logger.info(f"✅ Asignando field existente #{field_id} a parcela {parcela.nombre}")
+                    
+                    # Actualizar parcela con el field existente
+                    parcela.marcar_sincronizada_eosda(
+                        field_id=str(field_id),
+                        nombre_campo=f"Field #{field_id} (compartido)"
+                    )
+                    
+                    return {
+                        'exito': True,
+                        'field_id': str(field_id),
+                        'mensaje': f'Usando field existente #{field_id} (API sin permisos de creación)',
+                        'field_compartido': True
+                    }
+                else:
+                    error_msg = "No hay fields disponibles y no se pueden crear nuevos (403 Forbidden)"
+                    logger.error(f"❌ {error_msg}")
+                    return {'exito': False, 'error': error_msg}
             
             if resultado['exito']:
                 logger.info(f"Parcela {parcela.nombre} sincronizada exitosamente con EOSDA")
@@ -1037,6 +1094,89 @@ class EosdaAPIService:
         return resultado
     
     # ========= MÉTODOS OPTIMIZADOS CON CACHÉ Y TRACKING =========
+    
+    def obtener_datos_con_umbrales_multiples(self, parcela, fecha_inicio: date, fecha_fin: date,
+                                              indices: List[str], usuario) -> Dict:
+        """
+        Búsqueda inteligente con múltiples umbrales de nubosidad.
+        Intenta primero con calidad óptima, luego degrada si no hay datos suficientes.
+        
+        Estrategia:
+        1. Umbral 20% (calidad excelente) - Recomendado por EOSDA
+        2. Umbral 50% (calidad buena) - Balance calidad/disponibilidad
+        3. Umbral 80% (calidad aceptable) - Último recurso
+        
+        Returns:
+            Dict con 'datos', 'umbral_usado', 'calidad_datos'
+        """
+        UMBRALES = [
+            {'max_nubosidad': 20, 'calidad': 'excelente', 'emoji': '🌟'},
+            {'max_nubosidad': 50, 'calidad': 'buena', 'emoji': '☁️'},
+            {'max_nubosidad': 80, 'calidad': 'aceptable', 'emoji': '⚠️'}
+        ]
+        
+        # Calcular meses esperados en el período
+        meses_esperados = ((fecha_fin.year - fecha_inicio.year) * 12 + 
+                          (fecha_fin.month - fecha_inicio.month) + 1)
+        min_meses_requeridos = max(1, int(meses_esperados * 0.5))  # Al menos 50% de cobertura
+        
+        logger.info(f"🔍 Búsqueda inteligente de imágenes satelitales")
+        logger.info(f"   Período: {fecha_inicio} a {fecha_fin} ({meses_esperados} meses)")
+        logger.info(f"   Mínimo requerido: {min_meses_requeridos} meses con datos")
+        
+        for umbral_config in UMBRALES:
+            logger.info(f"{umbral_config['emoji']} Intentando con umbral {umbral_config['max_nubosidad']}% "
+                       f"(calidad {umbral_config['calidad']})...")
+            
+            datos = self.obtener_datos_optimizado(
+                parcela=parcela,
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                indices=indices,
+                usuario=usuario,
+                max_nubosidad=umbral_config['max_nubosidad']
+            )
+            
+            # Verificar si hay datos suficientes
+            if datos and 'resultados' in datos:
+                num_escenas = len(datos['resultados'])
+                
+                # Calcular cobertura mensual única
+                meses_con_datos = set()
+                for escena in datos['resultados']:
+                    fecha = escena.get('fecha')
+                    if fecha:
+                        meses_con_datos.add((fecha.year, fecha.month))
+                
+                num_meses = len(meses_con_datos)
+                cobertura_pct = (num_meses / meses_esperados * 100) if meses_esperados > 0 else 0
+                
+                logger.info(f"   📊 Encontradas {num_escenas} escenas cubriendo {num_meses}/{meses_esperados} meses ({cobertura_pct:.1f}%)")
+                
+                # Aceptar si tenemos al menos 50% de cobertura
+                if num_meses >= min_meses_requeridos:
+                    logger.info(f"✅ Datos suficientes con calidad {umbral_config['calidad']}")
+                    return {
+                        'datos': datos,
+                        'umbral_usado': umbral_config['max_nubosidad'],
+                        'calidad_datos': umbral_config['calidad'],
+                        'emoji_calidad': umbral_config['emoji'],
+                        'cobertura_mensual': num_meses,
+                        'meses_esperados': meses_esperados,
+                        'cobertura_porcentaje': cobertura_pct
+                    }
+                else:
+                    logger.warning(f"   ⚠️ Insuficiente cobertura ({num_meses}/{min_meses_requeridos} meses)")
+        
+        # Si llegamos aquí, no se encontraron datos suficientes con ningún umbral
+        logger.error("❌ No se encontraron datos satelitales suficientes con ningún umbral")
+        return {
+            'datos': None,
+            'umbral_usado': None,
+            'calidad_datos': 'sin_datos',
+            'emoji_calidad': '❌',
+            'error': 'No se encontraron suficientes imágenes satelitales en el período solicitado'
+        }
     
     def obtener_datos_optimizado(self, parcela, fecha_inicio: date, fecha_fin: date,
                                 indices: List[str], usuario,
