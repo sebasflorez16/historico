@@ -1,6 +1,19 @@
 """
-Generador de Informes en PDF Profesionales
-Sistema completo de generación de reportes satelitales con logos AgroTech
+Generador de Informes Técnicos en PDF - AgroTech
+Sistema de Análisis Satelital Agrícola con Motor Determinístico
+
+MOTOR DE ANÁLISIS:
+- Procesamiento de índices espectrales (NDVI, NDMI, SAVI)
+- Análisis estadístico de series temporales
+- Detección de tendencias mediante regresión lineal
+- Evaluación de variabilidad espacial y temporal
+- Generación de recomendaciones agronómicas basadas en umbrales científicos
+
+FUENTES DE DATOS:
+- Imágenes satelitales Sentinel-2 (ESA)
+- Resolución espacial: 10-20 metros
+- Datos climáticos históricos
+- Metadatos de calidad de imagen
 """
 import os
 import re
@@ -23,7 +36,7 @@ from reportlab.pdfgen import canvas
 
 # Matplotlib para gráficos (usar backend no-GUI para evitar problemas con threads)
 import matplotlib
-matplotlib.use('Agg')  # ✅ Backend no-GUI, seguro para threads y servidores web
+matplotlib.use('Agg')  #  Backend no-GUI, seguro para threads y servidores web
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.figure import Figure
@@ -135,70 +148,84 @@ class GeneradorPDFProfesional:
         # Estilos
         self.estilos = self._crear_estilos()
     
+    def formato_mes_año_español(self, fecha: date) -> str:
+        """Formatea fecha en español (Enero 2025)"""
+        meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        return f"{meses[fecha.month]} {fecha.year}"
+    
     def _obtener_path_imagen_correcto(self, imagen_field):
-        """
-        Obtiene el path correcto de una imagen, manejando paths relativos y absolutos
-        """
+        """Obtiene el path correcto de una imagen, manejando paths relativos y absolutos"""
         if not imagen_field:
             return None
         
         try:
-            # Obtener el path string del campo
             path_str = str(imagen_field).strip()
-            
             if not path_str:
                 return None
             
-            # Lista de paths a probar en orden de prioridad
             paths_a_probar = []
             
-            # 1. Intentar obtener .path del campo ImageField
+            # Intentar obtener .path del campo ImageField
             try:
                 if hasattr(imagen_field, 'path'):
                     paths_a_probar.append(imagen_field.path)
             except:
                 pass
             
-            # 2. Si es una ruta relativa (como imagenes_satelitales/2025/12/ndvi/...)
+            # Si es una ruta relativa
             if not path_str.startswith('/'):
-                # Construir desde MEDIA_ROOT
+                # Desde MEDIA_ROOT
                 if hasattr(settings, 'MEDIA_ROOT'):
                     path_desde_media = os.path.join(settings.MEDIA_ROOT, path_str)
                     paths_a_probar.append(path_desde_media)
                 
-                # Construir desde BASE_DIR/media
+                # Desde BASE_DIR/media
                 path_desde_base = os.path.join(settings.BASE_DIR, 'media', path_str)
                 paths_a_probar.append(path_desde_base)
-            
-            # 3. Si contiene historical/media, corregir a media
-            if 'historical/media' in path_str:
-                path_corregido = path_str.replace('historical/media/', 'media/')
-                paths_a_probar.append(path_corregido)
-                
-                path_absoluto = os.path.join(settings.BASE_DIR, path_corregido)
-                paths_a_probar.append(path_absoluto)
-            
-            # 4. Path absoluto directo
-            if path_str.startswith('/'):
+            else:
+                # Path absoluto
                 paths_a_probar.append(path_str)
             
-            # Probar cada path hasta encontrar uno que exista
+            # Probar cada path
             for path in paths_a_probar:
-                if path and os.path.exists(path):
+                if os.path.exists(path):
                     return path
             
-            # Si ninguno existe, retornar None
             return None
             
         except Exception as e:
-            logger.warning(f"Error obteniendo path de imagen: {e}")
+            logger.warning(f"Error al obtener path de imagen: {e}")
             return None
     
-    def formato_mes_año_español(self, fecha: date) -> str:
-        """Formatea fecha en español (Enero 2025)"""
-        meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-        return f"{meses[fecha.month]} {fecha.year}"
+    def _evaluar_calidad_imagen(self, tipo_indice: str, valor_promedio: float, 
+                                valor_minimo: float, valor_maximo: float) -> Dict:
+        """Evalúa la calidad de una imagen según umbrales técnicos"""
+        if tipo_indice == 'NDVI':
+            if valor_promedio >= 0.6:
+                return {'etiqueta': 'Excelente', 'icono': '✓', 'color': '#4CAF50'}
+            elif valor_promedio >= 0.4:
+                return {'etiqueta': 'Bueno', 'icono': '~', 'color': '#FFC107'}
+            else:
+                return {'etiqueta': 'Bajo', 'icono': '!', 'color': '#F44336'}
+        
+        elif tipo_indice == 'NDMI':
+            if valor_promedio >= 0.3:
+                return {'etiqueta': 'Adecuado', 'icono': '✓', 'color': '#2196F3'}
+            elif valor_promedio >= 0.0:
+                return {'etiqueta': 'Moderado', 'icono': '~', 'color': '#FFC107'}
+            else:
+                return {'etiqueta': 'Bajo', 'icono': '!', 'color': '#F44336'}
+        
+        elif tipo_indice == 'SAVI':
+            if valor_promedio >= 0.4:
+                return {'etiqueta': 'Alto', 'icono': '✓', 'color': '#4CAF50'}
+            elif valor_promedio >= 0.2:
+                return {'etiqueta': 'Medio', 'icono': '~', 'color': '#FFC107'}
+            else:
+                return {'etiqueta': 'Bajo', 'icono': '!', 'color': '#F44336'}
+        
+        return {'etiqueta': 'N/D', 'icono': '?', 'color': '#999999'}
     
     def _decorar_seccion(self, img_name, height=1.2*cm):
         """Devuelve una banda decorativa para usar como separador de secciones"""
@@ -362,15 +389,12 @@ class GeneradorPDFProfesional:
         story.extend(self._crear_portada(parcela, fecha_inicio, fecha_fin))
         story.append(PageBreak())
         
-        # Resumen ejecutivo
-        story.extend(self._crear_resumen_ejecutivo(analisis_completo))
-        story.append(Spacer(1, 0.5*cm))
+        # Metodología de Análisis
+        story.extend(self._crear_seccion_metodologia(parcela, indices, analisis_completo))
         story.append(PageBreak())
         
-        # 📸 Galería de Imágenes Satelitales (si hay imágenes disponibles)
-        story.extend(self._crear_galeria_imagenes_satelitales(
-            parcela, indices
-        ))
+        # Resumen ejecutivo
+        story.extend(self._crear_resumen_ejecutivo(analisis_completo, parcela, datos_analisis))
         story.append(PageBreak())
         
         # Información de la parcela
@@ -400,8 +424,19 @@ class GeneradorPDFProfesional:
         story.extend(self._crear_tabla_datos(datos_analisis))
         story.append(PageBreak())
         
+        # Galería de imágenes satelitales
+        story.extend(self._crear_galeria_imagenes_satelitales(parcela, indices))
+        story.append(PageBreak())
+        
+        # Bloque de cierre conectando análisis con decisiones
+        story.extend(self._crear_bloque_cierre())
+        story.append(PageBreak())
+        
         # Página de créditos
         story.extend(self._crear_pagina_creditos())
+        
+        # Bloque de cierre
+        story.extend(self._crear_bloque_cierre())
         
         # Construir PDF con headers y footers
         doc.build(story, onFirstPage=self._crear_header_footer, 
@@ -419,14 +454,22 @@ class GeneradorPDFProfesional:
                 'ndvi': indice.ndvi_promedio,
                 'ndmi': indice.ndmi_promedio,
                 'savi': indice.savi_promedio,
-                'nubosidad_promedio': indice.nubosidad_promedio,
                 'temperatura': indice.temperatura_promedio,
                 'precipitacion': indice.precipitacion_total
             })
         return datos
     
     def _ejecutar_analisis(self, datos: List[Dict], parcela: Parcela, indices: List) -> Dict:
-        """Ejecuta todos los análisis, incluyendo Gemini AI"""
+        """
+        Ejecuta análisis técnico determinístico completo
+        
+        MOTOR DE ANÁLISIS:
+        1. Análisis espectral (NDVI, NDMI, SAVI)
+        2. Estadísticas descriptivas y distribución
+        3. Detección de tendencias temporales
+        4. Análisis de variabilidad espacial
+        5. Generación de recomendaciones basadas en umbrales científicos
+        """
         # Inicializar analizadores especializados
         analizador_ndvi = AnalizadorNDVI(tipo_cultivo=parcela.tipo_cultivo)
         analizador_ndmi = AnalizadorNDMI(tipo_cultivo=parcela.tipo_cultivo)
@@ -434,7 +477,7 @@ class GeneradorPDFProfesional:
         detector_tendencias = DetectorTendencias()
         generador_recomendaciones = GeneradorRecomendaciones(tipo_cultivo=parcela.tipo_cultivo)
         
-        # Ejecutar análisis especializados con motores dedicados
+        # Ejecutar análisis de índices espectrales
         analisis_ndvi = analizador_ndvi.analizar(datos)
         analisis_ndmi = analizador_ndmi.analizar(datos)
         analisis_savi = analizador_savi.analizar(datos) if any(d.get('savi') for d in datos) else None
@@ -442,7 +485,7 @@ class GeneradorPDFProfesional:
         # Análisis de tendencias temporales
         tendencias = detector_tendencias.analizar_temporal(datos, 'ndvi')
         
-        # Generación de recomendaciones agronómicas
+        # Generar recomendaciones agronómicas
         recomendaciones = generador_recomendaciones.generar_recomendaciones(
             analisis_ndvi, analisis_ndmi, analisis_savi, tendencias
         )
@@ -468,7 +511,7 @@ class GeneradorPDFProfesional:
         return graficos
     
     def _grafico_evolucion_temporal(self, datos: List[Dict]) -> BytesIO:
-        """Genera gráfico de evolución temporal con contexto histórico"""
+        """Genera gráfico de evolución temporal"""
         fig, ax = plt.subplots(figsize=(12, 6))
         
         # Configurar estilo
@@ -480,26 +523,18 @@ class GeneradorPDFProfesional:
         ndmi = [d.get('ndmi', 0) for d in datos]
         savi = [d.get('savi', 0) for d in datos]
         
-        # Calcular período para el título
-        if meses:
-            periodo_inicio = meses[0]
-            periodo_fin = meses[-1]
-            titulo_con_periodo = f'Evolución Histórica de Índices - Período {periodo_inicio} a {periodo_fin}'
-        else:
-            titulo_con_periodo = 'Evolución Temporal de Índices de Vegetación'
-        
         # Graficar
-        ax.plot(meses, ndvi, marker='o', linewidth=2.5, color='#2E8B57', label='NDVI = Vigor vegetal (salud y biomasa)', markersize=6)
-        ax.plot(meses, ndmi, marker='s', linewidth=2.5, color='#17a2b8', label='NDMI = Contenido de humedad', markersize=6)
+        ax.plot(meses, ndvi, marker='o', linewidth=2.5, color='#2E8B57', label='NDVI (Salud)', markersize=6)
+        ax.plot(meses, ndmi, marker='s', linewidth=2.5, color='#17a2b8', label='NDMI (Humedad)', markersize=6)
         if any(savi):
-            ax.plot(meses, savi, marker='^', linewidth=2.5, color='#FF7A00', label='SAVI = Cobertura vegetal real', markersize=6)
+            ax.plot(meses, savi, marker='^', linewidth=2.5, color='#FF7A00', label='SAVI (Cobertura)', markersize=6)
         
         # Configurar
-        ax.set_xlabel('Período Mensual', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Período', fontsize=12, fontweight='bold')
         ax.set_ylabel('Valor del Índice', fontsize=12, fontweight='bold')
-        ax.set_title(titulo_con_periodo, 
-                     fontsize=13, fontweight='bold', color='#2c3e50')
-        ax.legend(loc='best', fontsize=9, framealpha=0.95, edgecolor='gray')
+        ax.set_title('Evolución Temporal de Índices de Vegetación', 
+                     fontsize=14, fontweight='bold', color='#2c3e50')
+        ax.legend(loc='best', fontsize=10, framealpha=0.9)
         ax.grid(True, alpha=0.3, linestyle='--')
         
         # Rotar etiquetas
@@ -515,7 +550,7 @@ class GeneradorPDFProfesional:
         return buffer
     
     def _grafico_comparativo(self, datos: List[Dict]) -> BytesIO:
-        """Genera gráfico de barras comparativo con explicaciones claras"""
+        """Genera gráfico de barras comparativo"""
         fig, ax = plt.subplots(figsize=(10, 6))
         
         # Calcular promedios (filtrar None)
@@ -527,9 +562,7 @@ class GeneradorPDFProfesional:
         ndmi_prom = sum(ndmi_valores) / len(ndmi_valores) if ndmi_valores else 0
         savi_prom = sum(savi_valores) / len(savi_valores) if savi_valores else 0
         
-        num_meses = len(datos)
-        
-        indices = ['NDVI\n(Vigor vegetal)', 'NDMI\n(Humedad)', 'SAVI\n(Cobertura real)']
+        indices = ['NDVI\n(Salud)', 'NDMI\n(Humedad)', 'SAVI\n(Cobertura)']
         valores = [ndvi_prom, ndmi_prom, savi_prom]
         colores_barra = ['#2E8B57', '#17a2b8', '#FF7A00']
         
@@ -543,17 +576,13 @@ class GeneradorPDFProfesional:
                    f'{valor:.3f}',
                    ha='center', va='bottom', fontsize=12, fontweight='bold')
         
-        ax.set_ylabel('Valor Promedio Histórico', fontsize=12, fontweight='bold')
-        ax.set_title(f'Promedios de Índices durante el Período Analizado ({num_meses} meses)', 
-                    fontsize=13, fontweight='bold', color='#2c3e50')
-        ax.set_ylim(0, max(valores) * 1.2 if valores else 1)
+        ax.set_ylabel('Valor Promedio', fontsize=12, fontweight='bold')
+        ax.set_title('Comparación de Índices - Promedio del Período', 
+                    fontsize=14, fontweight='bold', color='#2c3e50')
+        ax.set_ylim(0, max(valores) * 1.2)
         ax.grid(axis='y', alpha=0.3)
         
-        # Nota explicativa
-        nota = 'Estos valores representan el promedio histórico de cada índice durante todo el período'
-        fig.text(0.5, 0.02, nota, ha='center', fontsize=9, style='italic', color='gray')
-        
-        plt.tight_layout(rect=[0, 0.03, 1, 1])  # Dejar espacio para la nota
+        plt.tight_layout()
         
         buffer = BytesIO()
         plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
@@ -600,14 +629,30 @@ class GeneradorPDFProfesional:
                 elements.append(titulo_logo)
                 elements.append(Spacer(1, 0.5*cm))
         
-        # === TÍTULO PRINCIPAL MODERNO (sin imagen aquí, se usa en otras secciones) ===
-        titulo_principal = Paragraph(
-            '<para align="center">'
-            '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
-            '</para>',
-            self.estilos['TituloPortada']
-        )
-        elements.append(titulo_principal)
+        # === TÍTULO PRINCIPAL MODERNO CON IMAGEN DECORATIVA AL LADO (2.png) ===
+        titulo_img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '2.png')
+        if os.path.exists(titulo_img_path):
+            titulo_principal = Paragraph(
+                '<para align="left">'
+                '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
+                '</para>',
+                self.estilos['TituloPortada']
+            )
+            img_titulo = Image(titulo_img_path, width=3*cm, height=3*cm, kind='proportional')
+            tabla_titulo = Table([[titulo_principal, img_titulo]], colWidths=[12*cm, 3*cm])
+            tabla_titulo.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ]))
+            elements.append(tabla_titulo)
+        else:
+            titulo_principal = Paragraph(
+                '<para align="center">'
+                '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
+                '</para>',
+                self.estilos['TituloPortada']
+            )
+            elements.append(titulo_principal)
         elements.append(Spacer(1, 0.3*cm))
         
         subtitulo = Paragraph(
@@ -617,6 +662,15 @@ class GeneradorPDFProfesional:
             self.estilos['TextoNormal']
         )
         elements.append(subtitulo)
+        # Banda decorativa bajo el título (3.png)
+        banda_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '3.png')
+        if os.path.exists(banda_path):
+            try:
+                banda = Image(banda_path, width=15*cm, height=1.2*cm, kind='proportional')
+                banda.hAlign = 'CENTER'
+                elements.append(banda)
+            except Exception as e:
+                logger.warning(f"No se pudo cargar banda decorativa portada: {e}")
         elements.append(Spacer(1, 1.2*cm))
         
         # === CARD FLOTANTE MINIMALISTA CON INFO ===
@@ -653,12 +707,21 @@ class GeneradorPDFProfesional:
         tabla_card.hAlign = 'CENTER'
         elements.append(tabla_card)
         elements.append(Spacer(1, 2*cm))
+        # Imagen decorativa inferior portada (4.png)
+        img_inf_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '4.png')
+        if os.path.exists(img_inf_path):
+            try:
+                img_inf = Image(img_inf_path, width=15*cm, height=2*cm, kind='proportional')
+                img_inf.hAlign = 'CENTER'
+                elements.append(img_inf)
+            except Exception as e:
+                logger.warning(f"No se pudo cargar imagen inferior portada: {e}")
         
         # === PIE DE PORTADA MINIMALISTA ===
         pie = Paragraph(
             '<para align="center">'
             '<font size="9" color="#888888">'
-            'Informe generado automáticamente · Tecnología Satelital EOSDA<br/>'
+            'Informe Técnico de Análisis Satelital<br/>'
             f'<strong>{datetime.now().strftime("%d de %B de %Y")}</strong>'
             '</font>'
             '</para>',
@@ -666,18 +729,19 @@ class GeneradorPDFProfesional:
         )
         elements.append(pie)
         return elements
-        def _decorar_seccion(self, img_name, height=1.2*cm):
-            """Devuelve una banda decorativa para usar como separador de secciones"""
-            from reportlab.platypus import Image
-            img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
-            if os.path.exists(img_path):
-                try:
-                    banda = Image(img_path, width=15*cm, height=height, kind='proportional')
-                    banda.hAlign = 'CENTER'
-                    return [banda, Spacer(1, 0.2*cm)]
-                except Exception as e:
-                    logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
-            return []
+    
+    def _decorar_seccion(self, img_name, height=1.2*cm):
+        """Devuelve una banda decorativa para usar como separador de secciones"""
+        from reportlab.platypus import Image
+        img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
+        if os.path.exists(img_path):
+            try:
+                banda = Image(img_path, width=15*cm, height=height, kind='proportional')
+                banda.hAlign = 'CENTER'
+                return [banda, Spacer(1, 0.2*cm)]
+            except Exception as e:
+                logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
+        return []
     
     def _crear_header_footer(self, canvas_obj, doc):
         """Crea header y footer en cada página"""
@@ -711,125 +775,352 @@ class GeneradorPDFProfesional:
     
     # Continúo en el siguiente mensaje con las secciones del informe...
     
-    def _crear_resumen_ejecutivo(self, analisis: Dict) -> List:
-        """Crea resumen ejecutivo del informe, priorizando análisis de Gemini AI"""
+    def _crear_seccion_metodologia(self, parcela: Parcela, indices: List[IndiceMensual], analisis: Dict) -> List:
+        """
+        Crea la sección de Metodología de Análisis con explicación detallada del motor técnico
+        """
         elements = []
-        # Decoración superior (5.png)
+        
+        # Decoración superior
         elements.extend(self._decorar_seccion('5.png', height=1*cm))
-        # Título
-        titulo = Paragraph("📊 Resumen Ejecutivo", self.estilos['TituloSeccion'])
+        
+        # Título de la sección
+        titulo = Paragraph("Metodología de Análisis", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
-        # 🤖 SI HAY ANÁLISIS DE GEMINI, USARLO
-        if analisis.get('gemini') and not analisis['gemini'].get('error'):
-            gemini_data = analisis['gemini']
-            
-            # Añadir indicador de análisis IA
-            badge_ia = Paragraph(
-                '<para alignment="right"><font color="#17a2b8"><b>🤖 Análisis generado con Gemini AI</b></font></para>',
-                self.estilos['TextoNormal']
-            )
-            elements.append(badge_ia)
-            elements.append(Spacer(1, 0.3*cm))
-            
-            # Resumen ejecutivo de Gemini
-            resumen_gemini = gemini_data.get('resumen_ejecutivo', '')
-            if resumen_gemini:
-                # Limpiar y formatear texto
-                resumen_texto = resumen_gemini.replace('\n', '<br/>')
-                resumen_texto = limpiar_html_completo(resumen_texto)
-                
-                resumen = Paragraph(resumen_texto, self.estilos['TextoNormal'])
-                elements.append(resumen)
-                elements.append(Spacer(1, 0.5*cm))
-            
-            # Agregar métricas básicas tradicionales como complemento
-            ndvi_punt = analisis['ndvi'].get('puntuacion', 0)
-            ndmi_punt = analisis['ndmi'].get('puntuacion', 0)
-            promedio_general = (ndvi_punt + ndmi_punt) / 2
-            
-            metricas_complemento = f"""
-<para alignment="left"><font size="9" color="#666666">
-<b>Métricas Cuantitativas:</b><br/>
-• Puntuación General: {promedio_general:.1f}/10<br/>
-• NDVI: {analisis['ndvi']['estadisticas']['promedio']:.3f} ({analisis['ndvi']['estado']['etiqueta']})<br/>
-• NDMI: {analisis['ndmi']['estadisticas']['promedio']:.3f} ({analisis['ndmi']['estado']['etiqueta']})<br/>
-• Tendencia: {analisis['tendencias'].get('tendencia_lineal', {}).get('direccion', 'estable').title()} 
-  ({analisis['tendencias'].get('tendencia_lineal', {}).get('cambio_porcentual', 0):+.1f}%)
-</font></para>
-"""
-            complemento = Paragraph(metricas_complemento, self.estilos['TextoNormal'])
-            elements.append(complemento)
-            
-        else:
-            # FALLBACK: Usar análisis tradicional mejorado y dinámico
-            if analisis.get('gemini') and analisis['gemini'].get('error'):
-                logger.warning(f"⚠️ Error en Gemini, usando análisis tradicional mejorado")
-            
-            # Calcular valores del período completo
-            from informes.models import IndiceMensual
-            indices_periodo = IndiceMensual.objects.filter(
-                parcela=analisis.get('parcela')
-            ).order_by('-año', '-mes') if analisis.get('parcela') else []
-            
-            temp_valores = [idx.temperatura_promedio for idx in indices_periodo if idx.temperatura_promedio]
-            precip_valores = [idx.precipitacion_total for idx in indices_periodo if idx.precipitacion_total]
-            
-            temp_prom_periodo = sum(temp_valores) / len(temp_valores) if temp_valores else None
-            precip_total_periodo = sum(precip_valores) if precip_valores else None
-            
-            # Puntuaciones tradicionales
-            ndvi_punt = analisis['ndvi'].get('puntuacion', 0)
-            ndmi_punt = analisis['ndmi'].get('puntuacion', 0)
-            promedio_general = (ndvi_punt + ndmi_punt) / 2
-            
-            # Identificar alertas críticas
-            alertas_criticas = [r for r in analisis['recomendaciones'] if r['prioridad'] == 'alta']
-            tiene_alertas = len(alertas_criticas) > 0
-            
-            # Texto dinámico basado en condiciones reales
-            if promedio_general >= 8:
-                conclusion = "El cultivo presenta <b>excelente estado general</b> en el período analizado."
-            elif promedio_general >= 6:
-                conclusion = "El cultivo muestra <b>buen desempeño</b> con algunas áreas de mejora identificadas."
-            elif promedio_general >= 4:
-                conclusion = "El cultivo presenta <b>estado moderado</b> que requiere atención en ciertas áreas."
-            else:
-                conclusion = "El cultivo muestra <b>signos de estrés</b> que requieren intervención inmediata."
-            
-            resumen_texto = f"""
-<b>📊 ESTADO DEL CULTIVO</b><br/>
-{conclusion}<br/><br/>
-
-<b>Puntuación General del Cultivo: {promedio_general:.1f}/10</b><br/><br/>
-
-<b>🌱 Estado de Salud Vegetal (NDVI):</b> {analisis['ndvi']['estado']['etiqueta']} 
-({analisis['ndvi']['estadisticas']['promedio']:.3f}) - Puntuación: <font color="{'green' if ndvi_punt >= 7 else 'orange' if ndvi_punt >= 5 else 'red'}">
-{ndvi_punt}/10</font><br/>
-
-<b>💧 Estado Hídrico (NDMI):</b> {analisis['ndmi']['estado']['etiqueta']} 
-({analisis['ndmi']['estadisticas']['promedio']:.3f}) - Puntuación: <font color="{'green' if ndmi_punt >= 7 else 'orange' if ndmi_punt >= 5 else 'red'}">
-{ndmi_punt}/10</font><br/><br/>
-
-{f'<b>🌡️ CONDICIONES CLIMÁTICAS DEL PERÍODO</b><br/>• Temperatura promedio: <b>{temp_prom_periodo:.1f}°C</b><br/>• Precipitación acumulada: <b>{precip_total_periodo:.1f} mm</b><br/><br/>' if temp_prom_periodo or precip_total_periodo else ''}
-
-<b>📈 Tendencia General:</b> {analisis['tendencias'].get('tendencia_lineal', {}).get('direccion', 'estable').title()} 
-({analisis['tendencias'].get('tendencia_lineal', {}).get('cambio_porcentual', 0):+.1f}%)<br/><br/>
-
-{'<b><font color="red">⚠️ ALERTAS:</font></b> ' + str(len(alertas_criticas)) + ' situaciones críticas requieren atención inmediata.' if tiene_alertas else '<font color="green">✅ No se detectaron situaciones críticas.</font>'}
-"""
-            
-            resumen = Paragraph(resumen_texto, self.estilos['TextoNormal'])
-            elements.append(resumen)
+        # Introducción
+        intro = Paragraph(
+            """
+            <strong>El presente informe se basa en el Motor de Análisis Automatizado AgroTech, un sistema 
+            de análisis satelital determinístico que procesa imágenes satelitales de alta resolución y aplica 
+            algoritmos científicamente validados para evaluar la condición del terreno, ya sea con cultivos establecidos 
+            o en evaluación para planificación agrícola y primera siembra.</strong>
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(intro)
+        elements.append(Spacer(1, 0.4*cm))
         
+        # 1. Fuentes de Datos
+        subtitulo1 = Paragraph("<strong>1. Fuentes de Datos Satelitales</strong>", self.estilos['SubtituloSeccion'])
+        elements.append(subtitulo1)
+        elements.append(Spacer(1, 0.2*cm))
+        
+        texto_fuentes = Paragraph(
+            """
+            • <strong>Satélite:</strong> Sentinel-2 (ESA - Agencia Espacial Europea)<br/>
+            • <strong>Resolución espacial:</strong> 10-20 metros por píxel<br/>
+            • <strong>Frecuencia de captura:</strong> Cada 5-10 días (sujeto a condiciones atmosféricas)<br/>
+            • <strong>Bandas espectrales utilizadas:</strong> Rojo (B4), Infrarrojo cercano (B8), Infrarrojo de onda corta (B11, B12)<br/>
+            • <strong>Validación de calidad:</strong> Se filtran imágenes con nubosidad superior al 20%
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(texto_fuentes)
+        elements.append(Spacer(1, 0.4*cm))
+        
+        # 2. Índices Espectrales Calculados
+        subtitulo2 = Paragraph("<strong>2. Índices Espectrales Calculados</strong>", self.estilos['SubtituloSeccion'])
+        elements.append(subtitulo2)
+        elements.append(Spacer(1, 0.2*cm))
+        
+        # Tabla de índices
+        datos_indices = [
+            [
+                Paragraph('<b>Índice</b>', self.estilos['TextoNormal']),
+                Paragraph('<b>Fórmula</b>', self.estilos['TextoNormal']),
+                Paragraph('<b>Interpretación</b>', self.estilos['TextoNormal']),
+                Paragraph('<b>Umbrales</b>', self.estilos['TextoNormal'])
+            ],
+            [
+                Paragraph('<b>NDVI</b><br/>(Vigor Vegetal)', self.estilos['TextoNormal']),
+                Paragraph('(NIR - Red) / (NIR + Red)', self.estilos['TextoNormal']),
+                Paragraph('Mide la cantidad y salud de la vegetación presente. Valores altos indican vegetación densa y saludable, o potencial productivo en terrenos sin cultivo.', self.estilos['TextoNormal']),
+                Paragraph('&lt; 0.2: Suelo desnudo<br/>0.2-0.4: Vegetación escasa<br/>0.4-0.6: Vegetación moderada<br/>&gt; 0.6: Vegetación densa', self.estilos['TextoNormal'])
+            ],
+            [
+                Paragraph('<b>NDMI</b><br/>(Humedad)', self.estilos['TextoNormal']),
+                Paragraph('(NIR - SWIR) / (NIR + SWIR)', self.estilos['TextoNormal']),
+                Paragraph('Evalúa el contenido de humedad en la vegetación o suelo. Fundamental para detectar estrés hídrico o condiciones de humedad del terreno.', self.estilos['TextoNormal']),
+                Paragraph('&lt; 0.2: Estrés hídrico severo<br/>0.2-0.4: Estrés moderado<br/>0.4-0.6: Humedad adecuada<br/>&gt; 0.6: Alta humedad', self.estilos['TextoNormal'])
+            ],
+            [
+                Paragraph('<b>SAVI</b><br/>(Cobertura)', self.estilos['TextoNormal']),
+                Paragraph('(NIR - Red) / (NIR + Red + L) × (1 + L)<br/>L = 0.5', self.estilos['TextoNormal']),
+                Paragraph('Ajusta el NDVI para áreas con cobertura vegetal parcial o suelo expuesto, proporcionando una estimación indirecta y relativa de la cobertura.', self.estilos['TextoNormal']),
+                Paragraph('&lt; 0.2: Suelo predominante<br/>0.2-0.4: Cobertura baja<br/>0.4-0.6: Cobertura moderada<br/>&gt; 0.6: Cobertura alta', self.estilos['TextoNormal'])
+            ]
+        ]
+        
+        tabla_indices = Table(datos_indices, colWidths=[3*cm, 3.5*cm, 5.5*cm, 4*cm])
+        tabla_indices.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, 0), self.colores['verde_principal']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.colores['gris_claro']]),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        elements.append(tabla_indices)
+        elements.append(Spacer(1, 0.4*cm))
+        
+        # 3. Procesamiento y Análisis
+        subtitulo3 = Paragraph("<strong>3. Procesamiento y Análisis de Datos</strong>", self.estilos['SubtituloSeccion'])
+        elements.append(subtitulo3)
+        elements.append(Spacer(1, 0.2*cm))
+        
+        texto_procesamiento = Paragraph(
+            """
+            <strong>a) Análisis Estadístico:</strong> Para cada índice se calculan estadísticas descriptivas mensuales 
+            (promedio, mínimo, máximo, desviación estándar) que permiten identificar la variabilidad espacial dentro 
+            de la parcela.<br/><br/>
+            
+            <strong>b) Análisis Temporal:</strong> Se aplica regresión lineal para detectar tendencias a lo largo del 
+            período analizado, identificando si hay mejora, deterioro o estabilidad en los índices.<br/><br/>
+            
+            <strong>c) Análisis de Variabilidad:</strong> Se evalúa el coeficiente de variación (CV) para determinar 
+            la homogeneidad espacial del cultivo. CV < 15% indica alta homogeneidad.<br/><br/>
+            
+            <strong>d) Detección de Anomalías:</strong> Se identifican valores atípicos que pueden indicar problemas 
+            localizados (plagas, deficiencias nutricionales, problemas de riego).<br/><br/>
+            
+            <strong>e) Análisis Cruzado:</strong> Se correlacionan los diferentes índices para obtener una visión 
+            integral. Por ejemplo, NDVI bajo + NDMI bajo puede indicar estrés hídrico.
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(texto_procesamiento)
+        elements.append(Spacer(1, 0.4*cm))
+        
+        # 4. Generación de Recomendaciones
+        subtitulo4 = Paragraph("<strong>4. Generación de Recomendaciones Agronómicas</strong>", self.estilos['SubtituloSeccion'])
+        elements.append(subtitulo4)
+        elements.append(Spacer(1, 0.2*cm))
+        
+        texto_recomendaciones = Paragraph(
+            """
+            Las recomendaciones se generan mediante un motor de reglas basado en:<br/><br/>
+            
+            • <strong>Umbrales científicos:</strong> Valores de referencia validados en literatura agronómica<br/>
+            • <strong>Tipo de cultivo:</strong> Adaptación de umbrales según la especie cultivada<br/>
+            • <strong>Contexto temporal:</strong> Consideración de la época del año y ciclo fenológico<br/>
+            • <strong>Tendencias detectadas:</strong> Priorización de problemas emergentes o recurrentes<br/>
+            • <strong>Análisis multivariado:</strong> Combinación de múltiples índices para diagnósticos precisos
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(texto_recomendaciones)
+        elements.append(Spacer(1, 0.4*cm))
+        
+        # 5. Resumen del Período Analizado
+        subtitulo5 = Paragraph("<strong>5. Datos del Período Analizado</strong>", self.estilos['SubtituloSeccion'])
+        elements.append(subtitulo5)
+        elements.append(Spacer(1, 0.2*cm))
+        
+        # Calcular estadísticas del período
+        total_imagenes = len(indices)
+        imagenes_con_ndvi = sum(1 for idx in indices if idx.ndvi_promedio is not None)
+        imagenes_con_ndmi = sum(1 for idx in indices if idx.ndmi_promedio is not None)
+        imagenes_con_savi = sum(1 for idx in indices if idx.savi_promedio is not None)
+        nubosidad_promedio = sum(idx.nubosidad_imagen or 0 for idx in indices) / total_imagenes if total_imagenes > 0 else 0
+        
+        datos_periodo = [
+            ['Total de imágenes procesadas', str(total_imagenes)],
+            ['Imágenes con NDVI válido', f"{imagenes_con_ndvi} ({imagenes_con_ndvi/total_imagenes*100:.1f}%)" if total_imagenes > 0 else "0"],
+            ['Imágenes con NDMI válido', f"{imagenes_con_ndmi} ({imagenes_con_ndmi/total_imagenes*100:.1f}%)" if total_imagenes > 0 else "0"],
+            ['Imágenes con SAVI válido', f"{imagenes_con_savi} ({imagenes_con_savi/total_imagenes*100:.1f}%)" if total_imagenes > 0 else "0"],
+            ['Nubosidad promedio', f"{nubosidad_promedio:.1f}%"],
+            ['Tipo de cultivo', parcela.tipo_cultivo or 'No especificado'],
+            ['Extensión analizada', f"{parcela.area_hectareas:.2f} hectáreas"]
+        ]
+        
+        tabla_periodo = Table(datos_periodo, colWidths=[7*cm, 8*cm])
+        tabla_periodo.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
+            ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#2c3e50')),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#2E8B57')),
+            ('BACKGROUND', (1, 0), (1, -1), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2E8B57')),
+            ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#E0E0E0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (0, -1), 15),
+            ('RIGHTPADDING', (0, 0), (0, -1), 10),
+            ('LEFTPADDING', (1, 0), (1, -1), 15),
+        ]))
+        elements.append(tabla_periodo)
+        elements.append(Spacer(1, 0.5*cm))
+        
+        # Nota final
+        nota = Paragraph(
+            """
+            <font size="9" color="#666666"><i>
+            <strong>Nota:</strong> Esta metodología se basa en estándares internacionales de teledetección aplicada 
+            a la agricultura de precisión. Los algoritmos utilizados han sido validados por instituciones científicas 
+            y agencias espaciales como la ESA (European Space Agency) y NASA.
+            </i></font>
+            """,
+            self.estilos['TextoNormal']
+        )
+        tabla_nota = Table([[nota]], colWidths=[15*cm])
+        tabla_nota.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#e3f2fd')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#2196F3')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 15),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+        ]))
+        elements.append(tabla_nota)
+        
+        return elements
+    
+    def _crear_resumen_ejecutivo(self, analisis: Dict, parcela: Parcela, datos: List[Dict]) -> List:
+        """Crea resumen ejecutivo del informe basado en análisis técnico determinístico"""
+        elements = []
+        # Decoración superior
+        elements.extend(self._decorar_seccion('6.png', height=1*cm))
+        # Título
+        titulo = Paragraph("Resumen Ejecutivo", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Conclusión rápida para el productor
+        conclusion = Paragraph(
+            """
+            <strong>Conclusión rápida para el productor:</strong><br/>
+            Este informe proporciona un análisis detallado de las condiciones del terreno analizado, 
+            útil tanto para cultivos establecidos como para terrenos en evaluación para primera siembra. 
+            Se recomienda priorizar las acciones sugeridas en las secciones de recomendaciones 
+            para optimizar el manejo y minimizar riesgos.
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(conclusion)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Obtener valores numéricos para mejorar la narrativa
+        ndvi_prom = analisis['ndvi'].get('estadisticas', {}).get('promedio', 0)
+        ndmi_prom = analisis['ndmi'].get('estadisticas', {}).get('promedio', 0)
+        savi_prom = analisis['savi'].get('estadisticas', {}).get('promedio', 0) if analisis.get('savi') else 0
+        
+        # Obtener descripciones de tendencias (sin corchetes ni estructuras JSON)
+        ndvi_tend = analisis['ndvi'].get('interpretacion_simple', 'Sin datos suficientes')
+        ndmi_tend = analisis['ndmi'].get('interpretacion_simple', 'Sin datos suficientes')
+        savi_tend = analisis['savi'].get('interpretacion_simple', 'Sin datos suficientes') if analisis.get('savi') else 'Sin datos suficientes'
+        
+        # Limpiar HTML de las tendencias
+        ndvi_tend = limpiar_html_completo(ndvi_tend)
+        ndmi_tend = limpiar_html_completo(ndmi_tend)
+        savi_tend = limpiar_html_completo(savi_tend)
+        
+        # Resumen de análisis con texto claro y sin estructuras técnicas
+        resumen_texto = f"""
+            Durante el período analizado (de {datos[0]['periodo']} a {datos[-1]['periodo']}), 
+            los índices de vegetación presentaron los siguientes comportamientos:<br/><br/>
+            
+            <strong>NDVI (Salud Vegetal):</strong> Valor promedio de {ndvi_prom:.3f}. {ndvi_tend}<br/><br/>
+            
+            <strong>NDMI (Condición Hídrica):</strong> Valor promedio de {ndmi_prom:.3f}. {ndmi_tend}<br/><br/>
+            
+            <strong>SAVI (Cobertura del Suelo):</strong> Valor promedio de {savi_prom:.3f}. {savi_tend}<br/>
+            """
+        
+        resumen = Paragraph(resumen_texto, self.estilos['TextoNormal'])
+        elements.append(resumen)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Declaración de validez del informe
+        validez = Paragraph(
+            """
+            <i>Este informe es válido como herramienta de evaluación y planificación agrícola, 
+            basado en datos satelitales y análisis automatizado proporcionado por el Motor de Análisis 
+            Automatizado AgroTech.</i>
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(validez)
+        elements.append(Spacer(1, 0.5*cm))
+
+        return elements
+
+    def _crear_seccion_precipitacion(self, datos: List[Dict]) -> List:
+        """Crea sección de análisis de precipitación con aclaración explícita"""
+        elements = []
+        titulo = Paragraph("Análisis de Precipitación", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Aclaración explícita sobre cómo interpretar los datos
+        aclaracion = Paragraph(
+            """
+            <strong>Nota aclaratoria:</strong> Los valores de precipitación que se presentan en este informe corresponden 
+            al <strong>total mensual acumulado</strong> para cada período analizado. Estos datos provienen de fuentes climáticas 
+            satelitales y permiten evaluar la disponibilidad de agua en el terreno a lo largo del tiempo.
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(aclaracion)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Gráfico de precipitación
+        grafico = self._generar_grafico_precipitacion(datos)
+        elements.append(grafico)
+
+        return elements
+
+    def _crear_seccion_lai(self, analisis: Dict) -> List:
+        """Crea sección de análisis LAI con interpretación ajustada"""
+        elements = []
+        titulo = Paragraph("Análisis LAI (Índice de Área Foliar)", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Interpretación ajustada y suavizada
+        interpretacion = Paragraph(
+            """
+            El Índice de Área Foliar (LAI) y la cobertura vegetal presentados a continuación son 
+            <strong>estimaciones indicativas y relativas</strong>, derivadas de los datos satelitales disponibles. 
+            Estos valores permiten evaluar de forma aproximada la densidad y distribución de la vegetación en el 
+            terreno analizado, útiles como referencia comparativa a lo largo del tiempo.
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(interpretacion)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Datos del análisis
+        datos_lai = Paragraph(
+            f"""
+            <strong>LAI Promedio Estimado:</strong> {analisis['lai_promedio']:.2f}<br/>
+            <strong>Cobertura Vegetal Estimada:</strong> {analisis['cobertura_estimada']}%
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(datos_lai)
+
         return elements
     
     def _crear_info_parcela(self, parcela: Parcela) -> List:
         """Crea sección de información de la parcela"""
         elements = []
         
-        titulo = Paragraph("📍 Información de la Parcela", self.estilos['TituloSeccion'])
+        titulo = Paragraph("Información de la Parcela", self.estilos['TituloSeccion'])
         elements.append(titulo)
         
         # Coordenadas del centroide
@@ -854,127 +1145,247 @@ class GeneradorPDFProfesional:
         
         return elements
     
-    def _crear_seccion_ndvi(self, analisis: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis NDVI - Resumen del período completo"""
+    def _crear_tabla_datos(self, datos: List[Dict]) -> List:
+        """Crea tabla con datos mensuales"""
         elements = []
-        
-        titulo = Paragraph("🌱 Análisis NDVI - Vigor Vegetal (Todo el Período)", self.estilos['TituloSeccion'])
+        titulo = Paragraph("Tabla de Datos Mensuales", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
-        # Resumen del período
-        estado = analisis['estado']
-        ndvi_promedio = analisis['estadisticas']['promedio']
-        ndvi_min = analisis['estadisticas'].get('minimo', 0)
-        ndvi_max = analisis['estadisticas'].get('maximo', 1)
+        # Nota aclaratoria sobre precipitación
+        nota_precip = Paragraph(
+            '<strong>Nota:</strong> La precipitación corresponde al total acumulado mensual estimado para la zona de la parcela.',
+            self.estilos['TextoNormal']
+        )
+        elements.append(nota_precip)
+        elements.append(Spacer(1, 0.3*cm))
         
+        # Preparar datos para la tabla
+        tabla_data = [['Período', 'NDVI', 'NDMI', 'SAVI', 'Temp (°C)', 'Precip (mm)']]
+        for d in datos:
+            tabla_data.append([
+                d['periodo'],
+                f"{d.get('ndvi', 0):.3f}" if d.get('ndvi') else 'N/D',
+                f"{d.get('ndmi', 0):.3f}" if d.get('ndmi') else 'N/D',
+                f"{d.get('savi', 0):.3f}" if d.get('savi') else 'N/D',
+                f"{d.get('temperatura', 0):.1f}" if d.get('temperatura') else 'N/D',
+                f"{d.get('precipitacion', 0):.1f}" if d.get('precipitacion') else 'N/D'
+            ])
+        
+        tabla = Table(tabla_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
+        tabla.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BACKGROUND', (0, 0), (-1, 0), self.colores['verde_principal']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, self.colores['gris_claro']]),
+        ]))
+        elements.append(tabla)
+        
+        return elements
+    
+    def _crear_pagina_creditos(self) -> List:
+        """Crea página de créditos"""
+        elements = []
+        titulo = Paragraph("Créditos", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+        
+        creditos_texto = """
+<strong>Sistema AgroTech - Análisis Satelital Agrícola</strong><br/><br/>
+<strong>Fuente de Datos Satelitales:</strong> Sentinel-2 (ESA)<br/>
+<strong>Motor de Análisis:</strong> Motor de Análisis Automatizado AgroTech<br/>
+<strong>Procesamiento:</strong> Python + Django + GeoDjango<br/>
+<strong>Visualización:</strong> ReportLab + Matplotlib<br/><br/>
+<i>Este informe ha sido generado automáticamente utilizando datos satelitales de alta resolución 
+y algoritmos científicamente validados para el análisis de vegetación.</i>
+"""
+        creditos = Paragraph(creditos_texto, self.estilos['TextoNormal'])
+        elements.append(creditos)
+        
+        return elements
+    
+    def _crear_seccion_ndvi(self, analisis_ndvi: Dict, graficos: Dict) -> List:
+        """Crea sección de análisis NDVI"""
+        elements = []
+        # Título
+        titulo = Paragraph("Análisis NDVI", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Estado
+        estado = analisis_ndvi['estado']
         estado_texto = f"""
-<strong>Estado Promedio:</strong> {estado['icono']} {estado['etiqueta']}<br/>
-<strong>NDVI Promedio del Período:</strong> {ndvi_promedio:.3f}<br/>
-<strong>Rango Observado:</strong> {ndvi_min:.3f} - {ndvi_max:.3f}<br/>
-<strong>Puntuación:</strong> {analisis['puntuacion']}/10<br/>
+<strong>Estado General:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
+<strong>NDVI Promedio:</strong> {analisis_ndvi['estadisticas']['promedio']:.3f}<br/>
+<strong>Puntuación:</strong> {analisis_ndvi.get('puntuacion', 0)}/10 
+<i>(métrica relativa interna AgroTech basada en umbrales históricos del índice)</i><br/>
 """
         elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
         
-        # ¿Qué mide NDVI?
-        que_es = Paragraph(
-            "<strong>¿Qué mide el NDVI?</strong> El NDVI (Normalized Difference Vegetation Index) mide el <b>vigor vegetal</b> "
-            "y la cantidad de biomasa verde activa. Valores >0.7 indican vegetación densa y saludable, "
-            "valores <0.4 sugieren estrés o baja cobertura.",
-            self.estilos['TextoNormal']
-        )
-        elements.append(que_es)
+        # Interpretación técnica - LIMPIADO
+        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
+        interpretacion_limpia = limpiar_html_completo(analisis_ndvi['interpretacion_tecnica'])
+        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
         elements.append(Spacer(1, 0.5*cm))
         
-        # Interpretación técnica del período completo - LIMPIADO
-        interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
-        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
+        # Interpretación simple - LIMPIADO
+        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        simple_limpia = limpiar_html_completo(analisis_ndvi['interpretacion_simple'])
+        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
+        
+        # Interpretación práctica para el productor
+        ndvi_prom = analisis_ndvi['estadisticas']['promedio']
+        if ndvi_prom >= 0.6:
+            interpretacion_practica = "Para su campo: Esta condición sugiere buena cobertura vegetal. Considere mantener las prácticas actuales y monitorear posibles necesidades nutricionales específicas."
+        elif ndvi_prom >= 0.4:
+            interpretacion_practica = "Para su campo: Condición moderada. Evalúe si el cultivo requiere ajustes en fertilización o manejo hídrico para optimizar el desarrollo vegetal."
+        else:
+            interpretacion_practica = "Para su campo: Esta situación puede indicar cobertura limitada. Se sugiere revisar condiciones de suelo, disponibilidad de agua y salud del cultivo para identificar acciones correctivas."
+        
+        elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
+        
+        # Alertas
+        if analisis_ndvi.get('alertas'):
+            elements.append(Spacer(1, 0.5*cm))
+            elements.append(Paragraph("<strong>Alertas:</strong>", self.estilos['TextoNormal']))
+            for alerta in analisis_ndvi['alertas'][:3]:  # Máximo 3 alertas
+                # Verificar si alerta es un dict o string
+                if isinstance(alerta, dict):
+                    alerta_texto = f"{alerta.get('icono', '')} <strong>{alerta.get('titulo', 'Alerta')}:</strong> {alerta.get('mensaje', '')}"
+                else:
+                    alerta_texto = str(alerta)
+                
+                alerta_limpia = limpiar_html_completo(alerta_texto)
+                elements.append(Paragraph(alerta_limpia, self.estilos['TextoNormal']))
+                elements.append(Spacer(1, 0.2*cm))
         
         return elements
     
     def _crear_seccion_ndmi(self, analisis: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis NDMI - Resumen del período completo"""
+        """Crea sección de análisis NDMI"""
         elements = []
-        
-        titulo = Paragraph("💧 Análisis NDMI - Contenido de Humedad (Todo el Período)", self.estilos['TituloSeccion'])
+
+        # Título
+        titulo = Paragraph("Análisis NDMI - Contenido de Humedad", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
-        
-        # Resumen del período
+
+        # Estado
         estado = analisis['estado']
-        ndmi_promedio = analisis['estadisticas']['promedio']
-        ndmi_min = analisis['estadisticas'].get('minimo', -1)
-        ndmi_max = analisis['estadisticas'].get('maximo', 1)
-        
         estado_texto = f"""
-<strong>Estado Hídrico Promedio:</strong> {estado['icono']} {estado['etiqueta']}<br/>
-<strong>NDMI Promedio del Período:</strong> {ndmi_promedio:.3f}<br/>
-<strong>Rango Observado:</strong> {ndmi_min:.3f} - {ndmi_max:.3f}<br/>
-<strong>Puntuación:</strong> {analisis['puntuacion']}/10<br/>
+<strong>Estado Hídrico:</strong> {estado['etiqueta']}<br/>
+<strong>NDMI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
+<strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10 
+<i>(métrica relativa interna AgroTech basada en umbrales históricos del índice)</i><br/>
+<strong>Riesgo Hídrico:</strong> {analisis.get('riesgo_hidrico', 'No determinado')}<br/>
 """
         elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
-        
-        # ¿Qué mide NDMI?
-        que_es = Paragraph(
-            "<strong>¿Qué mide el NDMI?</strong> El NDMI (Normalized Difference Moisture Index) mide el <b>contenido de humedad</b> "
-            "en la vegetación. Valores positivos (>0.2) indican buena hidratación, "
-            "valores negativos sugieren estrés hídrico.",
-            self.estilos['TextoNormal']
-        )
-        elements.append(que_es)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        # Interpretación técnica del período completo - LIMPIADO
+
+        # Interpretación técnica - LIMPIADO
+        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
         interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
         elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Interpretación simple - LIMPIADO
+        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
+        elements.append(Paragraph(simple_limpia, self.estilos['TextoNormal']))
+        elements.append(Spacer(1, 0.5*cm))
         
+        # Interpretación práctica para el productor
+        ndmi_prom = analisis['estadisticas']['promedio']
+        if ndmi_prom >= 0.3:
+            interpretacion_practica = "Para su campo: La humedad relativa de la vegetación parece adecuada. Mantenga el seguimiento para asegurar disponibilidad hídrica continua."
+        elif ndmi_prom >= 0.0:
+            interpretacion_practica = "Para su campo: Humedad moderada. Considere verificar el estado del riego o las condiciones de lluvia para prevenir posibles déficits hídricos."
+        else:
+            interpretacion_practica = "Para su campo: Posible déficit hídrico indicativo. Se recomienda revisar sistemas de riego y disponibilidad de agua para ajustar el manejo."
+        
+        elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
+
+        # Alertas
+        if analisis.get('alertas'):
+            elements.append(Spacer(1, 0.5*cm))
+            elements.append(Paragraph("<strong>Alertas:</strong>", self.estilos['TextoNormal']))
+            for alerta in analisis['alertas']:
+                # Verificar si alerta es un dict o string
+                if isinstance(alerta, dict):
+                    alerta_texto = f"{alerta.get('icono', '')} <strong>{alerta.get('titulo', 'Alerta')}:</strong> {alerta.get('mensaje', '')}"
+                else:
+                    alerta_texto = str(alerta)
+                
+                alerta_limpia = limpiar_html_completo(alerta_texto)
+                elements.append(Paragraph(alerta_limpia, self.estilos['TextoNormal']))
+                elements.append(Spacer(1, 0.2*cm))
+
         return elements
     
     def _crear_seccion_savi(self, analisis: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis SAVI - Resumen del período completo"""
+        """Crea sección de análisis SAVI"""
         elements = []
-        
-        titulo = Paragraph("🌾 Análisis SAVI - Cobertura Vegetal (Todo el Período)", self.estilos['TituloSeccion'])
+        # Título
+        titulo = Paragraph("Análisis SAVI", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
-        
-        # Resumen del período
+
+        # Estado
         estado = analisis['estado']
-        savi_promedio = analisis['estadisticas']['promedio']
-        savi_min = analisis['estadisticas'].get('minimo', 0)
-        savi_max = analisis['estadisticas'].get('maximo', 1)
-        
         estado_texto = f"""
-<strong>Cobertura Promedio:</strong> {estado['icono']} {estado['etiqueta']}<br/>
-<strong>SAVI Promedio del Período:</strong> {savi_promedio:.3f}<br/>
-<strong>Rango Observado:</strong> {savi_min:.3f} - {savi_max:.3f}<br/>
+<strong>Estado General:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
+<strong>SAVI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
+<strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10 
+<i>(métrica relativa interna AgroTech basada en umbrales históricos del índice)</i><br/>
 """
         elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
         elements.append(Spacer(1, 0.5*cm))
-        
-        # ¿Qué mide SAVI? - Aclaración importante
-        que_es = Paragraph(
-            "<strong>¿Qué mide el SAVI?</strong> El SAVI (Soil-Adjusted Vegetation Index) mide la <b>cobertura vegetal real</b>, "
-            "corrigiendo la influencia del suelo expuesto. <em>SAVI es el índice de cobertura, no NDVI.</em> "
-            "Es especialmente útil en cultivos dispersos o en fases tempranas de desarrollo.",
-            self.estilos['TextoNormal']
-        )
-        elements.append(que_es)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        # Interpretación técnica del período completo - LIMPIADO
+
+        # Interpretación técnica - LIMPIADO
+        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
         interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
         elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Interpretación simple - LIMPIADO
+        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
+        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
         
+        # Interpretación práctica para el productor
+        savi_prom = analisis['estadisticas']['promedio']
+        if savi_prom >= 0.4:
+            interpretacion_practica = "Para su campo: Este índice sugiere buena cobertura vegetal ajustada por suelo. Útil para evaluar áreas con exposición variable del terreno."
+        elif savi_prom >= 0.2:
+            interpretacion_practica = "Para su campo: Cobertura moderada. Observe si hay zonas con suelo expuesto que puedan requerir acciones específicas de manejo o siembra."
+        else:
+            interpretacion_practica = "Para su campo: Cobertura limitada detectada. Esto puede ser normal en terrenos sin cultivo establecido o puede indicar necesidad de intervención en áreas cultivadas."
+        
+        elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
+
+
+        # Alertas
+        if analisis.get('alertas'):
+            for alerta in analisis['alertas']:
+                alerta_texto = f"<strong>Alerta:</strong> {alerta}"
+                elements.append(Paragraph(alerta_texto, self.estilos['TextoAlerta']))
+                elements.append(Spacer(1, 0.3*cm))
+
         return elements
     
     def _crear_seccion_tendencias(self, tendencias: Dict, graficos: Dict) -> List:
         """Crea sección de análisis de tendencias"""
         elements = []
         
-        titulo = Paragraph("📈 Análisis de Tendencias Temporales", self.estilos['TituloSeccion'])
+        titulo = Paragraph("Análisis de Tendencias Temporales", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
@@ -989,14 +1400,33 @@ class GeneradorPDFProfesional:
             )
             elements.append(pie)
             elements.append(Spacer(1, 1*cm))
+        
+        # Resumen de tendencias
+        if tendencias.get('resumen'):
+            resumen_limpio = limpiar_html_completo(tendencias['resumen'])
+            elements.append(Paragraph(resumen_limpio, self.estilos['TextoNormal']))
+        
+        # Tendencia lineal
+        if 'tendencia_lineal' in tendencias:
+            tl = tendencias['tendencia_lineal']
+            cambio = tl.get('cambio_porcentual', 0)
+            confianza = tl.get('confianza', '').lower()
             
-            # Extraer datos de tendencia
-            tl = tendencias.get('tendencia_lineal', {})
+            # Descripción clara y coherente según el signo del cambio
+            if cambio > 5:
+                descripcion_tendencia = f"Tendencia al alza ({cambio:+.1f}%) con confiabilidad {confianza}"
+            elif cambio < -5:
+                descripcion_tendencia = f"Tendencia a la baja ({cambio:+.1f}%) con confiabilidad {confianza}"
+            elif cambio > 0:
+                descripcion_tendencia = f"Tendencia ligeramente ascendente ({cambio:+.1f}%) con confiabilidad {confianza}"
+            elif cambio < 0:
+                descripcion_tendencia = f"Tendencia ligeramente descendente ({cambio:+.1f}%) con confiabilidad {confianza}"
+            else:
+                descripcion_tendencia = f"Tendencia estable (cambio {cambio:+.1f}%) con confiabilidad {confianza}"
+            
             tendencia_texto = f"""
-<strong>Tendencia Lineal:</strong> {tl.get('direccion', '').title()} - 
-Fuerza {tl.get('fuerza', '').title()}<br/>
-<strong>Cambio Total:</strong> {tl.get('cambio_porcentual', 0):+.1f}%<br/>
-<strong>Confiabilidad:</strong> {tl.get('confianza', '').title()} (R² = {tl.get('r_cuadrado', 0):.3f})<br/>
+<strong>{descripcion_tendencia}</strong><br/>
+<strong>Coeficiente de determinación (R²):</strong> {tl.get('r_cuadrado', 0):.3f}<br/>
 """
             elements.append(Spacer(1, 0.5*cm))
             elements.append(Paragraph(tendencia_texto, self.estilos['TextoNormal']))
@@ -1019,7 +1449,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
         """Crea sección de recomendaciones"""
         elements = []
         
-        titulo = Paragraph("💡 Recomendaciones Agronómicas", self.estilos['TituloSeccion'])
+        titulo = Paragraph("Recomendaciones Agronómicas", self.estilos['TituloSeccion'])
         elements.append(titulo)
         elements.append(Spacer(1, 0.5*cm))
         
@@ -1043,7 +1473,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             if por_prioridad[prioridad]:
                 # Título de prioridad
                 if prioridad == 'alta':
-                    titulo_prioridad = "🔴 Prioridad Alta"
+                    titulo_prioridad = " Prioridad Alta"
                 elif prioridad == 'media':
                     titulo_prioridad = "🟡 Prioridad Media"
                 else:
@@ -1077,201 +1507,272 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                         ('FONTSIZE', (0, 0), (-1, -1), 10),
                         ('TEXTCOLOR', (0, 0), (-1, -1), self.colores['gris_oscuro']),
-                        ('BACKGROUND', (0, 0), (-1, 0), self.colores['gris_claro']),
+                        ('BACKGROUND', (0, 0), (0, -1), self.colores['gris_claro']),
                         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                         ('TOPPADDING', (0, 0), (-1, -1), 8),
                         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                        ('BOX', (0, 0), (-1, -1), 1, colors.grey),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                     ]))
                     elements.append(tabla_rec)
                     elements.append(Spacer(1, 0.5*cm))
                     contador += 1
         return elements
     
-    def _crear_seccion_analisis_gemini(self, analisis_gemini: Dict) -> List:
-        """
-        Crea sección con análisis detallado de Gemini AI
-        Incluye: Análisis de Tendencias, Recomendaciones IA y Alertas
-        """
+    def _crear_bloque_cierre(self) -> List:
+        """Crea bloque de cierre conectando el análisis con la toma de decisiones agrícolas"""
         elements = []
         
-        # Título principal de la sección
-        titulo = Paragraph(
-            "🤖 Análisis Inteligente con IA", 
-            self.estilos['TituloSeccion']
-        )
+        # Espaciador decorativo
+        elements.extend(self._decorar_seccion('3.png', height=0.8*cm))
+        
+        titulo = Paragraph("Uso de Este Análisis en la Toma de Decisiones", self.estilos['TituloSeccion'])
         elements.append(titulo)
-        elements.append(Spacer(1, 0.3*cm))
-        # Badge informativo
-        badge = Paragraph(
-            '<para alignment="center"><font color="#17a2b8" size="9">'
-            '<i>Los siguientes análisis han sido generados por inteligencia artificial '
-            'especializada en agronomía y teledetección satelital.</i></font></para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(badge)
-        elements.append(Spacer(1, 0.7*cm))
+        elements.append(Spacer(1, 0.5*cm))
         
-        # === ANÁLISIS DE TENDENCIAS ===
-        if analisis_gemini.get('analisis_tendencias'):
-            subtitulo = Paragraph("📈 Análisis de Tendencias", self.estilos['SubtituloSeccion'])
-            elements.append(subtitulo)
-            elements.append(Spacer(1, 0.3*cm))
-            
-            tendencias_texto = limpiar_html_completo(analisis_gemini['analisis_tendencias'])
-            
-            tendencias = Paragraph(tendencias_texto, self.estilos['TextoNormal'])
-            elements.append(tendencias)
-            elements.append(Spacer(1, 0.7*cm))
+        texto_cierre = """
+        Los datos y análisis presentados en este informe constituyen una herramienta de apoyo para la 
+        planificación y el manejo de su terreno. La información satelital permite identificar patrones 
+        temporales y condiciones actuales que pueden orientar decisiones relacionadas con:<br/><br/>
         
-        # === ANÁLISIS VISUAL DE IMÁGENES SATELITALES ===
-        if analisis_gemini.get('analisis_visual'):
-            analisis_visual_texto = analisis_gemini['analisis_visual'].strip()
-            
-            # Solo mostrar si hay análisis visual real (no el mensaje por defecto)
-            if analisis_visual_texto and 'no disponible' not in analisis_visual_texto.lower():
-                subtitulo = Paragraph("🛰️ Análisis Visual de Imágenes Satelitales", self.estilos['SubtituloSeccion'])
-                elements.append(subtitulo)
-                elements.append(Spacer(1, 0.3*cm))
-                
-                analisis_visual_texto = limpiar_html_completo(analisis_visual_texto)
-                
-                analisis_visual = Paragraph(analisis_visual_texto, self.estilos['TextoNormal'])
-                
-                # Tabla con fondo verde claro para análisis visual
-                tabla_visual = Table([[analisis_visual]], colWidths=[16*cm])
-                tabla_visual.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0fff4')),
-                    ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#4CAF50')),
-                    ('TOPPADDING', (0, 0), (-1, -1), 12),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-                ]))
-                
-                elements.append(tabla_visual)
-                elements.append(Spacer(1, 0.7*cm))
+        <strong>Manejo de recursos:</strong> Optimización de riego, fertilización y otras prácticas según 
+        las condiciones observadas en el terreno.<br/><br/>
         
-        # === RECOMENDACIONES IA ===
-        if analisis_gemini.get('recomendaciones'):
-            subtitulo = Paragraph("💡 Recomendaciones del Experto IA", self.estilos['SubtituloSeccion'])
-            elements.append(subtitulo)
-            elements.append(Spacer(1, 0.3*cm))
-            
-            recomendaciones_texto = limpiar_html_completo(analisis_gemini['recomendaciones'])
-            
-            # Crear caja destacada para recomendaciones
-            recomendaciones = Paragraph(recomendaciones_texto, self.estilos['TextoNormal'])
-            
-            # Tabla para dar formato de caja
-            tabla_rec = Table([[recomendaciones]], colWidths=[16*cm])
-            tabla_rec.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0f8ff')),
-                ('BOX', (0, 0), (-1, -1), 2, self.colores['azul']),
-                ('TOPPADDING', (0, 0), (-1, -1), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                ('LEFTPADDING', (0, 0), (-1, -1), 12),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-            ]))
-            
-            elements.append(tabla_rec)
-            elements.append(Spacer(1, 0.7*cm))
+        <strong>Detección temprana:</strong> Identificación de posibles situaciones adversas antes de que 
+        se manifiesten de forma evidente en campo.<br/><br/>
         
-        # === ALERTAS ===
-        if analisis_gemini.get('alertas'):
-            alertas_texto = analisis_gemini['alertas'].strip()
-            
-            # Solo mostrar si hay alertas reales (no el mensaje por defecto)
-            if alertas_texto and 'No se detectaron alertas' not in alertas_texto:
-                subtitulo = Paragraph("⚠️ Alertas y Situaciones Críticas", self.estilos['SubtituloSeccion'])
-                elements.append(subtitulo)
-                elements.append(Spacer(1, 0.3*cm))
-                
-                alertas_texto = alertas_texto.replace('\n\n', '<br/><br/>')
-                alertas_texto = alertas_texto.replace('\n', '<br/>')
-                alertas_texto = limpiar_html_completo(alertas_texto)
-                
-                alertas = Paragraph(alertas_texto, self.estilos['TextoNormal'])
-                
-                # Tabla con fondo rojo claro para alertas
-                tabla_alertas = Table([[alertas]], colWidths=[16*cm])
-                tabla_alertas.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff5f5')),
-                    ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#ff4444')),
-                    ('TOPPADDING', (0, 0), (-1, -1), 12),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-                ]))
-                
-                elements.append(tabla_alertas)
-                elements.append(Spacer(1, 0.5*cm))
-            else:
-                # Mensaje positivo si no hay alertas
-                sin_alertas = Paragraph(
-                    '<para alignment="center"><font color="green" size="10">'
-                    '<b>✅ No se detectaron situaciones críticas que requieran atención inmediata.</b>'
-                    '</font></para>',
-                    self.estilos['TextoNormal']
-                )
-                elements.append(sin_alertas)
-                elements.append(Spacer(1, 0.5*cm))
+        <strong>Evaluación de terrenos:</strong> Análisis histórico útil para valorar la aptitud de lotes 
+        en evaluación para futura siembra.<br/><br/>
         
-        # Nota al pie de la sección
-        nota = Paragraph(
-            '<para alignment="right"><font size="8" color="#666666">'
-            '<i>Análisis generado por IA avanzada.</i>'
-            '</font></para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(nota)
+        <strong>Seguimiento y comparación:</strong> Monitoreo continuo que permite comparar períodos y evaluar 
+        el efecto de las prácticas implementadas.<br/><br/>
+        
+        <i>Se recomienda complementar este análisis con observaciones directas en campo y el criterio técnico 
+        de profesionales agronómicos para decisiones específicas de manejo.</i>
+        """
+        
+        texto = Paragraph(texto_cierre, self.estilos['TextoNormal'])
+        
+        # Tabla con fondo suave
+        tabla_cierre = Table([[texto]], colWidths=[16*cm])
+        tabla_cierre.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f9fafb')),
+            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2E8B57')),
+            ('TOPPADDING', (0, 0), (-1, -1), 15),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+            ('LEFTPADDING', (0, 0), (-1, -1), 15),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+        ]))
+        
+        elements.append(tabla_cierre)
+        elements.append(Spacer(1, 1*cm))
         
         return elements
     
-    def _evaluar_calidad_imagen(self, tipo_indice: str, valor_promedio: float, 
-                                valor_minimo: float, valor_maximo: float) -> Dict:
-        """Evalúa cualitativamente la calidad de una imagen satelital"""
+    def _crear_galeria_imagenes_satelitales(self, parcela: Parcela, indices: List[IndiceMensual]) -> List:
+        """Crea galería de imágenes satelitales mes a mes con análisis visual"""
+        elements = []
         
-        # Calcular heterogeneidad espacial
-        rango = valor_maximo - valor_minimo if valor_maximo and valor_minimo else 0
-        es_heterogeneo = rango > 0.2
+        # Decoración superior
+        elements.extend(self._decorar_seccion('6.png', height=1*cm))
         
-        if tipo_indice == 'NDVI':
-            if valor_promedio >= 0.7:
-                return {'etiqueta': 'Excelente', 'icono': '🟢', 'color': '#4CAF50'}
-            elif valor_promedio >= 0.5:
-                return {'etiqueta': 'Bueno', 'icono': '🟢', 'color': '#8BC34A'}
-            elif valor_promedio >= 0.3:
-                return {'etiqueta': 'Regular', 'icono': '🟡', 'color': '#FFC107'}
-            else:
-                return {'etiqueta': 'Pobre', 'icono': '🔴', 'color': '#F44336'}
+        # Título
+        titulo = Paragraph("Imágenes Satelitales - Análisis Visual", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
         
-        elif tipo_indice == 'NDMI':
-            if valor_promedio >= 0.2:
-                return {'etiqueta': 'Excelente', 'icono': '💧', 'color': '#2196F3'}
-            elif valor_promedio >= 0.0:
-                return {'etiqueta': 'Bueno', 'icono': '💧', 'color': '#03A9F4'}
-            elif valor_promedio >= -0.2:
-                return {'etiqueta': 'Regular', 'icono': '⚠️', 'color': '#FFC107'}
-            else:
-                return {'etiqueta': 'Bajo', 'icono': '🔴', 'color': '#F44336'}
+        # Introducción
+        intro = Paragraph(
+            """
+            A continuación se presentan las imágenes satelitales capturadas mes a mes para el terreno analizado. 
+            Cada imagen muestra los índices espectrales NDVI (vigor vegetal), NDMI (humedad) y SAVI (cobertura del suelo). 
+            Los colores representan: verde oscuro indica alta biomasa/humedad, amarillo y marrón indican valores bajos.
+            """,
+            self.estilos['TextoNormal']
+        )
+        elements.append(intro)
+        elements.append(Spacer(1, 0.5*cm))
         
-        elif tipo_indice == 'SAVI':
-            if valor_promedio >= 0.5:
-                return {'etiqueta': 'Excelente', 'icono': '🌾', 'color': '#4CAF50'}
-            elif valor_promedio >= 0.3:
-                return {'etiqueta': 'Bueno', 'icono': '🌾', 'color': '#8BC34A'}
-            else:
-                return {'etiqueta': 'Bajo', 'icono': '⚠️', 'color': '#FFC107'}
+        # Contador de imágenes
+        imagenes_encontradas = 0
+        meses_procesados = 0
         
-        return {'etiqueta': 'N/D', 'icono': '❓', 'color': '#999999'}
+        # Procesar cada mes
+        for idx in indices:
+            path_ndvi = self._obtener_path_imagen_correcto(idx.imagen_ndvi)
+            path_ndmi = self._obtener_path_imagen_correcto(idx.imagen_ndmi)
+            path_savi = self._obtener_path_imagen_correcto(idx.imagen_savi)
+            
+            tiene_imagenes = path_ndvi or path_ndmi or path_savi
+            
+            if tiene_imagenes:
+                meses_procesados += 1
+                
+                # Separador visual entre meses
+                if meses_procesados > 1:
+                    elements.append(Spacer(1, 0.5*cm))
+                    from reportlab.platypus import HRFlowable
+                    elements.append(HRFlowable(
+                        width="100%", 
+                        thickness=1, 
+                        color=self.colores['verde_claro'],
+                        spaceAfter=0.3*cm,
+                        spaceBefore=0.3*cm
+                    ))
+                
+                # Título del mes
+                titulo_mes = Paragraph(
+                    f'<strong>{idx.periodo_texto}</strong>',
+                    self.estilos['SubtituloSeccion']
+                )
+                elements.append(titulo_mes)
+                elements.append(Spacer(1, 0.3*cm))
+                
+                # Metadatos del mes
+                coord_texto = 'N/A'
+                if parcela.centroide:
+                    coord_texto = f"{parcela.centroide.y:.4f}, {parcela.centroide.x:.4f}"
+                
+                metadatos = Paragraph(
+                    f"""
+                    <strong>Fecha:</strong> {idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'} | 
+                    <strong>Satélite:</strong> {idx.satelite_imagen or 'Sentinel-2'} | 
+                    <strong>Nubosidad:</strong> {idx.nubosidad_imagen or 0:.1f}%
+                    """,
+                    self.estilos['TextoNormal']
+                )
+                elements.append(metadatos)
+                elements.append(Spacer(1, 0.3*cm))
+                
+                # Crear tabla de 3 imágenes
+                imagenes_fila = []
+                labels_fila = []
+                stats_fila = []
+                
+                # NDVI
+                if path_ndvi:
+                    imagenes_encontradas += 1
+                    try:
+                        img_ndvi = Image(path_ndvi, width=5*cm, height=5*cm, kind='proportional')
+                        imagenes_fila.append(img_ndvi)
+                        labels_fila.append(Paragraph('<strong>NDVI</strong>', self.estilos['TextoNormal']))
+                        stats = Paragraph(
+                            f'Prom: {idx.ndvi_promedio:.3f}<br/>Min: {idx.ndvi_minimo:.3f} | Max: {idx.ndvi_maximo:.3f}',
+                            self.estilos['PieImagen']
+                        )
+                        stats_fila.append(stats)
+                    except Exception as e:
+                        logger.warning(f"Error cargando NDVI: {e}")
+                else:
+                    imagenes_fila.append(Paragraph('<i>Sin imagen NDVI</i>', self.estilos['PieImagen']))
+                    labels_fila.append(Paragraph('', self.estilos['TextoNormal']))
+                    stats_fila.append(Paragraph('', self.estilos['TextoNormal']))
+                
+                # NDMI
+                if path_ndmi:
+                    imagenes_encontradas += 1
+                    try:
+                        img_ndmi = Image(path_ndmi, width=5*cm, height=5*cm, kind='proportional')
+                        imagenes_fila.append(img_ndmi)
+                        labels_fila.append(Paragraph('<strong>NDMI</strong>', self.estilos['TextoNormal']))
+                        stats = Paragraph(
+                            f'Prom: {idx.ndmi_promedio:.3f}<br/>Min: {idx.ndmi_minimo:.3f} | Max: {idx.ndmi_maximo:.3f}',
+                            self.estilos['PieImagen']
+                        )
+                        stats_fila.append(stats)
+                    except Exception as e:
+                        logger.warning(f"Error cargando NDMI: {e}")
+                else:
+                    imagenes_fila.append(Paragraph('<i>Sin imagen NDMI</i>', self.estilos['PieImagen']))
+                    labels_fila.append(Paragraph('', self.estilos['TextoNormal']))
+                    stats_fila.append(Paragraph('', self.estilos['TextoNormal']))
+                
+                # SAVI
+                if path_savi:
+                    imagenes_encontradas += 1
+                    try:
+                        img_savi = Image(path_savi, width=5*cm, height=5*cm, kind='proportional')
+                        imagenes_fila.append(img_savi)
+                        labels_fila.append(Paragraph('<strong>SAVI</strong>', self.estilos['TextoNormal']))
+                        stats = Paragraph(
+                            f'Prom: {idx.savi_promedio:.3f}<br/>Min: {idx.savi_minimo:.3f} | Max: {idx.savi_maximo:.3f}',
+                            self.estilos['PieImagen']
+                        )
+                        stats_fila.append(stats)
+                    except Exception as e:
+                        logger.warning(f"Error cargando SAVI: {e}")
+                else:
+                    imagenes_fila.append(Paragraph('<i>Sin imagen SAVI</i>', self.estilos['PieImagen']))
+                    labels_fila.append(Paragraph('', self.estilos['TextoNormal']))
+                    stats_fila.append(Paragraph('', self.estilos['TextoNormal']))
+                
+                # Tabla de imágenes
+                if len(imagenes_fila) == 3:
+                    tabla_img = Table([labels_fila, imagenes_fila, stats_fila], colWidths=[5.2*cm, 5.2*cm, 5.2*cm])
+                    tabla_img.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('TOPPADDING', (0, 0), (-1, -1), 5),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                    ]))
+                    elements.append(tabla_img)
+                    elements.append(Spacer(1, 0.5*cm))
+                    
+                    # AGREGAR ANÁLISIS INTEGRADO DEL MES
+                    # Preparar datos de imágenes para el análisis
+                    imagenes_datos = []
+                    if path_ndvi and idx.ndvi_promedio is not None:
+                        imagenes_datos.append({
+                            'tipo': 'NDVI',
+                            'promedio': idx.ndvi_promedio,
+                            'minimo': idx.ndvi_minimo or 0,
+                            'maximo': idx.ndvi_maximo or 0
+                        })
+                    if path_ndmi and idx.ndmi_promedio is not None:
+                        imagenes_datos.append({
+                            'tipo': 'NDMI',
+                            'promedio': idx.ndmi_promedio,
+                            'minimo': idx.ndmi_minimo or 0,
+                            'maximo': idx.ndmi_maximo or 0
+                        })
+                    if path_savi and idx.savi_promedio is not None:
+                        imagenes_datos.append({
+                            'tipo': 'SAVI',
+                            'promedio': idx.savi_promedio,
+                            'minimo': idx.savi_minimo or 0,
+                            'maximo': idx.savi_maximo or 0
+                        })
+                    
+                    # Generar análisis integrado si hay datos
+                    if imagenes_datos:
+                        analisis_mes = self._crear_analisis_integrado_mes(idx, imagenes_datos, parcela)
+                        elements.extend(analisis_mes)
+        
+        # Si no hay imágenes
+        if imagenes_encontradas == 0:
+            aviso = Paragraph(
+                '<strong>Aviso:</strong> Aún no se han obtenido imágenes satelitales para este período. '
+                'Las imágenes estarán disponibles una vez se procesen los datos satelitales del sistema.',
+                self.estilos['TextoNormal']
+            )
+            tabla_aviso = Table([[aviso]], colWidths=[15*cm])
+            tabla_aviso.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff3cd')),
+                ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#ffc107')),
+                ('TOPPADDING', (0, 0), (-1, -1), 15),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+            ]))
+            elements.append(tabla_aviso)
+        
+        return elements
     
     def _crear_analisis_integrado_mes(self, indice: IndiceMensual, imagenes_mes: List[Dict], parcela: Parcela) -> List:
         """
-        Análisis integrado HISTÓRICO de las 3 imágenes satelitales del mes (NDVI, NDMI, SAVI)
-        Describe lo que sucedió en ese período específico usando tiempo pasado
+        Análisis integrado histórico de las 3 imágenes satelitales del mes (NDVI, NDMI, SAVI).
+        Genera una narrativa dinámica que cambia según los valores específicos de cada mes.
         """
         elements = []
         
@@ -1288,9 +1789,9 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 }
             
             analisis = []
-            analisis.append(f"<b>📊 Análisis Integrado de {periodo}</b><br/><br/>")
+            analisis.append(f"<b>Análisis Integrado de {periodo}</b><br/><br/>")
             
-            # === 1. VALORES REGISTRADOS DE LAS 3 IMÁGENES ===
+            # 1. VALORES REGISTRADOS
             analisis.append("<b>Valores de los Índices Satelitales:</b><br/>")
             if 'NDVI' in vals:
                 analisis.append(f"• <b>NDVI</b> (vigor vegetal): {vals['NDVI']['prom']:.3f}<br/>")
@@ -1299,68 +1800,91 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
             if 'SAVI' in vals:
                 analisis.append(f"• <b>SAVI</b> (cobertura vegetal): {vals['SAVI']['prom']:.3f}<br/><br/>")
             
-            # === 2. ANÁLISIS INTEGRADO NDVI + NDMI (Vigor + Humedad) ===
+            # 2. CONDICIÓN DEL CULTIVO (Narrativa dinámica según valores)
             if 'NDVI' in vals and 'NDMI' in vals:
                 ndvi = vals['NDVI']['prom']
                 ndmi = vals['NDMI']['prom']
                 
-                analisis.append(f"<b>🔍 Condición del Cultivo en {periodo}:</b> ")
+                analisis.append(f"<b>Condición del Terreno en {periodo}:</b> ")
                 
+                # Narrativa cambia dinámicamente según combinación de valores
                 if ndvi > 0.6 and ndmi > 0.1:
                     analisis.append(
-                        f"El cultivo presentó <b>excelentes condiciones</b> con alto vigor vegetal (NDVI={ndvi:.3f}) "
-                        f"y buena hidratación (NDMI={ndmi:.3f}). Esto indicó crecimiento saludable con acceso "
-                        f"adecuado al agua durante este mes."
+                        f"Durante este mes se registraron condiciones excelentes con alto vigor vegetal "
+                        f"(NDVI {ndvi:.3f}) y buena disponibilidad hídrica (NDMI {ndmi:.3f}). "
+                        f"Esto indica desarrollo saludable con acceso adecuado al agua."
                     )
-                elif ndvi > 0.6 and ndmi < 0:
+                elif ndvi > 0.6 and ndmi <= 0.1:
                     analisis.append(
-                        f"⚠️ Se detectó <b>estrés hídrico</b>: a pesar del buen vigor (NDVI={ndvi:.3f}), "
-                        f"el contenido de humedad fue bajo (NDMI={ndmi:.3f}). El cultivo pudo haber estado "
-                        f"limitado por falta de agua en este período."
+                        f"Se observó alto vigor vegetal (NDVI {ndvi:.3f}) pero con humedad moderada a baja "
+                        f"(NDMI {ndmi:.3f}). Esto puede sugerir que el cultivo estaba en una fase donde "
+                        f"la biomasa era abundante pero podría beneficiarse de mayor disponibilidad hídrica."
                     )
-                elif ndvi < 0.4 and ndmi > 0.1:
-                    analisis.append(
-                        f"Se observó bajo vigor (NDVI={ndvi:.3f}) con alta humedad (NDMI={ndmi:.3f}), "
-                        f"lo que pudo indicar saturación de suelo o problemas de drenaje que afectaron el desarrollo."
-                    )
-                elif ndvi < 0.4 and ndmi < 0:
-                    analisis.append(
-                        f"🔴 Se registró <b>estrés crítico</b>: tanto vigor (NDVI={ndvi:.3f}) como humedad "
-                        f"(NDMI={ndmi:.3f}) estuvieron en niveles bajos, indicando condiciones severas que "
-                        f"requirieron atención inmediata."
-                    )
+                elif ndvi >= 0.4 and ndvi <= 0.6:
+                    if ndmi > 0.1:
+                        analisis.append(
+                            f"Los índices mostraron condiciones moderadas con vigor vegetal en desarrollo "
+                            f"(NDVI {ndvi:.3f}) y humedad adecuada (NDMI {ndmi:.3f}). "
+                            f"Representa un estado de crecimiento activo del cultivo o vegetación en el terreno."
+                        )
+                    else:
+                        analisis.append(
+                            f"Se registró vigor moderado (NDVI {ndvi:.3f}) con humedad limitada "
+                            f"(NDMI {ndmi:.3f}). Esto puede indicar un período de transición o la necesidad "
+                            f"de monitorear la disponibilidad de agua para optimizar el desarrollo."
+                        )
+                elif ndvi < 0.4:
+                    if ndmi > 0.1:
+                        analisis.append(
+                            f"El vigor vegetal fue bajo (NDVI {ndvi:.3f}) a pesar de contar con humedad "
+                            f"(NDMI {ndmi:.3f}). Esto puede reflejar terreno sin cultivo establecido, "
+                            f"fase temprana de siembra, o condiciones que limitaron el desarrollo vegetativo."
+                        )
+                    else:
+                        analisis.append(
+                            f"Se detectaron valores bajos tanto en vigor (NDVI {ndvi:.3f}) como en humedad "
+                            f"(NDMI {ndmi:.3f}). Esto es típico de períodos secos, suelo desnudo, o terreno "
+                            f"en evaluación sin cobertura vegetal significativa."
+                        )
                 else:
                     analisis.append(
-                        f"Los índices estuvieron en rangos moderados (NDVI={ndvi:.3f}, NDMI={ndmi:.3f}), "
-                        f"representando un desarrollo estable durante {periodo}."
+                        f"Los valores registrados fueron NDVI {ndvi:.3f} y NDMI {ndmi:.3f}, "
+                        f"representando las condiciones específicas del terreno durante {periodo}."
                     )
                 analisis.append("<br/><br/>")
             
-            # === 3. ANÁLISIS DE COBERTURA (SAVI vs NDVI) ===
+            # 3. ANÁLISIS DE COBERTURA
             if 'SAVI' in vals and 'NDVI' in vals:
                 savi = vals['SAVI']['prom']
                 ndvi = vals['NDVI']['prom']
                 dif = abs(ndvi - savi)
                 
-                analisis.append("<b>🌾 Análisis de Cobertura Vegetal:</b> ")
+                analisis.append("<b>Análisis de Cobertura del Suelo:</b> ")
                 if dif > 0.15:
                     cobertura_pct = int(savi * 100)
                     analisis.append(
-                        f"El SAVI ({savi:.3f}) fue significativamente menor que el NDVI ({ndvi:.3f}), "
-                        f"lo que reveló que el suelo expuesto influyó en las mediciones durante {periodo}. "
-                        f"La cobertura vegetal real fue aproximadamente {cobertura_pct}%, sugiriendo "
-                        f"vegetación dispersa o suelo desnudo entre plantas."
+                        f"El SAVI ({savi:.3f}) fue notablemente menor que el NDVI ({ndvi:.3f}), "
+                        f"indicando presencia de suelo expuesto. La cobertura vegetal estimada fue "
+                        f"aproximadamente {cobertura_pct}%, sugiriendo vegetación dispersa o áreas con "
+                        f"exposición directa del terreno."
+                    )
+                elif dif > 0.05:
+                    cobertura_pct = int(savi * 100)
+                    analisis.append(
+                        f"El SAVI ({savi:.3f}) mostró una ligera diferencia con el NDVI ({ndvi:.3f}), "
+                        f"estimando aproximadamente {cobertura_pct}% de cobertura vegetal con zonas mixtas "
+                        f"de vegetación y suelo visible."
                     )
                 else:
                     cobertura_pct = int(savi * 100)
                     analisis.append(
-                        f"El SAVI ({savi:.3f}) y NDVI ({ndvi:.3f}) fueron similares, indicando "
-                        f"aproximadamente {cobertura_pct}% de cobertura con buen desarrollo del dosel "
-                        f"y mínima exposición de suelo."
+                        f"El SAVI ({savi:.3f}) y NDVI ({ndvi:.3f}) fueron muy similares, indicando "
+                        f"aproximadamente {cobertura_pct} de cobertura con desarrollo homogéneo del dosel "
+                        f"vegetal y mínima exposición de suelo."
                     )
                 analisis.append("<br/><br/>")
             
-            # === 4. VARIABILIDAD ESPACIAL DEL MES ===
+            # 4. VARIABILIDAD ESPACIAL
             max_var = 0
             idx_var = None
             for tipo, v in vals.items():
@@ -1369,25 +1893,27 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                     max_var = var
                     idx_var = tipo
             
-            if idx_var:
+            if idx_var and max_var > 0.05:
                 analisis.append(
-                    f"<b>🗺️ Heterogeneidad Detectada en {periodo}:</b> "
-                    f"El índice {idx_var} mostró un rango de {vals[idx_var]['min']:.3f} a {vals[idx_var]['max']:.3f} "
-                    f"dentro del lote (variación={max_var:.3f}). "
+                    f"<b>Heterogeneidad Espacial:</b> "
+                    f"El índice {idx_var} presentó un rango de {vals[idx_var]['min']:.3f} a "
+                    f"{vals[idx_var]['max']:.3f} dentro del lote (variación de {max_var:.3f}). "
                 )
                 if max_var > 0.3:
                     analisis.append(
-                        "Esta alta variabilidad evidenció zonas con condiciones muy diferentes, "
-                        "posiblemente por desarrollo desigual o variabilidad del suelo."
+                        "Esta alta variabilidad evidencia zonas con condiciones muy diferentes dentro "
+                        "del terreno, posiblemente debido a variabilidad del suelo, topografía o manejo."
                     )
                 elif max_var > 0.15:
                     analisis.append(
-                        "Esta variabilidad moderada fue típica de cultivos en diferentes fases fenológicas."
+                        "Esta variabilidad moderada es común en terrenos agrícolas y puede reflejar "
+                        "diferencias naturales o en las etapas de desarrollo."
                     )
                 else:
                     analisis.append(
-                        "Esta baja variabilidad indicó condiciones homogéneas en todo el lote."
+                        "Esta variación moderada sugiere condiciones relativamente homogéneas en el lote."
                     )
+                analisis.append("<br/>")
             
             # Crear caja visual con el análisis
             if analisis:
@@ -1402,7 +1928,7 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 titulo_analisis = Paragraph(
                     '<para alignment="center" backColor="#2E7D32" '
                     'leftIndent="5" rightIndent="5" spaceBefore="5" spaceAfter="5">'
-                    '<font size="10" color="white"><b>📊 ANÁLISIS HISTÓRICO DEL MES</b></font>'
+                    '<font size="10" color="white"><b>ANÁLISIS HISTÓRICO DEL MES</b></font>'
                     '</para>',
                     self.estilos['TituloSeccion']
                 )
@@ -1422,1023 +1948,9 @@ Fuerza {tl.get('fuerza', '').title()}<br/>
                 ]))
                 
                 elements.append(tabla_analisis)
+                elements.append(Spacer(1, 0.5*cm))
                 
         except Exception as e:
             logger.warning(f"Error generando análisis integrado del mes: {e}")
-        
-        return elements
-    
-    def _crear_galeria_imagenes_satelitales(self, parcela: Parcela, indices: List[IndiceMensual]) -> List:
-        """
-        Crea una galería de imágenes satelitales (NDVI, NDMI, SAVI) mes a mes
-        con análisis visual específico por imagen generado por Gemini AI
-        """
-        elements = []
-        # Decoración superior (6.png)
-        elements.extend(self._decorar_seccion('6.png', height=1*cm))
-        # Título de la sección con diseño mejorado
-        titulo = Paragraph(
-            '📸 <font size="16"><strong>Imágenes Satelitales y Análisis Visual Detallado</strong></font>',
-            self.estilos['TituloSeccion']
-        )
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        # Introducción mejorada con explicación de colores
-        intro = Paragraph(
-            """
-            <strong>Esta sección presenta un análisis visual detallado de las imágenes satelitales capturadas mes a mes.</strong>
-            <br/><br/>
-            Cada imagen es analizada por inteligencia artificial para identificar patrones espaciales, zonas específicas 
-            y cambios temporales. Los colores en las imágenes representan:
-            <br/><br/>
-            - <strong>NDVI (Vigor Vegetal):</strong> Verde oscuro = alta biomasa, amarillo/marrón = baja vegetación<br/>
-            - <strong>NDMI (Contenido de Humedad):</strong> Azul/verde = alta humedad, rojo/amarillo = baja humedad<br/>
-            - <strong>SAVI (Cobertura del Suelo):</strong> Verde = buena cobertura, marrón = suelo desnudo visible
-            """,
-            self.estilos['TextoNormal']
-        )
-        
-        # Crear caja destacada para la introducción
-        tabla_intro = Table([[intro]], colWidths=[15*cm])
-        tabla_intro.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#e8f5e9')),
-            ('BOX', (0, 0), (-1, -1), 2, self.colores['verde_principal']),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-        ]))
-        
-        elements.append(tabla_intro)
-        elements.append(Spacer(1, 0.7*cm))
-        
-        # Procesar cada índice mensual
-        imagenes_encontradas = 0
-        meses_procesados = 0
-        
-        for idx in indices:
-            tiene_imagenes = False
-            
-            # Verificar si hay imágenes para este mes usando la función de corrección de paths
-            path_ndvi = self._obtener_path_imagen_correcto(idx.imagen_ndvi)
-            path_ndmi = self._obtener_path_imagen_correcto(idx.imagen_ndmi)
-            path_savi = self._obtener_path_imagen_correcto(idx.imagen_savi)
-            
-            if path_ndvi or path_ndmi or path_savi:
-                tiene_imagenes = True
-            
-            # Si hay imágenes para este mes, procesarlas
-            if tiene_imagenes:
-                meses_procesados += 1
-                
-                # === SEPARADOR VISUAL ENTRE MESES ===
-                if meses_procesados > 1:
-                    from reportlab.platypus import HRFlowable
-                    elements.append(Spacer(1, 0.3*cm))
-                    elements.append(HRFlowable(
-                        width="100%", 
-                        thickness=2, 
-                        color=self.colores['verde_principal'],
-                        spaceAfter=0.5*cm,
-                        spaceBefore=0.3*cm
-                    ))
-                
-                # === TÍTULO DEL MES CON DISEÑO DESTACADO ===
-                titulo_mes = Paragraph(
-                    f'<font size="13" color="#2E8B57"><strong>📅 {idx.periodo_texto}</strong></font>',
-                    self.estilos['SubtituloSeccion']
-                )
-                elements.append(titulo_mes)
-                elements.append(Spacer(1, 0.2*cm))
-                
-                # === METADATOS DE LA CAPTURA EN FORMATO MEJORADO ===
-                # Coordenadas del centroide
-                coord_texto = 'N/A'
-                if parcela.centroide:
-                    coord_texto = f"{parcela.centroide.y:.6f}, {parcela.centroide.x:.6f}"
-                
-                metadatos_data = [
-                    ['📅 Fecha de captura:', idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'],
-                    ['🛰️ Satélite:', idx.satelite_imagen or 'Sentinel-2'],
-                    ['📏 Resolución espacial:', f"{idx.resolucion_imagen or 10} metros/píxel"],
-                    ['☁️ Nubosidad:', f"{idx.nubosidad_imagen or 0:.1f}%"],
-                    ['🌍 Coordenadas:', coord_texto],
-                    ['🌡️ Temperatura promedio:', f"{idx.temperatura_promedio:.1f}°C" if idx.temperatura_promedio else 'N/D'],
-                    ['💧 Precipitación total:', f"{idx.precipitacion_total:.1f} mm" if idx.precipitacion_total else 'N/D']
-                ]
-                
-                tabla_metadatos = Table(metadatos_data, colWidths=[4*cm, 11*cm])
-                tabla_metadatos.setStyle(TableStyle([
-                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                    ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 9),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('TEXTCOLOR', (0, 1), (-1, -1), self.colores['gris_oscuro']),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, self.colores['gris_claro']]),
-                    ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#E0E0E0')),
-                    ('TOPPADDING', (0, 0), (-1, -1), 8),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                ]))
-                
-                elements.append(tabla_metadatos)
-                elements.append(Spacer(1, 0.5*cm))
-                
-                # === LAYOUT HORIZONTAL: 3 IMÁGENES LADO A LADO ===
-                # Recolectar las 3 imágenes disponibles para este mes
-                imagenes_mes = []
-                
-                # NDVI
-                if path_ndvi:
-                    imagenes_encontradas += 1
-                    imagenes_mes.append({
-                        'tipo': 'NDVI',
-                        'path': path_ndvi,
-                        'promedio': idx.ndvi_promedio or 0,
-                        'minimo': idx.ndvi_minimo or 0,
-                        'maximo': idx.ndvi_maximo or 0,
-                        'color_badge': colors.HexColor('#4CAF50'),
-                        'descripcion': 'Vigor Vegetal'
-                    })
-                
-                # NDMI
-                if path_ndmi:
-                    imagenes_encontradas += 1
-                    imagenes_mes.append({
-                        'tipo': 'NDMI',
-                        'path': path_ndmi,
-                        'promedio': idx.ndmi_promedio or 0,
-                        'minimo': idx.ndmi_minimo or 0,
-                        'maximo': idx.ndmi_maximo or 0,
-                        'color_badge': colors.HexColor('#2196F3'),
-                        'descripcion': 'Humedad'
-                    })
-                
-                # SAVI
-                if path_savi:
-                    imagenes_encontradas += 1
-                    imagenes_mes.append({
-                        'tipo': 'SAVI',
-                        'path': path_savi,
-                        'promedio': idx.savi_promedio or 0,
-                        'minimo': idx.savi_minimo or 0,
-                        'maximo': idx.savi_maximo or 0,
-                        'color_badge': colors.HexColor('#FF9800'),
-                        'descripcion': 'Cobertura Suelo'
-                    })
-                
-                # Crear tabla horizontal de 3 columnas
-                if imagenes_mes:
-                    celdas_imagenes = []
-                    
-                    for img_data in imagenes_mes:
-                        try:
-                            # Imagen satelital con tamaño reducido para evitar superposición
-                            img = Image(img_data['path'], width=4.5*cm, height=4.5*cm, kind='proportional')
-                            
-                            # Badge de tipo de índice
-                            badge = Paragraph(
-                                f'<para align="center" backColor="{img_data["color_badge"]}" '
-                                f'leftIndent="2" rightIndent="2" spaceAfter="5">'
-                                f'<font size="9" color="white"><strong>{img_data["tipo"]}</strong></font>'
-                                f'</para>',
-                                self.estilos['TextoNormal']
-                            )
-                            
-                            # Descripción
-                            desc = Paragraph(
-                                f'<para align="center"><font size="8" color="#666666">'
-                                f'<i>{img_data["descripcion"]}</i></font></para>',
-                                self.estilos['TextoNormal']
-                            )
-                            
-                            # Valores estadísticos
-                            valores = Paragraph(
-                                f'<para align="center"><font size="8">'
-                                f'<strong>Prom:</strong> {img_data["promedio"]:.3f}<br/>'
-                                f'<font color="#999999">Min: {img_data["minimo"]:.3f} | Max: {img_data["maximo"]:.3f}</font>'
-                                f'</font></para>',
-                                self.estilos['TextoNormal']
-                            )
-                            
-                            # === ANÁLISIS CUALITATIVO ===
-                            evaluacion = self._evaluar_calidad_imagen(
-                                tipo_indice=img_data['tipo'],
-                                valor_promedio=img_data['promedio'],
-                                valor_minimo=img_data['minimo'],
-                                valor_maximo=img_data['maximo']
-                            )
-                            
-                            badge_calidad = Paragraph(
-                                f'<para align="center"><font size="8" color="{evaluacion["color"]}">'
-                                f'<b>{evaluacion["icono"]} {evaluacion["etiqueta"]}</b>'
-                                f'</font></para>',
-                                self.estilos['TextoNormal']
-                            )
-                            
-                            # Apilar verticalmente: badge + imagen + desc + valores + calidad
-                            celda_contenido = [[badge], [img], [desc], [Spacer(1, 0.1*cm)], [valores], [badge_calidad]]
-                            tabla_celda = Table(celda_contenido, colWidths=[4.8*cm])
-                            tabla_celda.setStyle(TableStyle([
-                                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                                ('LEFTPADDING', (0, 0), (-1, -1), 2),
-                                ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-                                ('TOPPADDING', (0, 0), (-1, -1), 2),
-                                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-                            ]))
-                            
-                            celdas_imagenes.append(tabla_celda)
-                            
-                        except Exception as e:
-                            logger.warning(f"Error procesando imagen {img_data['tipo']}: {e}")
-                            continue
-                    
-                    # Crear tabla horizontal de 3 columnas
-                    if celdas_imagenes:
-                        # Rellenar con celdas vacías si faltan imágenes
-                        while len(celdas_imagenes) < 3:
-                            celda_vacia = Paragraph(
-                                '<para align="center"><font size="10" color="#CCCCCC">─</font></para>',
-                                self.estilos['TextoNormal']
-                            )
-                            celdas_imagenes.append(celda_vacia)
-                        
-                        tabla_horizontal = Table([celdas_imagenes], colWidths=[5*cm, 5*cm, 5*cm])
-                        tabla_horizontal.setStyle(TableStyle([
-                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E0E0E0')),
-                            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#F0F0F0')),
-                            ('TOPPADDING', (0, 0), (-1, -1), 10),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                        ]))
-                        
-                        elements.append(tabla_horizontal)
-                        elements.append(Spacer(1, 0.5*cm))
-                        
-                        # 🤖 ANÁLISIS INTELIGENTE DE LAS 3 IMÁGENES RELACIONADAS
-                        if len(imagenes_mes) >= 2:
-                            elements.extend(self._crear_analisis_integrado_mes(idx, imagenes_mes, parcela))
-                        
-                        elements.append(Spacer(1, 0.5*cm))
-                        
-                        # Análisis Gemini consolidado para el mes (si está disponible)
-                        if hasattr(idx, 'analisis_gemini') and idx.analisis_gemini:
-                            elements.extend(self._crear_analisis_gemini_mes(idx, parcela))
-        
-        # Si no se encontraron imágenes
-        if imagenes_encontradas == 0:
-            sin_imagenes = Paragraph(
-                '<para alignment="center"><font color="#999999" size="11">'
-                '<br/><br/><br/>'
-                '<b>📭 No hay imágenes satelitales disponibles para este período</b><br/><br/>'
-                '<i>Las imágenes se descargarán automáticamente y estarán disponibles en el sistema una vez procesadas.</i>'
-                '<br/><br/><br/>'
-                '</font></para>',
-                self.estilos['TextoNormal']
-            )
-            tabla_sin_img = Table([[sin_imagenes]], colWidths=[15*cm])
-            tabla_sin_img.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff3cd')),
-                ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#ffc107')),
-                ('TOPPADDING', (0, 0), (-1, -1), 20),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
-            ]))
-            elements.append(tabla_sin_img)
-        else:
-            # === ANÁLISIS GLOBAL CONSOLIDADO ===
-            elements.extend(self._crear_analisis_global_imagenes(parcela, indices, imagenes_encontradas))
-            
-            # Nota al final con resumen
-            nota_final = Paragraph(
-                f'<para alignment="right"><font size="9" color="#2E8B57">'
-                f'<strong>✓ Total de imágenes analizadas: {imagenes_encontradas}</strong> | '
-                f'Meses procesados: {meses_procesados}'
-                f'</font></para>',
-                self.estilos['TextoNormal']
-            )
-            elements.append(Spacer(1, 0.3*cm))
-            elements.append(nota_final)
-        
-        return elements
-    
-    def _crear_analisis_global_imagenes(self, parcela: Parcela, indices: List[IndiceMensual], 
-                                        total_imagenes: int) -> List:
-        """
-        Crea la sección de análisis global consolidado de todas las imágenes
-        """
-        elements = []
-        
-        # Separador visual fuerte
-        from reportlab.platypus import HRFlowable
-        elements.append(Spacer(1, 0.7*cm))
-        elements.append(HRFlowable(
-            width="100%", 
-            thickness=3, 
-            color=self.colores['verde_principal'],
-            spaceAfter=0.7*cm,
-            spaceBefore=0.3*cm
-        ))
-        
-        # Título de la sección
-        titulo_global = Paragraph(
-            '🎯 <font size="14"><strong>Análisis Global Consolidado del Período</strong></font>',
-            self.estilos['TituloSeccion']
-        )
-        elements.append(titulo_global)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        # Subtítulo explicativo
-        subtitulo = Paragraph(
-            '<font size="10"><i>Evaluación integral basada en todas las imágenes satelitales del período, '
-            'con identificación de patrones espaciales y recomendaciones específicas por zona.</i></font>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(subtitulo)
-        elements.append(Spacer(1, 0.5*cm))
-        
-        # Preparar datos para Gemini
-        imagenes_datos = []
-        
-        for idx in indices:
-            # NDVI
-            path_ndvi = self._obtener_path_imagen_correcto(idx.imagen_ndvi)
-            if path_ndvi and idx.ndvi_promedio:
-                imagenes_datos.append({
-                    'imagen_path': path_ndvi,
-                    'tipo_indice': 'NDVI',
-                    'valor_promedio': idx.ndvi_promedio,
-                    'mes': idx.periodo_texto,
-                    'fecha': idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'
-                })
-            
-            # NDMI
-            path_ndmi = self._obtener_path_imagen_correcto(idx.imagen_ndmi)
-            if path_ndmi and idx.ndmi_promedio:
-                imagenes_datos.append({
-                    'imagen_path': path_ndmi,
-                    'tipo_indice': 'NDMI',
-                    'valor_promedio': idx.ndmi_promedio,
-                    'mes': idx.periodo_texto,
-                    'fecha': idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'
-                })
-            
-            # SAVI
-            path_savi = self._obtener_path_imagen_correcto(idx.imagen_savi)
-            if path_savi and idx.savi_promedio:
-                imagenes_datos.append({
-                    'imagen_path': path_savi,
-                    'tipo_indice': 'SAVI',
-                    'valor_promedio': idx.savi_promedio,
-                    'mes': idx.periodo_texto,
-                    'fecha': idx.fecha_imagen.strftime('%d/%m/%Y') if idx.fecha_imagen else 'N/A'
-                })
-        
-        # Nota: El análisis integrado de imágenes se realiza mes por mes
-        # utilizando los motores especializados de análisis
-        
-        return elements
-    
-    
-    def _crear_analisis_gemini_mes(self, indice: IndiceMensual, parcela: Parcela) -> List:
-        """
-        Crea análisis Gemini AI organizado visualmente - REHECHO DESDE CERO
-        """
-        elements = []
-        
-        # Verificar si hay análisis Gemini disponible
-        if not indice.analisis_gemini or not isinstance(indice.analisis_gemini, dict):
-            return elements
-        
-        analisis_data = indice.analisis_gemini
-        
-        # Título de la sección
-        titulo = Paragraph(
-            '<para align="center" spaceBefore="8" spaceAfter="12">'
-            '<font size="12" color="#FFFFFF" backColor="#2E7D32">'
-            '<b> 🤖 ANÁLISIS INTELIGENTE - IA GEMINI </b>'
-            '</font>'
-            '</para>',
-            self.estilos['SubtituloSeccion']
-        )
-        tabla_titulo = Table([[titulo]], colWidths=[15.5*cm])
-        tabla_titulo.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2E7D32')),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ]))
-        elements.append(tabla_titulo)
-        elements.append(Spacer(1, 0.4*cm))
-        
-        # /01 NDVI - Vigor Vegetal
-        if analisis_data.get('ndvi'):
-            texto_limpio = limpiar_html_completo(analisis_data["ndvi"])
-            
-            header_ndvi = Paragraph(
-                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b>🌱 01. NDVI - VIGOR VEGETAL</b></font>'
-                '</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            contenido_ndvi = Paragraph(
-                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
-                f'<font size="9.5" color="#2c3e50">{texto_limpio}</font>'
-                f'</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            tabla_ndvi = Table([[header_ndvi], [contenido_ndvi]], colWidths=[15.5*cm])
-            tabla_ndvi.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#4CAF50')),
-                ('TOPPADDING', (0, 0), (0, 0), 8),
-                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
-                ('BACKGROUND', (0, 1), (0, 1), colors.white),
-                ('TOPPADDING', (0, 1), (0, 1), 0),
-                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
-                ('LEFTPADDING', (0, 1), (0, 1), 0),
-                ('RIGHTPADDING', (0, 1), (0, 1), 0),
-                ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#4CAF50')),
-                ('LINEBELOW', (0, 0), (0, 0), 1.5, colors.HexColor('#43A047')),
-            ]))
-            elements.append(tabla_ndvi)
-            elements.append(Spacer(1, 0.4*cm))
-        
-        # /02 NDMI - Contenido de Humedad
-        if analisis_data.get('ndmi'):
-            texto_limpio = limpiar_html_completo(analisis_data["ndmi"])
-            
-            header_ndmi = Paragraph(
-                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b>💧 02. NDMI - CONTENIDO DE HUMEDAD</b></font>'
-                '</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            contenido_ndmi = Paragraph(
-                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
-                f'<font size="9.5" color="#2c3e50">{texto_limpio}</font>'
-                f'</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            tabla_ndmi = Table([[header_ndmi], [contenido_ndmi]], colWidths=[15.5*cm])
-            tabla_ndmi.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#2196F3')),
-                ('TOPPADDING', (0, 0), (0, 0), 8),
-                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
-                ('BACKGROUND', (0, 1), (0, 1), colors.white),
-                ('TOPPADDING', (0, 1), (0, 1), 0),
-                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
-                ('LEFTPADDING', (0, 1), (0, 1), 0),
-                ('RIGHTPADDING', (0, 1), (0, 1), 0),
-                ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2196F3')),
-                ('LINEBELOW', (0, 0), (0, 0), 1.5, colors.HexColor('#1E88E5')),
-            ]))
-            elements.append(tabla_ndmi)
-            elements.append(Spacer(1, 0.4*cm))
-        
-        # /03 SAVI - Cobertura del Suelo
-        if analisis_data.get('savi'):
-            texto_limpio = limpiar_html_completo(analisis_data["savi"])
-            
-            header_savi = Paragraph(
-                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b>🌾 03. SAVI - COBERTURA DEL SUELO</b></font>'
-                '</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            contenido_savi = Paragraph(
-                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
-                f'<font size="9.5" color="#2c3e50">{texto_limpio}</font>'
-                f'</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            tabla_savi = Table([[header_savi], [contenido_savi]], colWidths=[15.5*cm])
-            tabla_savi.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#FF9800')),
-                ('TOPPADDING', (0, 0), (0, 0), 8),
-                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
-                ('BACKGROUND', (0, 1), (0, 1), colors.white),
-                ('TOPPADDING', (0, 1), (0, 1), 0),
-                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
-                ('LEFTPADDING', (0, 1), (0, 1), 0),
-                ('RIGHTPADDING', (0, 1), (0, 1), 0),
-                ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#FF9800')),
-                ('LINEBELOW', (0, 0), (0, 0), 1.5, colors.HexColor('#FB8C00')),
-            ]))
-            elements.append(tabla_savi)
-            elements.append(Spacer(1, 0.4*cm))
-        
-        # /04 Recomendaciones PRIORITARIAS
-        if analisis_data.get('recomendaciones'):
-            texto_limpio = limpiar_html_completo(analisis_data['recomendaciones'])
-            
-            header_recom = Paragraph(
-                '<para leftIndent="10" spaceBefore="4" spaceAfter="4">'
-                '<font size="10" color="white"><b>⚡ 04. RECOMENDACIONES PRIORITARIAS</b></font>'
-                '</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            contenido_recom = Paragraph(
-                f'<para leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12" leading="16">'
-                f'<font size="9.5" color="#2c3e50"><b>{texto_limpio}</b></font>'
-                f'</para>',
-                self.estilos['TextoNormal']
-            )
-            
-            tabla_recom = Table([[header_recom], [contenido_recom]], colWidths=[15.5*cm])
-            tabla_recom.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#FF5722')),
-                ('TOPPADDING', (0, 0), (0, 0), 8),
-                ('BOTTOMPADDING', (0, 0), (0, 0), 8),
-                ('BACKGROUND', (0, 1), (0, 1), colors.HexColor('#FFF8E1')),
-                ('TOPPADDING', (0, 1), (0, 1), 0),
-                ('BOTTOMPADDING', (0, 1), (0, 1), 15),
-                ('LEFTPADDING', (0, 1), (0, 1), 0),
-                ('RIGHTPADDING', (0, 1), (0, 1), 0),
-                ('BOX', (0, 0), (-1, -1), 2.5, colors.HexColor('#FF5722')),
-                ('LINEBELOW', (0, 0), (0, 0), 2, colors.HexColor('#E64A19')),
-            ]))
-            elements.append(tabla_recom)
-            elements.append(Spacer(1, 0.6*cm))
-        
-        return elements
-    
-    def _agregar_imagen_con_analisis(self, indice: IndiceMensual, tipo_indice: str, 
-                                      imagen_path: str, descripcion: str, usar_gemini: bool = False) -> List:
-        """
-        Agrega una imagen satelital con su análisis visual específico usando Gemini AI
-        
-        Args:
-            indice: IndiceMensual con los datos del mes
-            tipo_indice: 'NDVI', 'NDMI', 'SAVI'
-            imagen_path: Ruta a la imagen
-            descripcion: Descripción del índice
-            usar_gemini: Si usar Gemini AI para análisis visual (default: False para ahorrar tokens)
-        """
-        elements = []
-        
-        try:
-            # === IMAGEN ===
-            # Cargar y mostrar la imagen más grande para mejor visualización
-            img = Image(imagen_path, width=14*cm, height=10*cm)
-            img.hAlign = 'CENTER'
-            elements.append(img)
-            elements.append(Spacer(1, 0.2*cm))
-            
-            # === TÍTULO Y DESCRIPCIÓN ===
-            titulo_imagen = Paragraph(
-                f"<strong>{tipo_indice}</strong> - {descripcion}",
-                self.estilos['PieImagen']
-            )
-            elements.append(titulo_imagen)
-            elements.append(Spacer(1, 0.3*cm))
-            
-            # === VALORES NUMÉRICOS ===
-            valor_promedio = None
-            valor_minimo = None
-            valor_maximo = None
-            
-            if tipo_indice == 'NDVI':
-                valor_promedio = indice.ndvi_promedio
-                valor_minimo = indice.ndvi_minimo
-                valor_maximo = indice.ndvi_maximo
-            elif tipo_indice == 'NDMI':
-                valor_promedio = indice.ndmi_promedio
-                valor_minimo = indice.ndmi_minimo
-                valor_maximo = indice.ndmi_maximo
-            elif tipo_indice == 'SAVI':
-                valor_promedio = indice.savi_promedio
-                valor_minimo = indice.savi_minimo
-                valor_maximo = indice.savi_maximo
-            
-            if valor_promedio is not None:
-                min_texto = f"{valor_minimo:.3f}" if valor_minimo is not None else "N/A"
-                max_texto = f"{valor_maximo:.3f}" if valor_maximo is not None else "N/A"
-                
-                valores_texto = f"""
-<font size="9" color="#2c3e50">
-<strong>Valor promedio:</strong> {valor_promedio:.3f} | 
-<strong>Mínimo:</strong> {min_texto} | 
-<strong>Máximo:</strong> {max_texto}
-</font>
-"""
-                valores = Paragraph(valores_texto, self.estilos['TextoNormal'])
-                elements.append(valores)
-                elements.append(Spacer(1, 0.3*cm))
-            
-            # === ANÁLISIS VISUAL ESPECÍFICO CON GEMINI AI ===
-            if usar_gemini and valor_promedio is not None:
-                # Preparar contexto para Gemini
-                datos_contexto = {
-                    'fecha': indice.fecha_imagen.strftime('%d/%m/%Y') if indice.fecha_imagen else 'N/A',
-                    'satelite': indice.satelite_imagen or 'Sentinel-2',
-                    'resolucion': indice.resolucion_imagen or 10,
-                    'nubosidad': indice.nubosidad_imagen or 0,
-                    'coordenadas': f"({indice.parcela.latitud:.6f}, {indice.parcela.longitud:.6f})" if hasattr(indice.parcela, 'latitud') else 'N/A'
-                }
-                
-                # Buscar mes anterior para comparación
-                mes_anterior_data = self._obtener_datos_mes_anterior(indice, tipo_indice)
-                
-                # Generar análisis con Gemini
-                try:
-                    analisis_texto = gemini_service.analizar_imagen_satelital(
-                        imagen_path=imagen_path,
-                        tipo_indice=tipo_indice,
-                        valor_promedio=valor_promedio,
-                        datos_contexto=datos_contexto,
-                        mes_anterior_data=mes_anterior_data
-                    )
-                    
-                    # Agregar badge indicando que es análisis AI
-                    badge_ai = Paragraph(
-                        '<font size="7" color="#666666"><strong>🤖 Análisis generado por Gemini AI</strong></font>',
-                        self.estilos['TextoNormal']
-                    )
-                    elements.append(badge_ai)
-                    elements.append(Spacer(1, 0.1*cm))
-                    
-                except Exception as e:
-                    logger.warning(f"⚠️ Gemini falló para {tipo_indice}, usando análisis básico: {str(e)}")
-                    analisis_texto = self._generar_analisis_visual_imagen(indice, tipo_indice, valor_promedio)
-            else:
-                # Usar análisis basado en reglas como fallback
-                analisis_texto = self._generar_analisis_visual_imagen(indice, tipo_indice, valor_promedio)
-            
-            if analisis_texto:
-                analisis = Paragraph(analisis_texto, self.estilos['TextoNormal'])
-                
-                # Caja con análisis visual
-                tabla_analisis = Table([[analisis]], colWidths=[15*cm])
-                tabla_analisis.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0f8f0')),  # Verde muy claro
-                    ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#2E8B57')),  # Borde verde
-                    ('TOPPADDING', (0, 0), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-                ]))
-                
-                elements.append(tabla_analisis)
-            
-            elements.append(Spacer(1, 0.5*cm))
-            
-        except Exception as e:
-            logger.error(f"❌ Error agregando imagen {tipo_indice} de {indice.periodo_texto}: {str(e)}")
-            error_msg = Paragraph(
-                f'<font color="red">Error cargando imagen {tipo_indice}</font>',
-                self.estilos['TextoNormal']
-            )
-            elements.append(error_msg)
-        
-        return elements
-    
-    def _obtener_datos_mes_anterior(self, indice: IndiceMensual, tipo_indice: str) -> Optional[Dict]:
-        """
-        Obtiene datos del mes anterior para comparación temporal
-        """
-        try:
-            if indice.mes == 1:
-                mes_anterior = indice.parcela.indices_mensuales.filter(
-                    año=indice.año - 1, mes=12
-                ).first()
-            else:
-                mes_anterior = indice.parcela.indices_mensuales.filter(
-                    año=indice.año, mes=indice.mes - 1
-                ).first()
-            
-            if mes_anterior:
-                valor_anterior = None
-                if tipo_indice == 'NDVI':
-                    valor_anterior = mes_anterior.ndvi_promedio
-                elif tipo_indice == 'NDMI':
-                    valor_anterior = mes_anterior.ndmi_promedio
-                elif tipo_indice == 'SAVI':
-                    valor_anterior = mes_anterior.savi_promedio
-                
-                if valor_anterior:
-                    return {
-                        'fecha': mes_anterior.fecha_imagen.strftime('%d/%m/%Y') if mes_anterior.fecha_imagen else 'N/A',
-                        'tipo_indice': tipo_indice,
-                        'valor': valor_anterior
-                    }
-        except Exception as e:
-            logger.debug(f"No se pudo obtener datos del mes anterior: {str(e)}")
-        
-        return None
-    
-    def _generar_analisis_visual_imagen(self, indice: IndiceMensual, tipo_indice: str, 
-                                        valor_promedio: float) -> str:
-        """
-        Genera un análisis visual específico basado en los valores del índice
-        y el contexto temporal (comparación con mes anterior si está disponible)
-        """
-        if valor_promedio is None:
-            return ""
-        
-        analisis_partes = []
-        
-        # === INTERPRETACIÓN DEL VALOR ===
-        if tipo_indice == 'NDVI':
-            if valor_promedio >= 0.7:
-                interpretacion = "La imagen muestra <strong>vegetación muy vigorosa</strong> con tonos verdes intensos. "
-                interpretacion += "Las áreas más oscuras (verdes) indican alta densidad de biomasa y excelente salud vegetal."
-            elif valor_promedio >= 0.5:
-                interpretacion = "La imagen muestra <strong>vegetación saludable</strong> con predominio de tonos verdes. "
-                interpretacion += "Se observa buena cobertura vegetal con desarrollo normal del cultivo."
-            elif valor_promedio >= 0.3:
-                interpretacion = "La imagen muestra <strong>vegetación moderada</strong> con tonos amarillos-verdes. "
-                interpretacion += "Posibles áreas con menor vigor vegetal o cultivo en etapa temprana."
-            else:
-                interpretacion = "La imagen muestra <strong>baja vegetación</strong> con tonos amarillos-marrones. "
-                interpretacion += "Predominio de suelo desnudo o vegetación muy dispersa/estresada."
-        
-        elif tipo_indice == 'NDMI':
-            if valor_promedio >= 0.2:
-                interpretacion = "La imagen refleja <strong>alto contenido de humedad</strong> en la vegetación. "
-                interpretacion += "Tonos azules-verdes indican buena hidratación de las plantas."
-            elif valor_promedio >= 0.0:
-                interpretacion = "La imagen muestra <strong>contenido moderado de humedad</strong>. "
-                interpretacion += "Vegetación con niveles normales de agua."
-            elif valor_promedio >= -0.2:
-                interpretacion = "La imagen indica <strong>bajo contenido de humedad</strong>. "
-                interpretacion += "Tonos cálidos sugieren estrés hídrico potencial o vegetación seca."
-            else:
-                interpretacion = "La imagen muestra <strong>muy baja humedad</strong> con tonos rojos-marrones. "
-                interpretacion += "Vegetación severamente estresada o suelo desnudo."
-        
-        elif tipo_indice == 'SAVI':
-            if valor_promedio >= 0.5:
-                interpretacion = "La imagen muestra <strong>excelente cobertura vegetal</strong>. "
-                interpretacion += "Mínima exposición de suelo desnudo visible."
-            elif valor_promedio >= 0.3:
-                interpretacion = "La imagen muestra <strong>buena cobertura vegetal</strong>. "
-                interpretacion += "Vegetación bien establecida con algo de suelo visible."
-            else:
-                interpretacion = "La imagen muestra <strong>cobertura vegetal baja</strong>. "
-                interpretacion += "Considerable exposición de suelo desnudo entre la vegetación."
-        
-        analisis_partes.append(interpretacion)
-        
-        # === ANÁLISIS ESPACIAL (si hay heterogeneidad) ===
-        if indice.ndvi_maximo and indice.ndvi_minimo and tipo_indice == 'NDVI':
-            rango = indice.ndvi_maximo - indice.ndvi_minimo
-            if rango > 0.2:
-                analisis_partes.append(
-                    f"<br/><br/><strong>Variabilidad espacial:</strong> Se observa <strong>heterogeneidad significativa</strong> "
-                    f"dentro de la parcela (rango: {rango:.3f}). Las áreas más claras pueden corresponder a zonas con "
-                    f"menor vigor, posiblemente en las zonas periféricas o áreas con condiciones menos favorables."
-                )
-            else:
-                analisis_partes.append(
-                    "<br/><br/><strong>Uniformidad:</strong> La parcela muestra <strong>distribución relativamente uniforme</strong> "
-                    "del índice, lo que indica condiciones homogéneas en la mayoría del área cultivada."
-                )
-        
-        # === COMPARACIÓN TEMPORAL (buscar mes anterior) ===
-        try:
-            # Buscar el mes anterior
-            if indice.mes == 1:
-                mes_anterior = indice.parcela.indices_mensuales.filter(
-                    año=indice.año - 1, mes=12
-                ).first()
-            else:
-                mes_anterior = indice.parcela.indices_mensuales.filter(
-                    año=indice.año, mes=indice.mes - 1
-                ).first()
-            
-            if mes_anterior:
-                valor_anterior = None
-                if tipo_indice == 'NDVI':
-                    valor_anterior = mes_anterior.ndvi_promedio
-                elif tipo_indice == 'NDMI':
-                    valor_anterior = mes_anterior.ndmi_promedio
-                elif tipo_indice == 'SAVI':
-                    valor_anterior = mes_anterior.savi_promedio
-                
-                if valor_anterior:
-                    cambio = valor_promedio - valor_anterior
-                    cambio_pct = (cambio / abs(valor_anterior)) * 100 if valor_anterior != 0 else 0
-                    
-                    if abs(cambio) > 0.05:  # Cambio significativo
-                        if cambio > 0:
-                            analisis_partes.append(
-                                f"<br/><br/><strong>Cambio temporal:</strong> Comparado con {mes_anterior.periodo_texto}, "
-                                f"se observa un <strong>incremento notable</strong> ({cambio:+.3f}, {cambio_pct:+.1f}%). "
-                                f"Visualmente esto se traduce en mayor intensidad de color verde/azul en la imagen actual, "
-                                f"indicando mejora en las condiciones de la vegetación."
-                            )
-                        else:
-                            analisis_partes.append(
-                                f"<br/><br/><strong>Cambio temporal:</strong> Comparado con {mes_anterior.periodo_texto}, "
-                                f"se observa una <strong>disminución notable</strong> ({cambio:.3f}, {cambio_pct:.1f}%). "
-                                f"Visualmente se aprecia un cambio hacia tonos más cálidos (amarillos/marrones), "
-                                f"lo que sugiere reducción en vigor vegetal o contenido de humedad."
-                            )
-        except Exception as e:
-            logger.debug(f"No se pudo comparar con mes anterior: {str(e)}")
-        
-        return "".join(analisis_partes)
-    
-    def _crear_tabla_datos(self, datos: List[Dict]) -> List:
-        """Crea tabla con datos mensuales, usando Paragraphs y limpieza de HTML en todas las celdas"""
-        elements = []
-        
-        # Agregar imagen decorativa superior (2.png) - MÁS GRANDE
-        titulo_img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '2.png')
-        if os.path.exists(titulo_img_path):
-            try:
-                img_decorativa = Image(titulo_img_path, width=12*cm, height=7*cm, kind='proportional')
-                img_decorativa.hAlign = 'CENTER'
-                elements.append(img_decorativa)
-                elements.append(Spacer(1, 0.5*cm))
-            except Exception as e:
-                logger.warning(f"No se pudo cargar imagen decorativa 2.png: {e}")
-        
-        titulo = Paragraph("📋 Datos Mensuales Detallados", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
-
-        # Encabezados - AHORA CON NUBOSIDAD
-        headers = [
-            Paragraph("<b>Período</b>", self.estilos['TextoNormal']),
-            Paragraph("<b>NDVI</b>", self.estilos['TextoNormal']),
-            Paragraph("<b>NDMI</b>", self.estilos['TextoNormal']),
-            Paragraph("<b>SAVI</b>", self.estilos['TextoNormal']),
-            Paragraph("<b>☁️ Nub. (%)</b>", self.estilos['TextoNormal']),
-            Paragraph("<b>Temp (°C)</b>", self.estilos['TextoNormal']),
-            Paragraph("<b>Precip (mm)</b>", self.estilos['TextoNormal'])
-        ]
-        table_data = [headers]
-
-        for dato in datos:
-            # Obtener nubosidad (si existe en el dato)
-            nubosidad = dato.get('nubosidad_promedio', dato.get('nubosidad', None))
-            nubosidad_str = f"{nubosidad:.1f}" if nubosidad is not None else 'N/D'
-            
-            row = [
-                Paragraph(limpiar_html_completo(str(dato['periodo'])), self.estilos['TextoNormal']),
-                Paragraph(limpiar_html_completo(f"{dato.get('ndvi', 0):.3f}") if dato.get('ndvi') else 'N/D', self.estilos['TextoNormal']),
-                Paragraph(limpiar_html_completo(f"{dato.get('ndmi', 0):.3f}") if dato.get('ndmi') else 'N/D', self.estilos['TextoNormal']),
-                Paragraph(limpiar_html_completo(f"{dato.get('savi', 0):.3f}") if dato.get('savi') else 'N/D', self.estilos['TextoNormal']),
-                Paragraph(limpiar_html_completo(nubosidad_str), self.estilos['TextoNormal']),
-                Paragraph(limpiar_html_completo(f"{dato.get('temperatura', 0):.1f}") if dato.get('temperatura') else 'N/D', self.estilos['TextoNormal']),
-                Paragraph(limpiar_html_completo(f"{dato.get('precipitacion', 0):.1f}") if dato.get('precipitacion') else 'N/D', self.estilos['TextoNormal'])
-            ]
-            table_data.append(row)
-
-        tabla = Table(table_data, colWidths=[2.5*cm, 2*cm, 2*cm, 2*cm, 2*cm, 2*cm, 2.5*cm])
-        tabla.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F1F8F4')]),
-            ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#2E7D32')),
-            ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        elements.append(tabla)
-        
-        # Agregar imagen decorativa inferior (4.png) - MÁS GRANDE
-        img_inf_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '4.png')
-        if os.path.exists(img_inf_path):
-            try:
-                elements.append(Spacer(1, 0.5*cm))
-                img_inf = Image(img_inf_path, width=14*cm, height=6*cm, kind='proportional')
-                img_inf.hAlign = 'CENTER'
-                elements.append(img_inf)
-            except Exception as e:
-                logger.warning(f"No se pudo cargar imagen decorativa 4.png: {e}")
-        
-        return elements
-    def _crear_pagina_creditos(self) -> List:
-        """Crea página final con créditos e información legal"""
-        elements = []
-        
-        # Título
-        titulo = Paragraph(
-            '<para align="center"><font size="14" color="#2E7D32"><strong>Créditos e Información</strong></font></para>',
-            self.estilos['TituloSeccion']
-        )
-        elements.append(titulo)
-        elements.append(Spacer(1, 1*cm))
-        
-        # Sección de tecnologías
-        tecnologias = Paragraph(
-            '<para align="left">'
-            '<font size="10" color="#2c3e50"><strong>🛰️ Tecnologías Satelitales</strong></font><br/>'
-            '<font size="9" color="#555555">'
-            '• Imágenes: Sentinel-2 (ESA Copernicus Programme)<br/>'
-            '• Resolución espacial: 10-20 metros/píxel<br/>'
-            '• Índices espectrales: NDVI, NDMI, SAVI'
-            '</font>'
-            '</para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(tecnologias)
-        elements.append(Spacer(1, 0.7*cm))
-        
-        # Sección de análisis IA
-        ia_info = Paragraph(
-            '<para align="left">'
-            '<font size="10" color="#2c3e50"><strong>🤖 Análisis Inteligente</strong></font><br/>'
-            '<font size="9" color="#555555">'
-            '• Motor de IA: Google Gemini 2.0 Flash<br/>'
-            '• Procesamiento: Análisis espacial y temporal de patrones de cultivo<br/>'
-            '• Recomendaciones: Basadas en algoritmos científicos validados'
-            '</font>'
-            '</para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(ia_info)
-        elements.append(Spacer(1, 0.7*cm))
-        
-        # Créditos de imágenes decorativas
-        creditos_img = Paragraph(
-            '<para align="left">'
-            '<font size="10" color="#2c3e50"><strong>📸 Imágenes Decorativas</strong></font><br/>'
-            '<font size="8" color="#777777">'
-            '• Fotografía satelital: Unsplash (licencia libre)<br/>'
-            '• Imágenes agrícolas: Unsplash Contributors<br/>'
-            '• Todas las imágenes utilizadas bajo licencias de uso libre comercial'
-            '</font>'
-            '</para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(creditos_img)
-        elements.append(Spacer(1, 1*cm))
-        
-        # Aviso legal
-        aviso = Paragraph(
-            '<para align="center">'
-            '<font size="8" color="#999999">'
-            '<i>Este informe fue generado automáticamente por AgroTech Sistema de Análisis Satelital. '
-            'Los datos y recomendaciones son de carácter informativo y deben ser complementados con '
-            'inspección de campo y criterio agronómico profesional.</i>'
-            '</font>'
-            '</para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(aviso)
-        elements.append(Spacer(1, 1.5*cm))
-        
-        # Logo y fecha al final
-        footer_creditos = Paragraph(
-            '<para align="center">'
-            '<font size="10" color="#2E7D32"><strong>agrotech</strong></font><br/>'
-            f'<font size="8" color="#888888">Análisis Satelital de Precisión · {datetime.now().strftime("%Y")}</font>'
-            '</para>',
-            self.estilos['TextoNormal']
-        )
-        elements.append(footer_creditos)
-        
-        # Imagen decorativa bottom si existe
-        img_bottom_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', 'cultivos_aereo.jpg')
-        if os.path.exists(img_bottom_path):
-            try:
-                from reportlab.platypus import Flowable
-                class ImagenDecorativaBottom(Flowable):
-                    def __init__(self, width, height):
-                        Flowable.__init__(self)
-                        self.width = width
-                        self.height = height
-                    
-                    def draw(self):
-                        try:
-                            self.canv.saveState()
-                            self.canv.setFillAlpha(0.1)
-                            self.canv.drawImage(img_bottom_path, 0, -2*cm, 
-                                              width=self.width, height=4*cm, 
-                                              preserveAspectRatio=True, mask='auto')
-                            self.canv.restoreState()
-                        except:
-                            pass
-                
-                elements.append(Spacer(1, 1*cm))
-                img_fondo = ImagenDecorativaBottom(17*cm, 4*cm)
-                elements.append(img_fondo)
-            except Exception as e:
-                logger.warning(f"No se pudo agregar imagen decorativa bottom: {e}")
         
         return elements

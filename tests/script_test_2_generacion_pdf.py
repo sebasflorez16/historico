@@ -38,7 +38,7 @@ for p in parcelas:
 # 3. Verificar datos de índices
 print("\n3. Verificando datos de índices mensuales...")
 parcela = parcelas.first()
-indices = IndiceMensual.objects.filter(parcela=parcela).order_by('-fecha')[:6]
+indices = IndiceMensual.objects.filter(parcela=parcela).order_by('-año', '-mes')[:6]
 
 if not indices.exists():
     print("   ⚠ No hay datos de índices para esta parcela")
@@ -46,7 +46,7 @@ if not indices.exists():
 else:
     print(f"   ✓ {indices.count()} registros recientes encontrados:")
     for idx in indices:
-        print(f"      - {idx.fecha.strftime('%Y-%m')}: NDVI={idx.ndvi:.3f}, "
+        print(f"      - {idx.año}-{idx.mes:02d}: NDVI={idx.ndvi:.3f}, "
               f"NDMI={idx.ndmi:.3f}, SAVI={idx.savi:.3f}")
 
 # 4. Probar analizadores
@@ -56,7 +56,7 @@ try:
     from informes.analizadores.ndmi_analyzer import AnalizadorNDMI
     from informes.analizadores.savi_analyzer import AnalizadorSAVI
     from informes.analizadores.tendencias_analyzer import DetectorTendencias
-    from informes.analizadores.recomendaciones_engine import MotorRecomendaciones
+    from informes.analizadores.recomendaciones_engine import GeneradorRecomendaciones
     
     # Datos de prueba
     datos_test = [
@@ -80,7 +80,7 @@ try:
     tendencias = DetectorTendencias.detectar_tendencias(datos_test)
     print(f"   ✓ Detector de Tendencias: {len(tendencias)} tendencias detectadas")
     
-    recomendaciones = MotorRecomendaciones.generar_recomendaciones(
+    recomendaciones = GeneradorRecomendaciones.generar_recomendaciones(
         analisis_ndvi, analisis_ndmi, analisis_savi, tendencias
     )
     print(f"   ✓ Motor de Recomendaciones: {len(recomendaciones)} recomendaciones generadas")

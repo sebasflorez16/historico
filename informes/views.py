@@ -94,19 +94,19 @@ def dashboard(request):
                 else:
                     # Totales generales
                     ingresos_pagados = Informe.objects.filter(
-                        estado_pago='pagado'
+                        metodo_pago='pagado'
                     ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
                     
                     ingresos_parciales = Informe.objects.filter(
-                        estado_pago='parcial'
+                        metodo_pago='parcial'
                     ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
                     
                     total_ingresos = ingresos_pagados + ingresos_parciales
                     
                     # Cuentas por cobrar (saldo pendiente)
                     informes_con_saldo = Informe.objects.filter(
-                        estado_pago__in=['pendiente', 'parcial', 'vencido']
-                    ).exclude(estado_pago='cortesia')
+                        metodo_pago__in=['pendiente', 'parcial', 'vencido']
+                    ).exclude(metodo_pago='cortesia')
                     
                     cuentas_por_cobrar = sum(
                         [informe.saldo_pendiente for informe in informes_con_saldo]
@@ -116,7 +116,7 @@ def dashboard(request):
                     ahora = timezone.now()
                     informes_vencidos = Informe.objects.filter(
                         fecha_vencimiento__lt=ahora,
-                        estado_pago__in=['pendiente', 'parcial']
+                        metodo_pago__in=['pendiente', 'parcial']
                     ).count()
                     
                     # Informes por vencer (próximos 7 días)
@@ -124,18 +124,18 @@ def dashboard(request):
                     informes_por_vencer = Informe.objects.filter(
                         fecha_vencimiento__gte=ahora,
                         fecha_vencimiento__lte=fecha_limite,
-                        estado_pago__in=['pendiente', 'parcial']
+                        metodo_pago__in=['pendiente', 'parcial']
                     ).count()
                     
                     # Informes pagados vs pendientes
-                    informes_pagados = Informe.objects.filter(estado_pago='pagado').count()
+                    informes_pagados = Informe.objects.filter(metodo_pago='pagado').count()
                     informes_pendientes = Informe.objects.filter(
-                        estado_pago__in=['pendiente', 'parcial']
+                        metodo_pago__in=['pendiente', 'parcial']
                     ).count()
                     
                     # Últimos pagos registrados
                     ultimos_pagos = Informe.objects.filter(
-                        estado_pago__in=['pagado', 'parcial']
+                        metodo_pago__in=['pagado', 'parcial']
                     ).exclude(monto_pagado=0).order_by('-fecha_actualizacion')[:5]
                 
                 # Total de hectáreas registradas
@@ -751,11 +751,15 @@ def estado_sistema(request):
         from .services.email_service import email_service
         estado_email = email_service.validar_configuracion_email()
         
+        # Definir estadísticas generales
+        total_indices = IndiceMensual.objects.count()
+        total_informes = Informe.objects.count()
+        
         # Estadísticas de datos
         estadisticas = {
             'total_parcelas': Parcela.objects.filter(activa=True).count(),
-            'total_indices': IndiceMensual.objects.count(),
-            'total_informes': Informe.objects.count(),
+            'total_indices': total_indices,
+            'total_informes': total_informes,
             'indices_ultimo_mes': IndiceMensual.objects.filter(
                 fecha_consulta_api__gte=datetime.now() - timedelta(days=30)
             ).count(),
@@ -2014,8 +2018,7 @@ def generar_informe_pdf(request, parcela_id):
             if not os.path.exists(ruta_pdf):
                 raise FileNotFoundError(f"El PDF no se generó correctamente en {ruta_pdf}")
             
-            # Determinar precio base del informe
-            precio_base = Decimal('0.00')
+            # Determinar precio base del informe - SIEMPRE inicializar con Decimal
             cliente_invitacion = None
             fecha_vencimiento_calculada = None
             
@@ -2023,7 +2026,7 @@ def generar_informe_pdf(request, parcela_id):
             if hasattr(parcela, 'invitacion_cliente'):
                 invitacion = parcela.invitacion_cliente
                 cliente_invitacion = invitacion
-                precio_base = invitacion.costo_servicio
+                precio_base = invitacion.costo_servicio if invitacion.costo_servicio else Decimal('0.00')
                 logger.info(f"Precio asignado desde invitación: ${precio_base} COP")
             else:
                 # Calcular precio según configuración
@@ -2032,7 +2035,7 @@ def generar_informe_pdf(request, parcela_id):
                     parcela=parcela
                 ).order_by('-creado_en').first()
                 
-                if config:
+                if config and config.costo_estimado:
                     precio_base = config.costo_estimado
                     logger.info(f"Precio asignado desde configuración: ${precio_base} COP")
                 else:
@@ -2044,6 +2047,11 @@ def generar_informe_pdf(request, parcela_id):
                     else:
                         precio_base = Decimal('560000.00')  # Plan avanzado
                     logger.info(f"Precio por defecto según período: ${precio_base} COP")
+            
+            # GARANTIZAR que precio_base NUNCA sea None
+            if precio_base is None:
+                precio_base = Decimal('0.00')
+                logger.warning(f"⚠️ precio_base era None, asignado 0.00 por defecto")
             
             # Calcular fecha de vencimiento (30 días desde hoy)
             if precio_base > 0:
@@ -2443,24 +2451,24 @@ def arqueo_caja(request):
         
         # Estadísticas financieras
         ingresos_totales = Informe.objects.filter(
-            estado_pago__in=['pagado', 'parcial']
+            metodo_pago__in=['pagado', 'parcial']
         ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
         
         cuentas_por_cobrar = sum([
             inf.saldo_pendiente for inf in Informe.objects.filter(
-                estado_pago__in=['pendiente', 'parcial', 'vencido']
+                metodo_pago__in=['pendiente', 'parcial', 'vencido']
             )
         ])
         
         ahora = timezone.now()
         informes_vencidos = Informe.objects.filter(
             fecha_vencimiento__lt=ahora,
-            estado_pago__in=['pendiente', 'parcial']
+            metodo_pago__in=['pendiente', 'parcial']
         ).count()
         
-        informes_pagados = Informe.objects.filter(estado_pago='pagado').count()
-        informes_pendientes = Informe.objects.filter(estado_pago='pendiente').count()
-        informes_parciales = Informe.objects.filter(estado_pago='parcial').count()
+        informes_pagados = Informe.objects.filter(metodo_pago='pagado').count()
+        informes_pendientes = Informe.objects.filter(metodo_pago='pendiente').count()
+        informes_parciales = Informe.objects.filter(metodo_pago='parcial').count()
         
         # Distribución por estado
         estados_count = {

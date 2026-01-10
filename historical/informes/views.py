@@ -1970,6 +1970,8 @@ def generar_informe_pdf(request, parcela_id):
                 archivo_pdf=ruta_pdf
             )
             
+            logger.info(f"✅ Informe creado exitosamente - ID: {informe.id}")
+            
             # Enviar archivo para descarga
             from django.http import FileResponse
             response = FileResponse(
@@ -1982,7 +1984,7 @@ def generar_informe_pdf(request, parcela_id):
             logger.info(f"Informe PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")
             messages.success(request, 
                            f'¡Informe generado exitosamente! '
-                                                     f'Analizados {indices_count} registros mensuales.')
+                           f'Analizados {indices_count} registros mensuales.')
             
             return response
             

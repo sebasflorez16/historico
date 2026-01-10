@@ -23,8 +23,8 @@
     
     <style>
         /* ========================================
-           🌿 NEUMORFISMO LUMINOSO AGROTECH 🌿
-           Sistema de Diseño Neumórfico 3D
+           🌿 AGROTECH - ESTILOS GENERALES 🌿
+           Sistema de Diseño Simplificado
            Paleta: Blanco, Naranja #FF7A00, Verde #2E8B57
            ======================================== */
         
@@ -35,23 +35,13 @@
             --agrotech-white: #FFFFFF;
             --agrotech-light: #F0F4F8;
             
-            /* Fondos neumórficos */
-            --neuro-bg-primary: #E8F0F8;
-            --neuro-bg-secondary: #F5F7FA;
+            /* Fondos */
+            --bg-primary: #E8F0F8;
+            --bg-secondary: #F5F7FA;
             
-            /* Sombras neumórficas - doble sombra para efecto 3D */
-            --neuro-shadow-light: -8px -8px 16px rgba(255, 255, 255, 0.8);
-            --neuro-shadow-dark: 8px 8px 16px rgba(46, 139, 87, 0.15);
-            --neuro-shadow-inset-light: inset -4px -4px 8px rgba(255, 255, 255, 0.7);
-            --neuro-shadow-inset-dark: inset 4px 4px 8px rgba(46, 139, 87, 0.1);
-            
-            /* Sombras para hover */
-            --neuro-shadow-hover-light: -12px -12px 24px rgba(255, 255, 255, 0.9);
-            --neuro-shadow-hover-dark: 12px 12px 24px rgba(255, 122, 0, 0.2);
-            
-            /* Sombras para elementos activos */
-            --neuro-shadow-active-light: inset -6px -6px 12px rgba(255, 255, 255, 0.6);
-            --neuro-shadow-active-dark: inset 6px 6px 12px rgba(46, 139, 87, 0.15);
+            /* Sombras */
+            --shadow-light: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            --shadow-dark: 0px 2px 4px rgba(0, 0, 0, 0.2);
             
             /* Compatibilidad con código antiguo */
             --agrotech-verde: #2E8B57;
@@ -79,11 +69,11 @@
         }
         
         /* ========================================
-           🎨 NAVBAR NEUMÓRFICO
+           🎨 NAVBAR
            ======================================== */
         .navbar {
-            background: var(--neuro-bg-primary) !important;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            background: var(--bg-primary) !important;
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             border-radius: 0 0 24px 24px;
             padding: 20px 0;
             position: relative;
@@ -103,13 +93,13 @@
             gap: 12px;
             padding: 12px 20px;
             border-radius: 16px;
-            background-color: var(--neuro-bg-secondary);
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            background-color: var(--bg-secondary);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transition: all 0.3s ease;
         }
         
         .navbar-brand:hover {
-            box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transform: translateY(-2px);
         }
         
@@ -126,56 +116,37 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 14px;
             position: relative;
-            background: var(--neuro-bg-secondary);
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .navbar-nav .nav-link:hover {
             color: var(--agrotech-orange) !important;
-            box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transform: translateY(-2px);
         }
         
         .navbar-nav .nav-link:active {
-            box-shadow: var(--neuro-shadow-active-light), var(--neuro-shadow-active-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transform: translateY(0);
         }
         
         /* ========================================
-           🎴 CARDS NEUMÓRFICOS 3D
+           🎴 CARDS
            ======================================== */
         .card {
-            background: var(--neuro-bg-secondary);
+            background: var(--bg-secondary);
             border: none;
             border-radius: 28px;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: visible;
             position: relative;
         }
         
-        .card::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: 20px;
-            right: 20px;
-            height: 5px;
-            background: linear-gradient(90deg, var(--agrotech-green), var(--agrotech-orange));
-            border-radius: 28px 28px 0 0;
-            opacity: 0;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            transform: translateY(-100%);
-        }
-        
         .card:hover {
             transform: translateY(-6px);
-            box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
-        }
-        
-        .card:hover::before {
-            opacity: 1;
-            transform: translateY(0);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .card-header {
@@ -187,11 +158,11 @@
             border: none;
             font-weight: 700;
             padding: 24px 28px;
-            box-shadow: var(--neuro-shadow-inset-light), var(--neuro-shadow-inset-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         /* ========================================
-           🔘 BOTONES NEUMÓRFICOS LUMINOSOS 3D
+           🔘 BOTONES LUMINOSOS
            ======================================== */
         .btn {
             border-radius: 18px;
@@ -203,8 +174,8 @@
             border: none;
             position: relative;
             overflow: hidden;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
-            background: var(--neuro-bg-secondary);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
+            background: var(--bg-secondary);
         }
         
         .btn::before {
@@ -226,14 +197,14 @@
         }
         
         .btn:hover {
-            box-shadow: var(--neuro-shadow-hover-light), 
-                        var(--neuro-shadow-hover-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 8px 30px rgba(46, 139, 87, 0.3);
             transform: translateY(-4px);
         }
         
         .btn:active {
-            box-shadow: var(--neuro-shadow-active-light), var(--neuro-shadow-active-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transform: translateY(1px);
         }
         
@@ -250,8 +221,8 @@
         .btn-primary {
             background: linear-gradient(145deg, #2E8B57 0%, #3BA868 100%);
             color: white;
-            box-shadow: var(--neuro-shadow-light), 
-                        var(--neuro-shadow-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 6px 20px rgba(46, 139, 87, 0.35),
                         inset 0 1px 0 rgba(255, 255, 255, 0.2);
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -259,8 +230,8 @@
         
         .btn-primary:hover {
             background: linear-gradient(145deg, #34A853 0%, #2E8B57 100%);
-            box-shadow: var(--neuro-shadow-hover-light), 
-                        var(--neuro-shadow-hover-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 12px 35px rgba(46, 139, 87, 0.45),
                         inset 0 1px 0 rgba(255, 255, 255, 0.3);
             transform: translateY(-5px);
@@ -270,8 +241,8 @@
         .btn-success {
             background: linear-gradient(145deg, #34A853 0%, #2E8B57 100%);
             color: white;
-            box-shadow: var(--neuro-shadow-light), 
-                        var(--neuro-shadow-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 6px 20px rgba(52, 168, 83, 0.4),
                         inset 0 1px 0 rgba(255, 255, 255, 0.2);
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -279,8 +250,8 @@
         
         .btn-success:hover {
             background: linear-gradient(145deg, #3BA868 0%, #34A853 100%);
-            box-shadow: var(--neuro-shadow-hover-light), 
-                        var(--neuro-shadow-hover-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 12px 35px rgba(52, 168, 83, 0.5);
             transform: translateY(-5px);
         }
@@ -289,8 +260,8 @@
         .btn-warning {
             background: linear-gradient(145deg, #FF7A00 0%, #FF9500 100%);
             color: white;
-            box-shadow: var(--neuro-shadow-light), 
-                        var(--neuro-shadow-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 6px 20px rgba(255, 122, 0, 0.4),
                         inset 0 1px 0 rgba(255, 255, 255, 0.2);
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -298,8 +269,8 @@
         
         .btn-warning:hover {
             background: linear-gradient(145deg, #FF9500 0%, #FFA500 100%);
-            box-shadow: var(--neuro-shadow-hover-light), 
-                        var(--neuro-shadow-hover-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 12px 35px rgba(255, 122, 0, 0.5);
             transform: translateY(-5px);
         }
@@ -308,8 +279,8 @@
         .btn-info {
             background: linear-gradient(145deg, #17a2b8 0%, #20c9e0 100%);
             color: white;
-            box-shadow: var(--neuro-shadow-light), 
-                        var(--neuro-shadow-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 6px 20px rgba(23, 162, 184, 0.4),
                         inset 0 1px 0 rgba(255, 255, 255, 0.2);
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -317,32 +288,32 @@
         
         .btn-info:hover {
             background: linear-gradient(145deg, #20c9e0 0%, #17a2b8 100%);
-            box-shadow: var(--neuro-shadow-hover-light), 
-                        var(--neuro-shadow-hover-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 12px 35px rgba(23, 162, 184, 0.5);
             transform: translateY(-5px);
         }
         
         /* Botón Light - Neumórfico puro */
         .btn-light {
-            background: var(--neuro-bg-secondary);
+            background: var(--bg-secondary);
             color: var(--agrotech-green);
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             font-weight: 700;
         }
         
         .btn-light:hover {
             color: var(--agrotech-orange);
-            box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         /* Botón Outline - Bordes neumórficos */
         .btn-outline-success {
-            background: var(--neuro-bg-secondary);
+            background: var(--bg-secondary);
             color: var(--agrotech-green);
             border: 3px solid var(--agrotech-green);
-            box-shadow: var(--neuro-shadow-light), 
-                        var(--neuro-shadow-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         inset 0 0 0 rgba(46, 139, 87, 0);
             font-weight: 700;
             transition: all 0.4s ease;
@@ -352,8 +323,8 @@
             background: linear-gradient(145deg, #2E8B57 0%, #34A853 100%);
             color: white;
             border-color: transparent;
-            box-shadow: var(--neuro-shadow-hover-light), 
-                        var(--neuro-shadow-hover-dark),
+            box-shadow: var(--shadow-light), 
+                        var(--shadow-dark),
                         0 8px 25px rgba(46, 139, 87, 0.4);
         }
         
@@ -377,8 +348,8 @@
         .alert {
             border: none;
             border-radius: 18px;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
-            background: var(--neuro-bg-secondary);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
+            background: var(--bg-secondary);
             padding: 18px 24px;
         }
         
@@ -386,7 +357,7 @@
             border-radius: 12px;
             font-weight: 600;
             padding: 8px 16px;
-            box-shadow: var(--neuro-shadow-inset-light), var(--neuro-shadow-inset-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .badge.bg-success {
@@ -396,8 +367,8 @@
         .table {
             border-radius: 16px;
             overflow: hidden;
-            background: var(--neuro-bg-secondary);
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .table thead th {
@@ -421,20 +392,20 @@
         
         .leaflet-container {
             border-radius: 20px;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .stats-card {
-            background: var(--neuro-bg-secondary);
+            background: var(--bg-secondary);
             border-left: 5px solid var(--agrotech-green);
             border-radius: 20px;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transition: all 0.3s ease;
         }
         
         .stats-card:hover {
             transform: translateX(8px);
-            box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .main-content {
@@ -449,7 +420,7 @@
             color: white;
             margin-top: 60px;
             border-radius: 28px 28px 0 0;
-            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
         }
         
         .logo-agrotech {
@@ -459,21 +430,21 @@
         }
         
         /* ========================================
-           📝 ESTILOS PARA FORMULARIOS NEUMÓRFICOS
+           📝 ESTILOS PARA FORMULARIOS
            ======================================== */
         .form-control, .form-select {
-            background: var(--neuro-bg-secondary);
+            background: var(--bg-secondary);
             border: none;
             border-radius: 14px;
             padding: 14px 18px;
-            box-shadow: var(--neuro-shadow-inset-light), var(--neuro-shadow-inset-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             transition: all 0.3s ease;
             font-weight: 500;
         }
         
         .form-control:focus, .form-select:focus {
             outline: none;
-            box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+            box-shadow: var(--shadow-light), var(--shadow-dark);
             border-color: var(--agrotech-green);
         }
         
@@ -493,10 +464,10 @@
         
         @keyframes pulseGlow {
             0%, 100% {
-                box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+                box-shadow: var(--shadow-light), var(--shadow-dark);
             }
             50% {
-                box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+                box-shadow: var(--shadow-light), var(--shadow-dark);
             }
         }
         
@@ -509,7 +480,7 @@
         }
         
         /* ========================================
-           📱 RESPONSIVE NEUMÓRFICO COMPLETO
+           📱 RESPONSIVE COMPLETO
            ======================================== */
         
         /* Tablets y dispositivos medianos (768px - 991px) */
@@ -760,7 +731,7 @@
         }
         
         /* ========================================
-           🎭 EFECTOS ESPECIALES NEUMÓRFICOS
+           🎭 EFECTOS ESPECIALES
            ======================================== */
         .neuro-float {
             animation: float 3s ease-in-out infinite;

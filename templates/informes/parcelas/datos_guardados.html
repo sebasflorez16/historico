@@ -72,6 +72,7 @@
         font-weight: 800;
         background: linear-gradient(135deg, var(--agrotech-green), var(--agrotech-orange));
         -webkit-background-clip: text;
+        background-clip: text; /* Propiedad estándar añadida */
         -webkit-text-fill-color: transparent;
         letter-spacing: -0.5px;
     }
@@ -1552,4 +1553,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.head.appendChild(style);
 });
 </script>
+
+<!-- Corrección final de expresiones y scripts -->
+{% if tiene_datos %}
+    <script>
+        const datosGraficos = JSON.parse("{{ datos_graficos|escapejs }}");
+    </script>
+{% endif %}
 {% endblock %}

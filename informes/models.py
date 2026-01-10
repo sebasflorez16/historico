@@ -112,6 +112,23 @@ class Parcela(gis_models.Model):
         help_text="Perímetro calculado automáticamente"
     )
     
+    # Metadatos de calidad de datos satelitales (última descarga)
+    ultima_calidad_datos = models.CharField(
+        max_length=20, null=True, blank=True,
+        choices=[
+            ('excelente', 'Excelente (< 20% nubosidad)'),
+            ('buena', 'Buena (< 50% nubosidad)'),
+            ('aceptable', 'Aceptable (< 80% nubosidad)'),
+        ],
+        verbose_name="Última Calidad de Datos",
+        help_text="Calidad de las últimas imágenes satelitales descargadas"
+    )
+    ultimo_umbral_nubosidad = models.IntegerField(
+        null=True, blank=True,
+        verbose_name="Último Umbral de Nubosidad Usado",
+        help_text="Umbral de nubosidad máximo usado en la última descarga (%)"
+    )
+    
     class Meta:
         verbose_name = "Parcela"
         verbose_name_plural = "Parcelas"
@@ -533,7 +550,19 @@ class Informe(models.Model):
     precio_base = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Precio Base")
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Descuento %")
     precio_final = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Precio Final")
-    estado_pago = models.CharField(max_length=20, choices=ESTADO_PAGO_CHOICES, default='pendiente', verbose_name="Estado Pago", db_index=True)
+    estado_pago = models.CharField(
+        max_length=20,
+        choices=[
+            ('pagado', '💰 Pagado'),
+            ('pendiente', '⏳ Pendiente'),
+            ('vencido', '⚠️ Vencido'),
+            ('parcial', '📊 Pago Parcial'),
+            ('cortesia', '🎁 Cortesía')
+        ],
+        default='pendiente',
+        verbose_name="Estado Pago",
+        db_index=True
+    )
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Pagado")
     saldo_pendiente = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), verbose_name="Saldo Pendiente")
     fecha_pago = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Pago")

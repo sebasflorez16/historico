@@ -545,6 +545,21 @@ class Informe(models.Model):
         verbose_name="Tiempo Procesamiento"
     )
     
+    # Nuevo campo: estado de pago
+    # estado_pago = models.CharField(
+    #     max_length=20,
+    #     default='pendiente',
+    #     verbose_name="Estado de Pago",
+    #     help_text="Estado del pago del informe (pendiente, pagado, etc.)"
+    # )
+    # metodo_pago = models.CharField(
+    #     max_length=50,
+    #     default='sin_definir',
+    #     verbose_name="Método de Pago",
+    #     help_text="Método utilizado para el pago del informe (transferencia, tarjeta, etc.)"
+    # )
+    referencia_pago = models.CharField(max_length=255, null=True, blank=True)
+    
     class Meta:
         verbose_name = "Informe"
         verbose_name_plural = "Informes"

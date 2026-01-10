@@ -321,3 +321,571 @@ INFO 2026-01-08 10:53:21,539 eosda_api 19005 8724760576    Índices: NDVI, NDMI,
 INFO 2026-01-08 10:53:21,539 eosda_api 19005 8724760576    Geometría: Polygon con 12 puntos
 ERROR 2026-01-08 10:53:22,209 eosda_api 19005 8724760576 ❌ Error EOSDA: 403
 ERROR 2026-01-08 10:53:22,209 eosda_api 19005 8724760576    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:01:34,577 views 10350 13380907008 Usuario 'admin' inició sesión exitosamente
+WARNING 2026-01-09 17:01:35,350 eosda_api 10350 13380907008 Verificación EOSDA fallida: Status 403
+INFO 2026-01-09 17:01:54,753 views 10350 13399830528 Centro calculado para Bio Energy: lat=4.182751234305355, lon=-72.62525444981348
+INFO 2026-01-09 17:01:56,959 views 10350 13380907008 📅 Usando rango seleccionado: 2025-07-09 a 2026-01-09
+INFO 2026-01-09 17:01:56,959 views 10350 13380907008 Obteniendo datos históricos para Bio Energy desde 2025-07-09 hasta 2026-01-09
+INFO 2026-01-09 17:01:56,959 views 10350 13380907008 🔍 Iniciando búsqueda inteligente de imágenes satelitales...
+INFO 2026-01-09 17:01:56,960 eosda_api 10350 13380907008 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-09 17:01:56,960 eosda_api 10350 13380907008    Período: 2025-07-09 a 2026-01-09 (7 meses)
+INFO 2026-01-09 17:01:56,960 eosda_api 10350 13380907008    Mínimo requerido: 3 meses con datos
+INFO 2026-01-09 17:01:56,960 eosda_api 10350 13380907008 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-09 17:01:56,971 eosda_api 10350 13380907008 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-09 17:01:56,971 eosda_api 10350 13380907008 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-09 17:01:56,971 eosda_api 10350 13380907008    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-09 17:01:56,971 eosda_api 10350 13380907008    Geometría: Polygon con 12 puntos
+ERROR 2026-01-09 17:01:57,615 eosda_api 10350 13380907008 ❌ Error EOSDA: 403
+ERROR 2026-01-09 17:01:57,615 eosda_api 10350 13380907008    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:01:57,624 eosda_api 10350 13380907008    📊 Encontradas 0 escenas cubriendo 0/7 meses (0.0%)
+WARNING 2026-01-09 17:01:57,625 eosda_api 10350 13380907008    ⚠️ Insuficiente cobertura (0/3 meses)
+INFO 2026-01-09 17:01:57,625 eosda_api 10350 13380907008 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-09 17:01:57,626 eosda_api 10350 13380907008 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-09 17:01:57,626 eosda_api 10350 13380907008 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-09 17:01:57,626 eosda_api 10350 13380907008    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-09 17:01:57,626 eosda_api 10350 13380907008    Geometría: Polygon con 12 puntos
+ERROR 2026-01-09 17:01:57,792 eosda_api 10350 13380907008 ❌ Error EOSDA: 403
+ERROR 2026-01-09 17:01:57,792 eosda_api 10350 13380907008    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:01:57,795 eosda_api 10350 13380907008    📊 Encontradas 0 escenas cubriendo 0/7 meses (0.0%)
+WARNING 2026-01-09 17:01:57,795 eosda_api 10350 13380907008    ⚠️ Insuficiente cobertura (0/3 meses)
+INFO 2026-01-09 17:01:57,795 eosda_api 10350 13380907008 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-09 17:01:57,797 eosda_api 10350 13380907008 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-09 17:01:57,797 eosda_api 10350 13380907008 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-09 17:01:57,798 eosda_api 10350 13380907008    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-09 17:01:57,798 eosda_api 10350 13380907008    Geometría: Polygon con 12 puntos
+ERROR 2026-01-09 17:01:57,963 eosda_api 10350 13380907008 ❌ Error EOSDA: 403
+ERROR 2026-01-09 17:01:57,964 eosda_api 10350 13380907008    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:01:57,966 eosda_api 10350 13380907008    📊 Encontradas 0 escenas cubriendo 0/7 meses (0.0%)
+WARNING 2026-01-09 17:01:57,967 eosda_api 10350 13380907008    ⚠️ Insuficiente cobertura (0/3 meses)
+ERROR 2026-01-09 17:01:57,967 eosda_api 10350 13380907008 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+ERROR 2026-01-09 17:01:57,967 views 10350 13380907008 ❌ No se encontraron suficientes imágenes satelitales en el período solicitado
+INFO 2026-01-09 17:01:57,985 views 10350 13380907008 Centro calculado para Bio Energy: lat=4.182751234305355, lon=-72.62525444981348
+INFO 2026-01-09 17:02:04,744 views 10350 13399830528 📅 Usando rango seleccionado: 2025-01-09 a 2026-01-09
+INFO 2026-01-09 17:02:04,744 views 10350 13399830528 Obteniendo datos históricos para Bio Energy desde 2025-01-09 hasta 2026-01-09
+INFO 2026-01-09 17:02:04,744 views 10350 13399830528 🔍 Iniciando búsqueda inteligente de imágenes satelitales...
+INFO 2026-01-09 17:02:04,744 eosda_api 10350 13399830528 🔍 Búsqueda inteligente de imágenes satelitales
+INFO 2026-01-09 17:02:04,744 eosda_api 10350 13399830528    Período: 2025-01-09 a 2026-01-09 (13 meses)
+INFO 2026-01-09 17:02:04,744 eosda_api 10350 13399830528    Mínimo requerido: 6 meses con datos
+INFO 2026-01-09 17:02:04,744 eosda_api 10350 13399830528 🌟 Intentando con umbral 20% (calidad excelente)...
+INFO 2026-01-09 17:02:04,749 eosda_api 10350 13399830528 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-09 17:02:04,749 eosda_api 10350 13399830528 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-09 17:02:04,749 eosda_api 10350 13399830528    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-09 17:02:04,749 eosda_api 10350 13399830528    Geometría: Polygon con 12 puntos
+ERROR 2026-01-09 17:02:04,915 eosda_api 10350 13399830528 ❌ Error EOSDA: 403
+ERROR 2026-01-09 17:02:04,915 eosda_api 10350 13399830528    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:02:04,920 eosda_api 10350 13399830528    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-09 17:02:04,920 eosda_api 10350 13399830528    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-09 17:02:04,920 eosda_api 10350 13399830528 ☁️ Intentando con umbral 50% (calidad buena)...
+INFO 2026-01-09 17:02:04,922 eosda_api 10350 13399830528 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-09 17:02:04,922 eosda_api 10350 13399830528 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-09 17:02:04,922 eosda_api 10350 13399830528    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-09 17:02:04,923 eosda_api 10350 13399830528    Geometría: Polygon con 12 puntos
+ERROR 2026-01-09 17:02:05,091 eosda_api 10350 13399830528 ❌ Error EOSDA: 403
+ERROR 2026-01-09 17:02:05,091 eosda_api 10350 13399830528    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:02:05,093 eosda_api 10350 13399830528    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-09 17:02:05,093 eosda_api 10350 13399830528    ⚠️ Insuficiente cobertura (0/6 meses)
+INFO 2026-01-09 17:02:05,093 eosda_api 10350 13399830528 ⚠️ Intentando con umbral 80% (calidad aceptable)...
+INFO 2026-01-09 17:02:05,095 eosda_api 10350 13399830528 🔍 No hay caché, usando Statistics API - 3 índices en 1 petición
+INFO 2026-01-09 17:02:05,095 eosda_api 10350 13399830528 📡 Enviando petición Statistics API: 3 índices
+INFO 2026-01-09 17:02:05,095 eosda_api 10350 13399830528    Índices: NDVI, NDMI, SAVI
+INFO 2026-01-09 17:02:05,095 eosda_api 10350 13399830528    Geometría: Polygon con 12 puntos
+ERROR 2026-01-09 17:02:05,259 eosda_api 10350 13399830528 ❌ Error EOSDA: 403
+ERROR 2026-01-09 17:02:05,260 eosda_api 10350 13399830528    Respuesta: 403: Forbidden
+INFO 2026-01-09 17:02:05,263 eosda_api 10350 13399830528    📊 Encontradas 0 escenas cubriendo 0/13 meses (0.0%)
+WARNING 2026-01-09 17:02:05,263 eosda_api 10350 13399830528    ⚠️ Insuficiente cobertura (0/6 meses)
+ERROR 2026-01-09 17:02:05,263 eosda_api 10350 13399830528 ❌ No se encontraron datos satelitales suficientes con ningún umbral
+ERROR 2026-01-09 17:02:05,263 views 10350 13399830528 ❌ No se encontraron suficientes imágenes satelitales en el período solicitado
+INFO 2026-01-09 17:02:05,276 views 10350 13399830528 Centro calculado para Bio Energy: lat=4.182751234305355, lon=-72.62525444981348
+INFO 2026-01-09 17:02:20,980 views 10350 13380907008 Centro calculado para Bio Energy: lat=4.182751234305355, lon=-72.62525444981348
+INFO 2026-01-09 17:02:24,812 views 10350 13380907008 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:02:27,974 views 10350 13399830528 Error generando PDF para parcela 6: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (26, 2026-01-09 22:02:27.970075+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:02:27,974 views 10350 13399830528 null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (26, 2026-01-09 22:02:27.970075+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (26, 2026-01-09 22:02:27.970075+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 576, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (26, 2026-01-09 22:02:27.970075+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:02:27,985 views 10350 13399830528 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:05:17,105 views 10350 13380907008 Usuario 'admin' inició sesión exitosamente
+WARNING 2026-01-09 17:05:17,868 eosda_api 10350 13380907008 Verificación EOSDA fallida: Status 403
+INFO 2026-01-09 17:05:50,071 views 10350 13380907008 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:05:55,186 views 10350 13380907008 Error generando PDF para parcela 6: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (27, 2026-01-09 22:05:55.184752+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:05:55,186 views 10350 13380907008 null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (27, 2026-01-09 22:05:55.184752+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (27, 2026-01-09 22:05:55.184752+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 576, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (27, 2026-01-09 22:05:55.184752+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:05:55,193 views 10350 13380907008 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+WARNING 2026-01-09 17:07:27,122 eosda_api 10350 13380907008 Verificación EOSDA fallida: Status 403
+INFO 2026-01-09 17:11:01,741 views 12383 13371469824 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:11:04,835 views 12383 13388296192 Precio por defecto según período: $320000.00 COP
+ERROR 2026-01-09 17:11:04,835 views 12383 13388296192 Error generando PDF para parcela 6: Informe() got unexpected keyword arguments: 'precio_base', 'cliente', 'fecha_vencimiento'
+ERROR 2026-01-09 17:11:04,835 views 12383 13388296192 Informe() got unexpected keyword arguments: 'precio_base', 'cliente', 'fecha_vencimiento'
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 2001, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 677, in create
+    obj = self.model(**kwargs)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 567, in __init__
+    raise TypeError(
+TypeError: Informe() got unexpected keyword arguments: 'precio_base', 'cliente', 'fecha_vencimiento'
+INFO 2026-01-09 17:11:04,844 views 12383 13388296192 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:12:21,683 views 12429 6170980352 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:12:23,361 views 12429 13237252096 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:12:28,113 views 12429 13237252096 Error generando PDF para parcela 6: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (28, 2026-01-09 22:12:28.112385+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:12:28,113 views 12429 13237252096 null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (28, 2026-01-09 22:12:28.112385+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (28, 2026-01-09 22:12:28.112385+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 576, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "precio_base" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (28, 2026-01-09 22:12:28.112385+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, null, null, null, null, null, null, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:12:28,123 views 12429 13237252096 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:14:48,545 views 15706 13372518400 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:14:49,039 views 15706 13389344768 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:14:54,148 views 15706 13389344768 Error generando PDF para parcela 6: null value in column "descuento_porcentaje" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (29, 2026-01-09 22:14:54.146411+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, null, null, null, null, null, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:14:54,148 views 15706 13389344768 null value in column "descuento_porcentaje" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (29, 2026-01-09 22:14:54.146411+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, null, null, null, null, null, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "descuento_porcentaje" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (29, 2026-01-09 22:14:54.146411+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, null, null, null, null, null, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 576, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "descuento_porcentaje" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (29, 2026-01-09 22:14:54.146411+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, null, null, null, null, null, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:14:54,157 views 15706 13389344768 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:15:53,179 views 17205 13342126080 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:16:03,026 views 17205 13342126080 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:16:06,170 views 17205 13379858432 Error generando PDF para parcela 6: null value in column "estado_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (30, 2026-01-09 22:16:06.168713+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, null, 0.00, 0.00, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:16:06,170 views 17205 13379858432 null value in column "estado_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (30, 2026-01-09 22:16:06.168713+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, null, 0.00, 0.00, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "estado_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (30, 2026-01-09 22:16:06.168713+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, null, 0.00, 0.00, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 576, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "estado_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (30, 2026-01-09 22:16:06.168713+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, null, 0.00, 0.00, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:16:06,181 views 17205 13379858432 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:18:50,317 views 17732 13415510016 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:18:52,926 views 17732 13415510016 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:18:57,368 views 17732 13453258752 Error generando PDF para parcela 6: null value in column "metodo_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (31, 2026-01-09 22:18:57.366877+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, pendiente, 0.00, 0.00, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:18:57,368 views 17732 13453258752 null value in column "metodo_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (31, 2026-01-09 22:18:57.366877+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, pendiente, 0.00, 0.00, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "metodo_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (31, 2026-01-09 22:18:57.366877+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, pendiente, 0.00, 0.00, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 584, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "metodo_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (31, 2026-01-09 22:18:57.366877+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, pendiente, 0.00, 0.00, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:18:57,380 views 17732 13453258752 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:31:29,294 views 19630 13379858432 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:31:31,081 views 19630 13379858432 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-09 17:31:34,096 views 19630 13379858432 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+ERROR 2026-01-09 17:31:37,769 views 19630 13396684800 Error generando PDF para parcela 6: null value in column "referencia_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (32, 2026-01-09 22:31:37.768934+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, 0.00, 0.00, null, null, null, null, null, null).
+
+ERROR 2026-01-09 17:31:37,770 views 19630 13396684800 null value in column "referencia_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (32, 2026-01-09 22:31:37.768934+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, 0.00, 0.00, null, null, null, null, null, null).
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.NotNullViolation: null value in column "referencia_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (32, 2026-01-09 22:31:37.768934+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, 0.00, 0.00, null, null, null, null, null, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/views.py", line 1963, in generar_informe_pdf
+    informe = Informe.objects.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 679, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/Users/sebasflorez16/Documents/AgroTech Historico/historical/informes/models.py", line 590, in save
+    super().save(*args, **kwargs)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 891, in save
+    self.save_base(
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 997, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1160, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/base.py", line 1201, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/query.py", line 1847, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/models/sql/compiler.py", line 1836, in execute_sql
+    cursor.execute(sql, params)
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/opt/anaconda3/envs/agrotech/lib/python3.11/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: null value in column "referencia_pago" of relation "informes_informe" violates not-null constraint
+DETAIL:  Failing row contains (32, 2026-01-09 22:31:37.768934+00, 12, 2025-01-14, 2026-01-09, Informe - Parcela #2, Informe generado con 13 meses de datos satelitales., , , , /Users/sebasflorez16/Documents/AgroTech Historico/historical/med..., , , null, null, null, 1.0, null, 6, 0.00, 0.00, 0.00, 0.00, 0.00, null, null, null, null, null, null).
+
+INFO 2026-01-09 17:31:37,781 views 19630 13396684800 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-10 09:00:12,481 views 2080 13212086272 Centro calculado para Parcela #2: lat=5.221796765160202, lon=-72.23557853994942
+INFO 2026-01-10 09:00:19,751 views 2080 13228912640 Usuario 'admin' inició sesión exitosamente
+WARNING 2026-01-10 09:00:20,552 eosda_api 2080 13228912640 Verificación EOSDA fallida: Status 403
