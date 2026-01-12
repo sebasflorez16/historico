@@ -397,7 +397,7 @@ class GeneradorInformePDF:
             return {
                 'success': True,
                 'informe_id': informe.id,
-                'archivo_pdf': archivo_pdf.url if archivo_pdf else None,
+                'archivo_pdf': archivo_pdf if archivo_pdf else None,
                 'analisis_ia': analisis_ia
             }
             
@@ -629,46 +629,53 @@ class GeneradorInformePDF:
             ndvi_valores = [i.ndvi_promedio for i in indices if i.ndvi_promedio]
             tendencia_ndvi = self._analizar_tendencia(ndvi_valores)
             
-            # Análisis de salud general
+            # Análisis de salud general basado en NDVI
             ndvi_promedio = estadisticas.get('ndvi_promedio', 0)
             if ndvi_promedio >= 0.7:
                 salud_general = "excelente"
-                interpretacion = "La parcela muestra un estado de salud vegetal excelente con alta densidad de biomasa."
+                interpretacion = "La cobertura vegetal existente presenta condiciones óptimas."
             elif ndvi_promedio >= 0.5:
                 salud_general = "buena"
-                interpretacion = "La parcela presenta un buen estado de salud vegetal con desarrollo adecuado."
+                interpretacion = "Las condiciones del terreno muestran cobertura vegetal adecuada."
             elif ndvi_promedio >= 0.3:
                 salud_general = "regular"
-                interpretacion = "La parcela muestra un estado vegetal regular que requiere atención."
+                interpretacion = "Las condiciones del terreno requieren atención para mejorar la cobertura vegetal."
             else:
                 salud_general = "pobre"
-                interpretacion = "La parcela presenta problemas significativos en el desarrollo vegetal."
+                interpretacion = "Las condiciones del terreno requieren intervención técnica."
             
-            # Generar resumen ejecutivo
+            # Generar resumen ejecutivo (sin mezclar datos técnicos con interpretación)
+            explicacion_tendencia = self._explicar_tendencia_simple(ndvi_valores, tendencia_ndvi)
             resumen_ejecutivo = f"""
-            Durante el período analizado de {datos_analisis['periodo']['meses']} meses, la parcela ha mostrado 
-            un rendimiento {salud_general} con un NDVI promedio de {ndvi_promedio:.3f}. 
-            {interpretacion} La tendencia observada es {tendencia_ndvi}, lo que indica 
-            {'una mejora sostenida' if tendencia_ndvi == 'creciente' else 'estabilidad' if tendencia_ndvi == 'estable' else 'necesidad de intervención'} 
-            en las condiciones del cultivo.
+            Período analizado: {datos_analisis['periodo']['meses']} meses.
+            
+            NDVI promedio del período: {ndvi_promedio:.3f}
+            Estado general: {salud_general.capitalize()}
+            
+            {interpretacion}
+            
+            Tendencia: {tendencia_ndvi.capitalize()}
+            {explicacion_tendencia}
             """
             
-            # Análisis de tendencias detallado
+            # Análisis de tendencias detallado (separado de conclusiones)
             analisis_tendencias = f"""
-            Análisis de Índices Vegetales:
+            DATOS TÉCNICOS:
             
             NDVI (Índice de Vegetación):
-            - Promedio del período: {ndvi_promedio:.3f}
-            - Rango: {estadisticas.get('ndvi_minimo', 0):.3f} - {estadisticas.get('ndvi_maximo', 0):.3f}
-            - Tendencia: {tendencia_ndvi}
+            Promedio: {ndvi_promedio:.3f}
+            Rango: {estadisticas.get('ndvi_minimo', 0):.3f} - {estadisticas.get('ndvi_maximo', 0):.3f}
+            Tendencia: {tendencia_ndvi.capitalize()}
             
             NDMI (Índice de Humedad):
-            - Promedio: {estadisticas.get('ndmi_promedio', 0):.3f}
-            - Indicador de estrés hídrico y contenido de humedad en la vegetación
+            Promedio: {estadisticas.get('ndmi_promedio', 0):.3f}
+            Indicador de contenido de humedad en la vegetación.
             
             SAVI (Vegetación Ajustada al Suelo):
-            - Promedio: {estadisticas.get('savi_promedio', 0):.3f}
-            - Medida corregida de densidad vegetal considerando la influencia del suelo
+            Promedio: {estadisticas.get('savi_promedio', 0):.3f}
+            Medida corregida considerando la influencia del suelo.
+            
+            NOTA TÉCNICA: Los parámetros biofísicos mostrados son estimaciones basadas en datos satelitales y deben ser validados con mediciones de campo para decisiones agronómicas críticas.
             """
             
             # Conclusiones IA
@@ -720,75 +727,123 @@ class GeneradorInformePDF:
         else:
             return 'estable'
     
+    def _explicar_tendencia_simple(self, valores: List[float], tendencia: str) -> str:
+        """
+        Explica la tendencia en lenguaje sencillo y aclara variaciones pequeñas.
+        Punto 1 y 2: Claridad sin contradicciones y comprensión para no técnicos.
+        """
+        if not valores or tendencia == 'indeterminada':
+            return "Los datos disponibles son insuficientes para determinar una tendencia clara. Se recomienda continuar el monitoreo."
+        
+        if tendencia == 'creciente':
+            return "La tendencia es positiva. La cobertura vegetal ha mejorado durante el período analizado. Esto es favorable."
+        
+        elif tendencia == 'decreciente':
+            # Calcular magnitud del cambio
+            cambio = valores[-1] - valores[0]
+            cambio_porcentual = (cambio / valores[0] * 100) if valores[0] != 0 else 0
+            
+            if abs(cambio) < 0.05:  # Cambio muy pequeño
+                return f"La tendencia muestra un ligero descenso ({cambio_porcentual:.1f}%). Esta variación es pequeña y puede considerarse normal en el contexto agrícola. No requiere acción inmediata."
+            elif abs(cambio) < 0.15:  # Cambio moderado
+                return f"La tendencia es descendente ({cambio_porcentual:.1f}%). El cambio es moderado y requiere monitoreo, pero no es motivo de alarma inmediata. Se recomienda evaluar las prácticas de manejo."
+            else:  # Cambio significativo
+                return f"La tendencia muestra un descenso significativo ({cambio_porcentual:.1f}%). Esta situación requiere atención técnica. Se recomienda consultar con un especialista agrícola."
+        
+        else:  # estable
+            return "Los valores se han mantenido estables. Esto es normal cuando no hay cambios importantes en las prácticas de manejo o condiciones climáticas."
+    
     def _generar_conclusiones_especificas(self, estadisticas: Dict, 
                                         tendencia: str, salud: str) -> str:
         """
-        Genera conclusiones específicas basadas en el análisis
+        Genera conclusiones específicas respondiendo: ¿Qué pasó? ¿Es bueno o malo? ¿Debe preocuparse?
+        Punto 2: Mejorar comprensión para usuarios no técnicos
         """
         conclusiones = []
         
-        # Análisis NDVI
+        conclusiones.append("¿QUÉ PASÓ EN EL PERÍODO ANALIZADO?")
+        conclusiones.append("")
+        
+        # Análisis NDVI con lenguaje neutro (Punto 8)
         ndvi = estadisticas.get('ndvi_promedio', 0)
         if ndvi > 0.7:
-            conclusiones.append("- El cultivo presenta una excelente densidad de biomasa vegetal.")
+            conclusiones.append("La cobertura vegetal del terreno es excelente.")
         elif ndvi > 0.5:
-            conclusiones.append("- El desarrollo vegetal es adecuado para la época del año.")
+            conclusiones.append("La cobertura vegetal del terreno es adecuada.")
         else:
-            conclusiones.append("- Se detectan posibles problemas en el desarrollo vegetal que requieren atención.")
+            conclusiones.append("La cobertura vegetal del terreno presenta oportunidades de mejora.")
         
-        # Análisis de tendencia
+        conclusiones.append("")
+        conclusiones.append("¿ES BUENO O MALO?")
+        conclusiones.append("")
+        
+        # Evaluación clara sin ambigüedades
         if tendencia == 'creciente':
-            conclusiones.append("- Se observa una mejora progresiva en la salud del cultivo.")
+            conclusiones.append("Bueno. Se observa mejora progresiva en las condiciones del terreno.")
         elif tendencia == 'decreciente':
-            conclusiones.append("- La tendencia descendente sugiere la necesidad de intervención técnica.")
+            conclusiones.append("Requiere atención. La tendencia descendente indica necesidad de evaluación técnica.")
         else:
-            conclusiones.append("- Los índices muestran estabilidad en el período analizado.")
+            conclusiones.append("Normal. Las condiciones se mantienen estables sin cambios significativos.")
         
-        # Análisis NDMI
+        conclusiones.append("")
+        conclusiones.append("¿DEBE PREOCUPARSE EL AGRICULTOR?")
+        conclusiones.append("")
+        
+        # Análisis NDMI con evaluación clara
         ndmi = estadisticas.get('ndmi_promedio', 0)
-        if ndmi > 0.3:
-            conclusiones.append("- Los niveles de humedad en la vegetación son adecuados.")
-        elif ndmi > 0:
-            conclusiones.append("- Los niveles de humedad son moderados, monitorear riego.")
+        if salud in ['excelente', 'buena'] and tendencia != 'decreciente':
+            conclusiones.append("No. Las condiciones actuales son favorables. Continúe con las prácticas de manejo actuales.")
+        elif salud == 'regular' or tendencia == 'decreciente':
+            conclusiones.append("Moderadamente. Se recomienda monitoreo más frecuente y evaluación de prácticas de manejo.")
         else:
-            conclusiones.append("- Se detecta posible estrés hídrico en el cultivo.")
+            conclusiones.append("Sí. Se recomienda consultar con un especialista agrícola para determinar acciones correctivas.")
         
         return '\n'.join(conclusiones)
     
     def _generar_recomendaciones(self, estadisticas: Dict, 
                                tendencia: str, salud: str) -> str:
         """
-        Genera recomendaciones técnicas basadas en el análisis
+        Genera recomendaciones agronómicas accionables en lenguaje natural.
+        Punto 6: Recomendaciones comprensibles y accionables para el agricultor.
         """
         recomendaciones = []
         
+        recomendaciones.append("ACCIONES SUGERIDAS:")
+        recomendaciones.append("")
+        
         if salud == 'excelente':
-            recomendaciones.append("- Mantener las prácticas actuales de manejo.")
-            recomendaciones.append("- Continuar con el programa de monitoreo satelital.")
+            recomendaciones.append("1. Mantenga las prácticas actuales de manejo del terreno.")
+            recomendaciones.append("2. Continúe el monitoreo periódico para detectar cambios tempranos.")
+            recomendaciones.append("3. Documente las prácticas exitosas para replicarlas en otras áreas.")
         elif salud == 'buena':
-            recomendaciones.append("- Optimizar el programa de fertilización.")
-            recomendaciones.append("- Revisar sistema de riego para maximizar rendimiento.")
+            recomendaciones.append("1. Revise el programa de fertilización para optimizar resultados.")
+            recomendaciones.append("2. Verifique que el sistema de riego esté funcionando eficientemente.")
+            recomendaciones.append("3. Mantenga el monitoreo cada 15 días para confirmar la tendencia positiva.")
         elif salud == 'regular':
-            recomendaciones.append("- Evaluar necesidades nutricionales del cultivo.")
-            recomendaciones.append("- Verificar sistema de drenaje y manejo del agua.")
-            recomendaciones.append("- Considerar análisis de suelo detallado.")
+            recomendaciones.append("1. Realice un análisis de suelo para evaluar necesidades nutricionales.")
+            recomendaciones.append("2. Inspeccione visualmente el terreno para identificar posibles problemas de drenaje.")
+            recomendaciones.append("3. Ajuste el programa de riego según las condiciones observadas.")
+            recomendaciones.append("4. Aumente la frecuencia de monitoreo a semanal por las próximas 4 semanas.")
         else:
-            recomendaciones.append("- Realizar intervención técnica inmediata.")
-            recomendaciones.append("- Análisis detallado de plagas y enfermedades.")
-            recomendaciones.append("- Evaluación completa del sistema de riego y nutrición.")
+            recomendaciones.append("1. Contacte a un especialista agrícola para evaluación en campo.")
+            recomendaciones.append("2. Revise el sistema completo de riego y nutrición.")
+            recomendaciones.append("3. Verifique la presencia de plagas o enfermedades mediante inspección visual.")
+            recomendaciones.append("4. Implemente acciones correctivas según las recomendaciones del especialista.")
         
+        # Recomendación adicional por tendencia
         if tendencia == 'decreciente':
-            recomendaciones.append("- Monitoreo más frecuente durante las próximas semanas.")
-            recomendaciones.append("- Consulta con especialista en agronomía.")
+            recomendaciones.append("")
+            recomendaciones.append("ATENCIÓN: Debido a la tendencia descendente, aumente el monitoreo y considere consulta técnica para identificar la causa del deterioro.")
         
-        # Recomendación estacional
+        # Recomendación estacional en lenguaje natural
         mes_actual = datetime.now().month
-        if mes_actual in [12, 1, 2]:  # Época seca
-            recomendaciones.append("- Reforzar programa de riego durante época seca.")
-        elif mes_actual in [3, 4, 5, 10, 11]:  # Transición
-            recomendaciones.append("- Preparar para cambios estacionales.")
-        else:  # Época húmeda
-            recomendaciones.append("- Verificar sistemas de drenaje por temporada húmeda.")
+        recomendaciones.append("")
+        if mes_actual in [12, 1, 2]:
+            recomendaciones.append("ÉPOCA SECA: Verifique que el sistema de riego esté operando correctamente. Considere aumentar la frecuencia de riego según las necesidades del terreno.")
+        elif mes_actual in [3, 4, 5, 10, 11]:
+            recomendaciones.append("TRANSICIÓN CLIMÁTICA: Prepare el terreno para cambios estacionales. Ajuste el programa de riego según las lluvias esperadas.")
+        else:
+            recomendaciones.append("ÉPOCA HÚMEDA: Verifique que los sistemas de drenaje estén funcionando correctamente para evitar encharcamientos.")
         
         return '\n'.join(recomendaciones)
     
@@ -858,11 +913,20 @@ class GeneradorInformePDF:
             # Construir PDF
             doc.build(story)
             
-            # Crear archivo
+            # Crear archivo y guardarlo en media/informes
             buffer.seek(0)
             nombre_archivo = f'informe_{kwargs["parcela"].nombre.replace(" ", "_")}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
             
-            return ContentFile(buffer.getvalue(), name=nombre_archivo)
+            # Guardar archivo físicamente en media/informes
+            from django.conf import settings
+            ruta_media = os.path.join(settings.BASE_DIR, 'media', 'informes')
+            if not os.path.exists(ruta_media):
+                os.makedirs(ruta_media)
+            ruta_pdf = os.path.join(ruta_media, nombre_archivo)
+            with open(ruta_pdf, 'wb') as f:
+                f.write(buffer.getvalue())
+            
+            return ruta_pdf
             
         except Exception as e:
             logger.error(f"Error creando PDF: {str(e)}")
