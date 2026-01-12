@@ -305,7 +305,7 @@ class TimelineProcessor:
     
     @staticmethod
     def generar_timeline_completo(parcela: Parcela, fecha_inicio: Optional[datetime] = None, 
-                                  fecha_fin: Optional[datetime] = None) -> Dict[str, Any]:
+                                  fecha_fin: Optional[datetime] = None, request=None) -> Dict[str, Any]:
         """
         Genera el timeline completo de una parcela con todos los frames
         
@@ -313,6 +313,7 @@ class TimelineProcessor:
             parcela: Parcela a analizar
             fecha_inicio: Fecha de inicio del período (opcional)
             fecha_fin: Fecha de fin del período (opcional)
+            request: Request object para generar URLs absolutas (opcional)
             
         Returns:
             Dict con información del timeline y lista de frames
@@ -357,6 +358,13 @@ class TimelineProcessor:
             for i, indice in enumerate(indices):
                 mes_anterior = indices[i - 1] if i > 0 else None
                 frame = TimelineProcessor.generar_metadata_frame(indice, mes_anterior)
+                
+                # Convertir URLs relativas a absolutas si se proporciona request
+                if request and frame.get('imagenes'):
+                    for key in ['ndvi', 'ndmi', 'savi']:
+                        if frame['imagenes'][key]:
+                            frame['imagenes'][key] = request.build_absolute_uri(frame['imagenes'][key])
+                
                 frames.append(frame)
             
             # Estadísticas generales del timeline

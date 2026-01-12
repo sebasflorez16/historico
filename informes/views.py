@@ -2203,11 +2203,12 @@ def timeline_api(request, parcela_id):
             except ValueError:
                 pass
         
-        # Generar timeline completo usando el procesador
+        # Generar timeline completo usando el procesador con URLs absolutas
         timeline_data = TimelineProcessor.generar_timeline_completo(
             parcela=parcela,
             fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin
+            fecha_fin=fecha_fin,
+            request=request
         )
         
         return JsonResponse(timeline_data, safe=False)
