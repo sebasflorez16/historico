@@ -1443,7 +1443,14 @@ class EosdaAPIService:
             }
             
             logger.info(f"   🎨 Generando imagen {indice} (view_id: {view_id})...")
-            response = self.session.post(url_imagery, json=payload_imagen, timeout=60)
+            # ✅ Field Imagery API requiere x-api-key header en TODAS las peticiones
+            # https://doc.eos.com/docs/quickstart/ - "Send your API key in the headers parameter of every request"
+            response = self.session.post(
+                url_imagery, 
+                json=payload_imagen,
+                headers={'x-api-key': self.api_key},
+                timeout=60
+            )
             
             if response.status_code == 403:
                 logger.error(f"   ❌ Error 403 Forbidden: API Key sin permisos para Field Imagery API")
