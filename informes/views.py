@@ -136,7 +136,7 @@ def dashboard(request):
                     # Últimos pagos registrados
                     ultimos_pagos = Informe.objects.filter(
                         metodo_pago__in=['pagado', 'parcial']
-                    ).exclude(monto_pagado=0).order_by('-fecha_actualizacion')[:5]
+                    ).exclude(monto_pagado=0).order_by('-fecha_pago')[:5]
                 
                 # Total de hectáreas registradas
                 total_hectareas = Parcela.objects.filter(activa=True).aggregate(

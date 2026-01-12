@@ -328,7 +328,7 @@
                         <tbody>
                             {% for pago in estadisticas_economicas.ultimos_pagos %}
                             <tr>
-                                <td>{{ pago.fecha_actualizacion|date:"d/m/Y H:i" }}</td>
+                                <td>{{ pago.fecha_pago|date:"d/m/Y H:i" }}</td>
                                 <td>
                                     <a href="{% url 'informes:detalle_informe' pago.id %}">
                                         {{ pago.parcela.nombre }}
