@@ -26,11 +26,12 @@ class EosdaAPIService:
         self.api_key = settings.EOSDA_API_KEY
         self.base_url = settings.EOSDA_BASE_URL
         self.session = requests.Session()
-        # EOSDA API Connect NO usa headers para autenticación
-        # El API key va como parámetro en la URL: ?api_key=xxx
-        # Documentación: https://doc.eos.com/docs/field-management-api/
+        # ✅ EOSDA API Connect requiere x-api-key header en TODAS las peticiones
+        # Documentación: https://doc.eos.com/docs/quickstart/
+        # "Send your API key in the headers parameter of every request: -H 'x-api-key: <your_api_key>'"
         self.session.headers.update({
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-api-key': self.api_key
         })
         
         # Mapeo de nombres de cultivos en español a nombres válidos de EOSDA
@@ -1443,14 +1444,7 @@ class EosdaAPIService:
             }
             
             logger.info(f"   🎨 Generando imagen {indice} (view_id: {view_id})...")
-            # ✅ Field Imagery API requiere x-api-key header en TODAS las peticiones
-            # https://doc.eos.com/docs/quickstart/ - "Send your API key in the headers parameter of every request"
-            response = self.session.post(
-                url_imagery, 
-                json=payload_imagen,
-                headers={'x-api-key': self.api_key},
-                timeout=60
-            )
+            response = self.session.post(url_imagery, json=payload_imagen, timeout=60)
             
             if response.status_code == 403:
                 logger.error(f"   ❌ Error 403 Forbidden: API Key sin permisos para Field Imagery API")
@@ -1476,13 +1470,7 @@ class EosdaAPIService:
                 time.sleep(intervalo)
                 
                 logger.info(f"   ⏳ Esperando imagen... intento {intento + 1}/{max_intentos}")
-                # ✅ PASO 2 de Field Imagery API requiere x-api-key header según documentación
-                # https://doc.eos.com/docs/field-management-api/field-imagery/
-                response = self.session.get(
-                    url_download, 
-                    headers={'x-api-key': self.api_key},
-                    timeout=60
-                )
+                response = self.session.get(url_download, timeout=60)
                 
                 logger.debug(f"   Status: {response.status_code}, Content-Type: {response.headers.get('Content-Type', 'N/A')}")
                 
