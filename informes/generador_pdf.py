@@ -228,17 +228,9 @@ class GeneradorPDFProfesional:
         return {'etiqueta': 'N/D', 'icono': '?', 'color': '#999999'}
     
     def _decorar_seccion(self, img_name, height=1.2*cm):
-        """Devuelve una banda decorativa para usar como separador de secciones"""
-        from reportlab.platypus import Image
-        img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
-        if os.path.exists(img_path):
-            try:
-                banda = Image(img_path, width=15*cm, height=height, kind='proportional')
-                banda.hAlign = 'CENTER'
-                return [banda, Spacer(1, 0.2*cm)]
-            except Exception as e:
-                logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
-        return []
+        """Separador de secciones sin imágenes decorativas"""
+        # Retornar solo un espaciador simple sin imágenes
+        return [Spacer(1, 0.5*cm)]
 
     def _crear_estilos(self):
         """Crea estilos personalizados para el documento"""
@@ -595,18 +587,9 @@ class GeneradorPDFProfesional:
         """Crea la portada del informe con diseño profesional estilo EOSDA"""
         from reportlab.lib.utils import ImageReader
         elements = []
-        # === IMAGEN DE FONDO DECORATIVA (1.png) ===
-        img_fondo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '1.png')
-        if os.path.exists(img_fondo_path):
-            try:
-                img_fondo = Image(img_fondo_path, width=15*cm, height=8*cm, kind='proportional')
-                img_fondo.hAlign = 'CENTER'
-                elements.append(img_fondo)
-                elements.append(Spacer(1, 0.5*cm))
-            except Exception as e:
-                logger.warning(f"No se pudo cargar imagen de portada: {e}")
-        else:
-            elements.append(Spacer(1, 2*cm))
+        
+        # Espaciado inicial
+        elements.append(Spacer(1, 2*cm))
         
         # === LOGO AGROTECH GRANDE ===
         logo_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'Agro Tech logo solo.png')
@@ -629,30 +612,14 @@ class GeneradorPDFProfesional:
                 elements.append(titulo_logo)
                 elements.append(Spacer(1, 0.5*cm))
         
-        # === TÍTULO PRINCIPAL MODERNO CON IMAGEN DECORATIVA AL LADO (2.png) ===
-        titulo_img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '2.png')
-        if os.path.exists(titulo_img_path):
-            titulo_principal = Paragraph(
-                '<para align="left">'
-                '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
-                '</para>',
-                self.estilos['TituloPortada']
-            )
-            img_titulo = Image(titulo_img_path, width=3*cm, height=3*cm, kind='proportional')
-            tabla_titulo = Table([[titulo_principal, img_titulo]], colWidths=[12*cm, 3*cm])
-            tabla_titulo.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-            ]))
-            elements.append(tabla_titulo)
-        else:
-            titulo_principal = Paragraph(
-                '<para align="center">'
-                '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
-                '</para>',
-                self.estilos['TituloPortada']
-            )
-            elements.append(titulo_principal)
+        # === TÍTULO PRINCIPAL ===
+        titulo_principal = Paragraph(
+            '<para align="center">'
+            '<font size="22" color="#2E8B57"><strong>Análisis Satelital de Precisión</strong></font>'
+            '</para>',
+            self.estilos['TituloPortada']
+        )
+        elements.append(titulo_principal)
         elements.append(Spacer(1, 0.3*cm))
         
         subtitulo = Paragraph(
@@ -662,15 +629,6 @@ class GeneradorPDFProfesional:
             self.estilos['TextoNormal']
         )
         elements.append(subtitulo)
-        # Banda decorativa bajo el título (3.png)
-        banda_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '3.png')
-        if os.path.exists(banda_path):
-            try:
-                banda = Image(banda_path, width=15*cm, height=1.2*cm, kind='proportional')
-                banda.hAlign = 'CENTER'
-                elements.append(banda)
-            except Exception as e:
-                logger.warning(f"No se pudo cargar banda decorativa portada: {e}")
         elements.append(Spacer(1, 1.2*cm))
         
         # === CARD FLOTANTE MINIMALISTA CON INFO ===
@@ -707,15 +665,6 @@ class GeneradorPDFProfesional:
         tabla_card.hAlign = 'CENTER'
         elements.append(tabla_card)
         elements.append(Spacer(1, 2*cm))
-        # Imagen decorativa inferior portada (4.png)
-        img_inf_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', '4.png')
-        if os.path.exists(img_inf_path):
-            try:
-                img_inf = Image(img_inf_path, width=15*cm, height=2*cm, kind='proportional')
-                img_inf.hAlign = 'CENTER'
-                elements.append(img_inf)
-            except Exception as e:
-                logger.warning(f"No se pudo cargar imagen inferior portada: {e}")
         
         # === PIE DE PORTADA MINIMALISTA ===
         pie = Paragraph(
@@ -731,17 +680,9 @@ class GeneradorPDFProfesional:
         return elements
     
     def _decorar_seccion(self, img_name, height=1.2*cm):
-        """Devuelve una banda decorativa para usar como separador de secciones"""
-        from reportlab.platypus import Image
-        img_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'pdf_decorativas', img_name)
-        if os.path.exists(img_path):
-            try:
-                banda = Image(img_path, width=15*cm, height=height, kind='proportional')
-                banda.hAlign = 'CENTER'
-                return [banda, Spacer(1, 0.2*cm)]
-            except Exception as e:
-                logger.warning(f"No se pudo cargar banda decorativa {img_name}: {e}")
-        return []
+        """Separador de secciones sin imágenes decorativas"""
+        # Retornar solo un espaciador simple sin imágenes
+        return [Spacer(1, 0.5*cm)]
     
     def _crear_header_footer(self, canvas_obj, doc):
         """Crea header y footer en cada página"""
