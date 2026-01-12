@@ -31,7 +31,10 @@ urlpatterns = [
     path("informes/", include('informes.urls')),
 ]
 
-# Servir archivos media en desarrollo
+# Servir archivos media en desarrollo Y producción
+# Railway es efímero pero durante la sesión necesitamos servir uploads
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Servir archivos estáticos solo en desarrollo (en producción usa WhiteNoise)
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

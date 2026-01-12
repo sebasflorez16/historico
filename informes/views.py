@@ -1824,6 +1824,15 @@ def galeria_imagenes(request, parcela_id):
             Q(imagen_savi__isnull=False)
         ).order_by('-año', '-mes')
         
+        # Convertir URLs de imágenes a absolutas para descargas
+        for registro in registros_con_imagenes:
+            if registro.imagen_ndvi:
+                registro.imagen_ndvi_url = request.build_absolute_uri(registro.imagen_ndvi.url)
+            if registro.imagen_ndmi:
+                registro.imagen_ndmi_url = request.build_absolute_uri(registro.imagen_ndmi.url)
+            if registro.imagen_savi:
+                registro.imagen_savi_url = request.build_absolute_uri(registro.imagen_savi.url)
+        
         # Estadísticas
         total_imagenes = 0
         imagenes_por_tipo = {'NDVI': 0, 'NDMI': 0, 'SAVI': 0}
