@@ -1469,7 +1469,13 @@ class EosdaAPIService:
                 time.sleep(intervalo)
                 
                 logger.info(f"   ⏳ Esperando imagen... intento {intento + 1}/{max_intentos}")
-                response = self.session.get(url_download, timeout=60)
+                # ✅ PASO 2 de Field Imagery API requiere x-api-key header según documentación
+                # https://doc.eos.com/docs/field-management-api/field-imagery/
+                response = self.session.get(
+                    url_download, 
+                    headers={'x-api-key': self.api_key},
+                    timeout=60
+                )
                 
                 logger.debug(f"   Status: {response.status_code}, Content-Type: {response.headers.get('Content-Type', 'N/A')}")
                 
