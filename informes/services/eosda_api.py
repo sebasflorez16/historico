@@ -1445,7 +1445,12 @@ class EosdaAPIService:
             logger.info(f"   🎨 Generando imagen {indice} (view_id: {view_id})...")
             response = self.session.post(url_imagery, json=payload_imagen, timeout=60)
             
-            if response.status_code not in [200, 201, 202]:
+            if response.status_code == 403:
+                logger.error(f"   ❌ Error 403 Forbidden: API Key sin permisos para Field Imagery API")
+                logger.error(f"   💡 Verifica que tu plan de EOSDA incluya acceso a Field Imagery API")
+                logger.error(f"   📋 Endpoint: {url_imagery}")
+                return None
+            elif response.status_code not in [200, 201, 202]:
                 logger.error(f"   ❌ Error creando request de imagen: {response.status_code}")
                 logger.debug(f"   Response: {response.text[:300]}")
                 return None

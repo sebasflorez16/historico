@@ -1932,8 +1932,16 @@ def descargar_imagen_indice(request, registro_id):
         if not resultado:
             return JsonResponse({
                 'success': False,
-                'error': f'No se pudo descargar imagen {indice}. Verifique que hay escenas disponibles con baja nubosidad.'
-            }, status=500)
+                'error': (
+                    f'⚠️ No se pudo descargar imagen {indice}.\n\n'
+                    f'Posibles causas:\n'
+                    f'1️⃣ Tu API key de EOSDA no tiene acceso a Field Imagery API (Error 403)\n'
+                    f'2️⃣ No hay escenas disponibles con baja nubosidad\n'
+                    f'3️⃣ El view_id guardado ya no es válido\n\n'
+                    f'💡 Solución: Verifica tu plan en EOSDA o contacta soporte.'
+                ),
+                'codigo_error': 'EOSDA_IMAGERY_ERROR'
+            }, status=400)
         
         # Guardar imagen en el modelo
         nombre_archivo = f"{registro.parcela.nombre}_{registro.año}_{registro.mes:02d}_{indice}.png"
