@@ -1976,9 +1976,11 @@ def descargar_imagen_indice(request, registro_id):
         }, status=404)
     except Exception as e:
         logger.error(f"❌ Error descargando imagen para registro {registro_id}: {str(e)}")
+        logger.exception(e)  # Log completo del stack trace
         return JsonResponse({
             'success': False,
-            'error': f'Error interno: {str(e)}'
+            'error': f'Error interno: {str(e)}',
+            'detalle': str(type(e).__name__)
         }, status=500)
 
 

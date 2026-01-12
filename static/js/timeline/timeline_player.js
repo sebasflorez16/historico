@@ -288,17 +288,19 @@ class TimelinePlayer {
         // Obtener URL de imagen según índice actual
         const imageUrl = frame.imagenes[this.currentIndice];
         
+        console.log(`🖼️ Frame ${index} - ${this.currentIndice.toUpperCase()} URL:`, imageUrl);
+        
         if (imageUrl) {
             // Cargar y renderizar imagen
             const img = await this.loadImage(imageUrl);
             if (img) {
                 this.drawImage(img, frame);
             } else {
-                this.drawPlaceholder(frame, 'Imagen no disponible');
+                this.drawPlaceholder(frame, 'Error cargando imagen. Verifica que la URL sea válida.');
             }
         } else {
             // Mostrar placeholder con opción de descarga
-            this.drawPlaceholder(frame, 'Imagen no descargada aún');
+            this.drawPlaceholder(frame, 'No hay imagen descargada. Ve a "Datos Satelitales" para descargar.');
         }
         
         // Pre-cargar imágenes adyacentes
@@ -431,6 +433,10 @@ class TimelinePlayer {
             }
             
             // Crear gradiente basado en el color de clasificación
+            const gradient = this.ctx.createRadialGradient(
+                canvasWidth / 2, canvasHeight / 2, 0,
+                canvasWidth / 2, canvasHeight / 2, Math.max(canvasWidth, canvasHeight) / 2
+            );
             gradient.addColorStop(0, this.hexToRgba(baseColor, 0.8));
             gradient.addColorStop(0.5, this.hexToRgba(baseColor, 0.5));
             gradient.addColorStop(1, this.hexToRgba(baseColor, 0.2));
