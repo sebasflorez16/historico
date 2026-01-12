@@ -26,6 +26,20 @@ from django.contrib.auth.models import User
 import json
 
 
+# Funciones para generar rutas de upload basadas en año/mes del registro
+def upload_to_ndvi(instance, filename):
+    """Genera ruta para imagen NDVI usando año/mes del registro"""
+    return f'imagenes_satelitales/{instance.año}/{instance.mes:02d}/ndvi/{filename}'
+
+def upload_to_ndmi(instance, filename):
+    """Genera ruta para imagen NDMI usando año/mes del registro"""
+    return f'imagenes_satelitales/{instance.año}/{instance.mes:02d}/ndmi/{filename}'
+
+def upload_to_savi(instance, filename):
+    """Genera ruta para imagen SAVI usando año/mes del registro"""
+    return f'imagenes_satelitales/{instance.año}/{instance.mes:02d}/savi/{filename}'
+
+
 class Parcela(gis_models.Model):
     """
     Modelo para gestionar las parcelas agrícolas con geometría PostGIS nativa
@@ -315,20 +329,21 @@ class IndiceMensual(models.Model):
     )
     
     # Imágenes satelitales descargadas desde Field Imagery API
+    # Usa funciones personalizadas para que la ruta sea según año/mes del REGISTRO, no del servidor
     imagen_ndvi = models.ImageField(
-        upload_to='imagenes_satelitales/%Y/%m/ndvi/',
+        upload_to=upload_to_ndvi,
         null=True, blank=True,
         verbose_name="Imagen NDVI",
         help_text="Imagen satelital del índice NDVI"
     )
     imagen_ndmi = models.ImageField(
-        upload_to='imagenes_satelitales/%Y/%m/ndmi/',
+        upload_to=upload_to_ndmi,
         null=True, blank=True,
         verbose_name="Imagen NDMI",
         help_text="Imagen satelital del índice NDMI"
     )
     imagen_savi = models.ImageField(
-        upload_to='imagenes_satelitales/%Y/%m/savi/',
+        upload_to=upload_to_savi,
         null=True, blank=True,
         verbose_name="Imagen SAVI",
         help_text="Imagen satelital del índice SAVI"
