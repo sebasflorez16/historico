@@ -115,11 +115,22 @@
                                 </div>
 
                                 <div class="form-group">
+                                    <label for="moneda" class="form-label">
+                                        Moneda <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-control" id="moneda" name="moneda" required>
+                                        <option value="COP" selected>Pesos Colombianos (COP)</option>
+                                        <option value="USD">Dólares Estadounidenses (USD)</option>
+                                    </select>
+                                    <div class="help-text">Selecciona la moneda del servicio</div>
+                                </div>
+
+                                <div class="form-group">
                                     <label for="precio_servicio" class="form-label">
-                                        Precio del Servicio (USD) <span class="text-danger">*</span>
+                                        Precio del Servicio <span class="text-danger">*</span>
                                     </label>
                                     <div class="input-group">
-                                        <span class="input-group-text">$</span>
+                                        <span class="input-group-text" id="simbolo-moneda">$</span>
                                         <input type="number" 
                                                class="form-control" 
                                                id="precio_servicio" 
@@ -128,6 +139,7 @@
                                                min="0" 
                                                required
                                                placeholder="0.00">
+                                        <span class="input-group-text" id="codigo-moneda">COP</span>
                                     </div>
                                     <div class="help-text">Precio acordado por el servicio</div>
                                 </div>
@@ -184,7 +196,7 @@
                                 </p>
                                 
                                 <p class="small mb-3">
-                                    <strong>Precio:</strong> $<span id="preview-precio">0.00</span>
+                                    <strong>Precio:</strong> <span id="preview-moneda">$</span><span id="preview-precio">0.00</span> <span id="preview-codigo-moneda">COP</span>
                                 </p>
                                 
                                 <div class="text-center">
@@ -219,11 +231,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const servicioInput = document.getElementById('descripcion_servicio');
     const precioInput = document.getElementById('precio_servicio');
     const diasInput = document.getElementById('dias_vigencia');
+    const monedaInput = document.getElementById('moneda');
     
     const previewNombre = document.getElementById('preview-nombre');
     const previewServicio = document.getElementById('preview-servicio');
     const previewPrecio = document.getElementById('preview-precio');
     const previewDias = document.getElementById('preview-dias');
+    const previewMoneda = document.getElementById('preview-moneda');
+    const previewCodigoMoneda = document.getElementById('preview-codigo-moneda');
+    
+    const simboloMoneda = document.getElementById('simbolo-moneda');
+    const codigoMoneda = document.getElementById('codigo-moneda');
     
     function updatePreview() {
         previewNombre.textContent = nombreInput.value || '[Nombre del Cliente]';
@@ -232,10 +250,21 @@ document.addEventListener('DOMContentLoaded', function() {
         previewDias.textContent = diasInput.value || '15';
     }
     
+    function updateMoneda() {
+        const moneda = monedaInput.value;
+        const simbolo = moneda === 'USD' ? '$' : '$';
+        
+        simboloMoneda.textContent = simbolo;
+        codigoMoneda.textContent = moneda;
+        previewMoneda.textContent = simbolo;
+        previewCodigoMoneda.textContent = moneda;
+    }
+    
     nombreInput.addEventListener('input', updatePreview);
     servicioInput.addEventListener('input', updatePreview);
     precioInput.addEventListener('input', updatePreview);
     diasInput.addEventListener('change', updatePreview);
+    monedaInput.addEventListener('change', updateMoneda);
 });
 </script>
 {% endblock %}

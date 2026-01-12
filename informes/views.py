@@ -1034,6 +1034,7 @@ def crear_invitacion(request):
             email_cliente = request.POST.get('email_cliente', '')
             descripcion_servicio = request.POST.get('descripcion_servicio', 'Análisis satelital agrícola')
             precio_servicio = request.POST.get('precio_servicio', '0.00')
+            moneda = request.POST.get('moneda', 'COP')
             dias_vigencia = int(request.POST.get('dias_vigencia', '15'))
             
             # Validaciones
@@ -1059,6 +1060,7 @@ def crear_invitacion(request):
                 nombre_cliente=nombre_cliente,
                 email_cliente=email_cliente,
                 telefono_cliente='',  # No se solicita en el formulario actual
+                moneda=moneda,
                 costo_servicio=Decimal(precio_servicio),
                 descripcion_servicio=descripcion_servicio,
                 fecha_expiracion=fecha_expiracion,
