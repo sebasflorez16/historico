@@ -1153,13 +1153,31 @@
                                         <button class="btn btn-sm btn-primary descargar-imagen" data-registro-id="{{ indice.id }}" title="Descargar imagen">
                                             📷
                                         </button>
-                                        <span class="estado-imagen" data-registro-id="{{ indice.id }}">
-                                            {% if indice.imagen_ndvi or indice.imagen_ndmi or indice.imagen_savi %}
-                                                <small class="text-success">✅</small>
+                                        <div class="d-flex gap-1 align-items-center" style="min-width: 110px;">
+                                            <!-- Checkbox NDVI -->
+                                            <span title="NDVI" style="font-size: 0.75rem; font-weight: 600; color: #2E8B57;">N</span>
+                                            {% if indice.imagen_ndvi %}
+                                                <span class="text-success" style="font-size: 1.1rem;">✅</span>
                                             {% else %}
-                                                <small class="text-muted">📥</small>
+                                                <span class="text-muted" style="font-size: 1.1rem;">☐</span>
                                             {% endif %}
-                                        </span>
+                                            
+                                            <!-- Checkbox NDMI -->
+                                            <span title="NDMI" style="font-size: 0.75rem; font-weight: 600; color: #FF7A00; margin-left: 4px;">M</span>
+                                            {% if indice.imagen_ndmi %}
+                                                <span class="text-success" style="font-size: 1.1rem;">✅</span>
+                                            {% else %}
+                                                <span class="text-muted" style="font-size: 1.1rem;">☐</span>
+                                            {% endif %}
+                                            
+                                            <!-- Checkbox SAVI -->
+                                            <span title="SAVI" style="font-size: 0.75rem; font-weight: 600; color: #1976D2; margin-left: 4px;">S</span>
+                                            {% if indice.imagen_savi %}
+                                                <span class="text-success" style="font-size: 1.1rem;">✅</span>
+                                            {% else %}
+                                                <span class="text-muted" style="font-size: 1.1rem;">☐</span>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </td>
                             </tr>

@@ -2096,13 +2096,21 @@ def generar_informe_pdf(request, parcela_id):
             
             logger.info(f"Informe creado con precio_base=${precio_base}, estado={informe.estado_pago}")
             
-            # Enviar archivo para descarga
+            # Enviar archivo para descarga con nombre descriptivo
             from django.http import FileResponse
+            from datetime import datetime
+            
+            # Crear nombre de archivo descriptivo: Propietario_Parcela_Fecha.pdf
+            propietario_limpio = parcela.propietario.replace(" ", "_").replace("/", "-")
+            parcela_limpia = parcela.nombre.replace(" ", "_").replace("/", "-")
+            fecha_str = datetime.now().strftime("%Y%m%d")
+            nombre_archivo = f"informe_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
+            
             response = FileResponse(
                 open(ruta_pdf, 'rb'),
                 content_type='application/pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="informe_{parcela.nombre.replace(" ", "_")}.pdf"'
+            response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
             
             # Log de éxito
             logger.info(f"Informe PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")
@@ -2521,4 +2529,38 @@ def arqueo_caja(request):
         logger.error(f"Error en arqueo de caja: {str(e)}")
         messages.error(request, f'Error cargando arqueo de caja: {str(e)}')
         return redirect('informes:dashboard')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def eliminar_informe_facturacion(request, informe_id):
+    """
+    Eliminar un informe desde la vista de facturación (solo admin)
+    Requiere método POST con CSRF token
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        parcela_nombre = informe.parcela.nombre
+        
+        # Eliminar archivo PDF si existe
+        if informe.archivo_pdf and os.path.exists(informe.archivo_pdf):
+            try:
+                os.remove(informe.archivo_pdf)
+                logger.info(f"✅ Archivo PDF eliminado: {informe.archivo_pdf}")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo eliminar el archivo PDF: {e}")
+        
+        # Eliminar el registro
+        informe.delete()
+        
+        messages.success(request, f'✅ Informe de "{parcela_nombre}" eliminado correctamente')
+        logger.info(f"✅ Informe ID {informe_id} eliminado por usuario {request.user.username}")
+        
+        return redirect('informes:arqueo_caja')
+        
+    except Exception as e:
+        logger.error(f"❌ Error eliminando informe {informe_id}: {str(e)}")
+        messages.error(request, f'Error eliminando informe: {str(e)}')
+        return redirect('informes:arqueo_caja')
 

@@ -13,6 +13,13 @@
 {% endblock %}
 
 {% block content %}
+<!-- Token CSRF disponible para JavaScript -->
+{% csrf_token %}
+<script>
+    // Hacer el token CSRF disponible globalmente
+    window.CSRF_TOKEN = '{{ csrf_token }}';
+</script>
+
 <div class="row fade-in-up">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -232,6 +239,15 @@
                                            title="Ver Detalle">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        {% if request.user.is_superuser %}
+                                        <button type="button" 
+                                                class="btn btn-outline-danger btn-eliminar-informe" 
+                                                title="Eliminar Informe"
+                                                data-informe-id="{{ informe.id }}"
+                                                data-parcela-nombre="{{ informe.parcela.nombre }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -314,4 +330,67 @@
         padding: 0.25rem 0.5rem;
     }
 </style>
+
+<script>
+// Función para obtener CSRF token de las cookies (método estándar de Django)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function confirmarEliminacion(informeId, parcelaNombre) {
+    if (confirm(`¿Estás seguro de eliminar el informe de "${parcelaNombre}"?\n\nEsta acción no se puede deshacer y eliminará el archivo PDF.`)) {
+        // Obtener el token CSRF - primero intentar de la variable global, luego de las cookies
+        let csrfToken = window.CSRF_TOKEN || getCookie('csrftoken');
+        
+        if (!csrfToken) {
+            alert('Error: Token CSRF no encontrado. Por favor, recarga la página.');
+            console.error('CSRF token no disponible');
+            return;
+        }
+        
+        console.log('Enviando petición de eliminación para informe ID:', informeId);
+        
+        // Crear un formulario oculto para enviar la petición POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/informes/informes/${informeId}/eliminar/`;
+        
+        // Agregar token CSRF
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrfmiddlewaretoken';
+        input.value = csrfToken;
+        form.appendChild(input);
+        
+        // Agregar el formulario al body y enviarlo
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Inicializar event listeners cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    // Agregar event listeners a todos los botones de eliminación
+    const botonesEliminar = document.querySelectorAll('.btn-eliminar-informe');
+    
+    botonesEliminar.forEach(function(boton) {
+        boton.addEventListener('click', function() {
+            const informeId = this.getAttribute('data-informe-id');
+            const parcelaNombre = this.getAttribute('data-parcela-nombre');
+            confirmarEliminacion(informeId, parcelaNombre);
+        });
+    });
+});
+</script>
 {% endblock %}

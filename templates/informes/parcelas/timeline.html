@@ -4,6 +4,8 @@
 {% block title %}🎬 Timeline Visual - {{ parcela.nombre }}{% endblock %}
 
 {% block extra_css %}
+<!-- 🚀 FASE 2: Estilos de módulos avanzados -->
+<link rel="stylesheet" href="{% static 'css/timeline_modules.css' %}">
 <style>
     /* ========================================
        🎬 TIMELINE VISUAL - ESTILOS
@@ -55,17 +57,50 @@
         font-weight: 600;
     }
     
-    /* Canvas de visualización */
-    #timeline-canvas {
+    /* Canvas de visualización - Responsive mejorado */
+    .canvas-wrapper {
+        position: relative;
         width: 100%;
         max-width: 1200px;
-        height: 600px;
         margin: 0 auto;
-        display: block;
-        border-radius: 20px;
+        aspect-ratio: 16 / 9; /* Ratio consistente */
         background: #000;
+        border-radius: 20px;
+        overflow: hidden;
         box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
-        cursor: pointer;
+    }
+    
+    .canvas-wrapper:hover {
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+    
+    #timeline-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        cursor: crosshair;
+    }
+    
+    /* Tooltip mejorado */
+    #canvas-tooltip {
+        transition: opacity 0.2s ease;
+    }
+    
+    /* Leyenda de colores */
+    .color-legend strong {
+        display: block;
+        font-size: 0.9rem;
+    }
+    
+    .color-legend .row > div {
+        transition: transform 0.2s ease;
+    }
+    
+    .color-legend .row > div:hover {
+        transform: translateY(-3px);
     }
     
     /* Panel de metadata */
@@ -292,53 +327,210 @@
         to { transform: rotate(360deg); }
     }
     
-    /* Responsive */
+    /* 📱 Responsive - OPTIMIZADO para móvil */
     @media (max-width: 768px) {
         .timeline-container {
-            padding: 20px;
-            border-radius: 24px;
+            padding: 15px;
+            border-radius: 20px;
         }
         
         .timeline-header h1 {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
         }
         
-        #timeline-canvas {
-            height: 400px;
+        .timeline-header .subtitle {
+            font-size: 0.95rem;
         }
         
+        .canvas-wrapper {
+            aspect-ratio: 4 / 3; /* Ratio más cuadrado en móvil */
+            border-radius: 12px;
+        }
+        
+        /* 🔥 Controles en FILA horizontal (no vertical) */
         .timeline-controls {
-            padding: 15px;
+            padding: 15px 10px;
+            gap: 10px;
+            flex-direction: row; /* Horizontal para mejor UX */
+            flex-wrap: wrap; /* Permitir wrap si es necesario */
+            justify-content: space-between;
         }
         
+        /* 🔥 Botones de control más pequeños pero táctiles */
         .control-btn {
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             font-size: 1.2rem;
         }
         
         .control-btn.play-btn {
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             font-size: 1.8rem;
         }
         
+        /* 🔥 Slider en su propia fila, más ancho */
+        .timeline-slider-container {
+            width: 100%;
+            min-width: 100%;
+            padding: 0 5px;
+            order: 2; /* Después de los botones */
+            margin-top: 10px;
+        }
+        
+        /* 🔥 Contador de frames visible pero compacto */
+        .frame-counter {
+            font-size: 0.85rem;
+            padding: 10px 15px;
+            min-width: 90px;
+            order: 1;
+        }
+        
+        /* 🔥 Metadata en grid de 2 columnas */
         .metadata-panel {
-            padding: 15px;
+            padding: 15px 10px;
+            margin-top: 15px;
+        }
+        
+        .metadata-panel .row {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
         
         .metadata-item {
             padding: 10px;
+            margin-bottom: 0;
+            flex-direction: row; /* Horizontal, no vertical */
+            text-align: left;
+            gap: 10px;
         }
         
         .metadata-icon {
             width: 40px;
             height: 40px;
             font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .metadata-label {
+            font-size: 0.7rem;
         }
         
         .metadata-value {
             font-size: 1.1rem;
+        }
+        
+        /* 🔥 Selector de índices en 3 botones horizontales */
+        .index-selector {
+            flex-wrap: nowrap;
+            gap: 8px;
+            justify-content: stretch;
+        }
+        
+        .index-btn {
+            padding: 12px 10px;
+            font-size: 0.85rem;
+            flex: 1;
+            min-width: 0; /* Permitir que se reduzcan equitativamente */
+        }
+        
+        /* 🔥 Leyenda de colores en grid 3x2 */
+        .color-legend .row {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .color-legend .row > div {
+            flex: none;
+            max-width: none;
+            margin-bottom: 0;
+        }
+        
+        .color-legend strong {
+            font-size: 0.75rem;
+        }
+        
+        /* 🔥 Tooltip más pequeño pero legible */
+        #canvas-tooltip {
+            max-width: 280px;
+            font-size: 0.8rem;
+            padding: 10px;
+        }
+        
+        /* Guía de atajos más compacta */
+        .keyboard-shortcuts {
+            font-size: 0.75rem;
+            padding: 10px;
+        }
+        
+        .keyboard-shortcuts kbd {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+    }
+    
+    /* 📱 Extra small devices (< 480px) */
+    @media (max-width: 480px) {
+        .timeline-container {
+            padding: 10px;
+            border-radius: 16px;
+        }
+        
+        .timeline-header h1 {
+            font-size: 1.2rem;
+        }
+        
+        .timeline-header .subtitle {
+            font-size: 0.85rem;
+        }
+        
+        .canvas-wrapper {
+            aspect-ratio: 1 / 1; /* Ratio cuadrado en móviles muy pequeños */
+            border-radius: 10px;
+        }
+        
+        /* 🔥 Botones aún más pequeños pero táctiles (48px mínimo recomendado) */
+        .control-btn {
+            width: 44px;
+            height: 44px;
+            font-size: 1rem;
+        }
+        
+        .control-btn.play-btn {
+            width: 56px;
+            height: 56px;
+            font-size: 1.5rem;
+        }
+        
+        /* 🔥 Índices compactos pero legibles */
+        .index-btn {
+            font-size: 0.75rem;
+            padding: 10px 8px;
+        }
+        
+        /* 🔥 Metadata en 1 columna */
+        .metadata-panel .row {
+            grid-template-columns: 1fr !important;
+        }
+        
+        /* 🔥 Leyenda en 2 columnas (no 1) para aprovechar espacio */
+        .color-legend .row {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+        
+        /* Tooltip más pequeño */
+        #canvas-tooltip {
+            max-width: 220px;
+            font-size: 0.75rem;
+            padding: 8px;
+        }
+        
+        .frame-counter {
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            min-width: 80px;
         }
     }
 </style>
@@ -362,10 +554,75 @@
         </div>
         
         <!-- Canvas de visualización -->
-        <div style="position: relative;">
+        <div class="canvas-wrapper">
             <canvas id="timeline-canvas"></canvas>
+            
+            <!-- Loading overlay mejorado con progreso -->
             <div id="loading-overlay" class="loading-overlay" style="display: none;">
-                <div class="spinner"></div>
+                <div style="text-align: center; color: white;">
+                    <div class="spinner"></div>
+                    <p id="loading-text" style="margin-top: 20px; font-size: 1.1rem; font-weight: 600;">
+                        Cargando timeline...
+                    </p>
+                    <div style="width: 300px; height: 8px; background: rgba(255,255,255,0.2); border-radius: 10px; margin: 15px auto; overflow: hidden;">
+                        <div id="loading-progress" style="width: 0%; height: 100%; background: var(--timeline-primary); border-radius: 10px; transition: width 0.3s ease;"></div>
+                    </div>
+                    <p id="loading-percentage" style="font-size: 0.9rem; opacity: 0.8;">0%</p>
+                </div>
+            </div>
+            
+            <!-- Tooltip para hover -->
+            <div id="canvas-tooltip" style="
+                position: absolute;
+                display: none;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                pointer-events: none;
+                z-index: 1001;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                max-width: 250px;
+            "></div>
+        </div>
+        
+        <!-- Leyenda de colores interpretativa -->
+        <div class="color-legend" style="
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--timeline-card-bg);
+            border-radius: 16px;
+            box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        ">
+            <h5 style="text-align: center; color: var(--timeline-primary); margin-bottom: 15px; font-weight: 700;">
+                <i class="fas fa-palette me-2"></i>Interpretación de Colores
+            </h5>
+            <div class="row text-center">
+                <div class="col-6 col-md-3 mb-3">
+                    <div style="background: #8B0000; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
+                    <strong style="color: #8B0000;">Muy Bajo</strong>
+                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">< 0.2</p>
+                    <small style="font-size: 0.75rem; color: #999;">Suelo/Agua</small>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div style="background: #FFD700; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
+                    <strong style="color: #B8860B;">Bajo</strong>
+                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">0.2 - 0.4</p>
+                    <small style="font-size: 0.75rem; color: #999;">Vegetación débil</small>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div style="background: #ADFF2F; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
+                    <strong style="color: #6B8E23;">Moderado</strong>
+                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">0.4 - 0.6</p>
+                    <small style="font-size: 0.75rem; color: #999;">Saludable</small>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div style="background: #006400; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
+                    <strong style="color: #006400;">Alto</strong>
+                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">0.6 - 1.0</p>
+                    <small style="font-size: 0.75rem; color: #999;">Óptimo</small>
+                </div>
             </div>
         </div>
         
@@ -455,19 +712,19 @@
         
         <!-- Controles de Reproducción -->
         <div class="timeline-controls">
-            <button class="control-btn" id="btn-first" title="Primer frame">
+            <button class="control-btn" id="btn-first" title="Primer frame (Home)">
                 <i class="fas fa-step-backward"></i>
             </button>
-            <button class="control-btn" id="btn-prev" title="Frame anterior">
+            <button class="control-btn" id="btn-prev" title="Frame anterior (←)">
                 <i class="fas fa-chevron-left"></i>
             </button>
-            <button class="control-btn play-btn" id="btn-play" title="Reproducir">
+            <button class="control-btn play-btn" id="btn-play" title="Reproducir (Espacio)">
                 <i class="fas fa-play"></i>
             </button>
-            <button class="control-btn" id="btn-next" title="Frame siguiente">
+            <button class="control-btn" id="btn-next" title="Frame siguiente (→)">
                 <i class="fas fa-chevron-right"></i>
             </button>
-            <button class="control-btn" id="btn-last" title="Último frame">
+            <button class="control-btn" id="btn-last" title="Último frame (End)">
                 <i class="fas fa-step-forward"></i>
             </button>
             
@@ -479,6 +736,23 @@
             <div class="frame-counter" id="frame-counter">
                 0 / 0
             </div>
+        </div>
+        
+        <!-- 🆕 Ayuda de atajos de teclado -->
+        <div class="keyboard-shortcuts" style="
+            margin-top: 15px;
+            padding: 15px 20px;
+            background: linear-gradient(145deg, rgba(46, 139, 87, 0.05), rgba(255, 122, 0, 0.05));
+            border-radius: 12px;
+            text-align: center;
+        ">
+            <p style="margin: 0; font-size: 0.85rem; color: #6c757d;">
+                <i class="fas fa-keyboard me-2"></i><strong>Atajos:</strong>
+                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">Espacio</kbd> Play/Pause |
+                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">←→</kbd> Navegar |
+                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">↑↓</kbd> Cambiar índice |
+                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">1-2-3</kbd> NDVI/NDMI/SAVI
+            </p>
         </div>
     </div>
 </div>
@@ -496,6 +770,12 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- 🚀 FASE 2: Módulos avanzados del Timeline Player -->
+<script src="{% static 'js/timeline/modules/playback_controller.js' %}"></script>
+<script src="{% static 'js/timeline/modules/transition_engine.js' %}"></script>
+<script src="{% static 'js/timeline/modules/filter_engine.js' %}"></script>
+
+<!-- Timeline Player principal -->
 <script src="{% static 'js/timeline/timeline_player.js' %}"></script>
 <script>
 // Inicializar Timeline Player cuando el DOM esté listo

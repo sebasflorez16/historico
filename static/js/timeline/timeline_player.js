@@ -24,7 +24,7 @@ class TimelinePlayer {
         
         // Caché de imágenes
         this.imageCache = new Map();
-        this.loadingImages = new Set();
+        this.loadingImages = new Set(); // 🆕 Tracking de imágenes en proceso de carga
         
         // Elementos del DOM
         this.elements = {};
@@ -40,21 +40,41 @@ class TimelinePlayer {
             animationId: null
         };
         
-        // Bind methods
+        // 🆕 Sistema de tooltip
+        this.tooltip = {
+            element: null,
+            visible: false
+        };
+        
+        // 🆕 Sistema de loading con progreso
+        this.loading = {
+            active: false,
+            progress: 0,
+            total: 0,
+            loaded: 0
+        };
+        
+        // 🆕 FASE 2: Módulos avanzados (se inicializarán después)
+        this.playbackController = null;
+        this.transitionEngine = null;
+        this.filterEngine = null;
+        
+        // Bind methods (solo los que existen)
         this.play = this.play.bind(this);
         this.pause = this.pause.bind(this);
         this.next = this.next.bind(this);
         this.prev = this.prev.bind(this);
         this.goToFrame = this.goToFrame.bind(this);
         this.changeIndice = this.changeIndice.bind(this);
-        this.animateTransition = this.animateTransition.bind(this);
+        this.handleCanvasHover = this.handleCanvasHover.bind(this);
+        this.handleCanvasLeave = this.handleCanvasLeave.bind(this);
     }
     
     /**
      * Inicializa el player
      */
     async init() {
-        console.log('🎬 Inicializando Timeline Player...');
+        console.log('Inicializando Timeline Player...');
         
         // Configurar canvas
         this.setupCanvas();
@@ -65,6 +85,9 @@ class TimelinePlayer {
         // Configurar event listeners
         this.setupEventListeners();
         
+        // FASE 2: Inicializar módulos avanzados
+        this.initAdvancedModules();
+        
         // Cargar datos del timeline
         await this.loadTimelineData();
         
@@ -73,21 +96,96 @@ class TimelinePlayer {
             await this.renderFrame(0);
         }
         
-        console.log('✅ Timeline Player inicializado correctamente');
+        console.log('Timeline Player inicializado correctamente');
     }
     
     /**
-     * Configura el canvas
+     * FASE 2: Inicializa los módulos avanzados
+     */
+    initAdvancedModules() {
+        console.log('Inicializando módulos avanzados...');
+        
+        try {
+            // Verificar si los módulos están disponibles
+            if (typeof PlaybackController !== 'undefined') {
+                this.playbackController = new PlaybackController(this);
+                this.playbackController.init();
+                console.log('PlaybackController inicializado');
+            }
+            
+            if (typeof TransitionEngine !== 'undefined') {
+                this.transitionEngine = new TransitionEngine(this);
+                this.transitionEngine.init();
+                console.log('TransitionEngine inicializado');
+            }
+            
+            if (typeof FilterEngine !== 'undefined') {
+                this.filterEngine = new FilterEngine(this);
+                this.filterEngine.init();
+                console.log('FilterEngine inicializado');
+            }
+            
+            console.log('Módulos avanzados inicializados');
+        } catch (error) {
+            console.error('Error inicializando módulos avanzados:', error);
+        }
+    }
+    
+    /**
+     * Configura el canvas con dimensiones responsive
      */
     setupCanvas() {
-        const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width * window.devicePixelRatio;
-        this.canvas.height = rect.height * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        // Función para redimensionar el canvas
+        const resizeCanvas = () => {
+            const container = this.canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            
+            // Establecer dimensiones CSS (sin DPR)
+            const cssWidth = rect.width;
+            const cssHeight = rect.height;
+            
+            // Establecer dimensiones reales del canvas (con DPR para nitidez)
+            const dpr = window.devicePixelRatio || 1;
+            this.canvas.width = cssWidth * dpr;
+            this.canvas.height = cssHeight * dpr;
+            
+            // Ajustar el canvas para que coincida con el tamaño CSS
+            this.canvas.style.width = cssWidth + 'px';
+            this.canvas.style.height = cssHeight + 'px';
+            
+            // Escalar el contexto para compensar el DPR
+            this.ctx.scale(dpr, dpr);
+            
+            // Re-renderizar el frame actual si existe
+            if (this.frames.length > 0 && this.currentIndex >= 0) {
+                const frame = this.frames[this.currentIndex];
+                const imageUrl = frame.imagenes[this.currentIndice];
+                
+                if (imageUrl && this.imageCache.has(imageUrl)) {
+                    const img = this.imageCache.get(imageUrl);
+                    this.drawImage(img, frame);
+                } else {
+                    this.drawPlaceholder(frame, 'Redimensionando...');
+                }
+            } else {
+                // Fondo inicial
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, cssWidth, cssHeight);
+            }
+        };
         
-        // Fondo inicial
-        this.ctx.fillStyle = '#000';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Configurar canvas inicial
+        resizeCanvas();
+        
+        // Redimensionar cuando cambie el tamaño de la ventana
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvas, 150);
+        });
+        
+        // Guardar referencia para uso posterior
+        this.resizeCanvas = resizeCanvas;
     }
     
     /**
@@ -123,9 +221,18 @@ class TimelinePlayer {
             btnDownloadNdmi: document.getElementById('btn-download-ndmi'),
             btnDownloadSavi: document.getElementById('btn-download-savi'),
             
-            // Loading
-            loadingOverlay: document.getElementById('loading-overlay')
+            // 🆕 Loading mejorado
+            loadingOverlay: document.getElementById('loading-overlay'),
+            loadingText: document.getElementById('loading-text'),
+            loadingProgress: document.getElementById('loading-progress'),
+            loadingPercentage: document.getElementById('loading-percentage'),
+            
+            // 🆕 Tooltip
+            canvasTooltip: document.getElementById('canvas-tooltip')
         };
+        
+        // Guardar referencia del tooltip
+        this.tooltip.element = this.elements.canvasTooltip;
     }
     
     /**
@@ -158,7 +265,7 @@ class TimelinePlayer {
             this.goToFrame(index);
         });
         
-        // Selector de índice
+        // Selector de índice con feedback visual mejorado
         this.elements.indexButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const indice = e.currentTarget.dataset.index;
@@ -188,8 +295,17 @@ class TimelinePlayer {
             }
         });
         
-        // Teclado
+        // 🆕 Tooltip en hover sobre canvas
+        this.canvas.addEventListener('mousemove', this.handleCanvasHover);
+        this.canvas.addEventListener('mouseleave', this.handleCanvasLeave);
+        
+        // 🆕 Atajos de teclado mejorados
         document.addEventListener('keydown', (e) => {
+            // Ignorar si el usuario está escribiendo en un input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
             switch(e.key) {
                 case ' ':
                 case 'Enter':
@@ -205,6 +321,16 @@ class TimelinePlayer {
                     e.preventDefault();
                     this.next();
                     break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    // Cambiar a siguiente índice
+                    this.cycleIndice(1);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    // Cambiar a índice anterior
+                    this.cycleIndice(-1);
+                    break;
                 case 'Home':
                     e.preventDefault();
                     this.goToFrame(0);
@@ -213,24 +339,44 @@ class TimelinePlayer {
                     e.preventDefault();
                     this.goToFrame(this.frames.length - 1);
                     break;
+                case 'Escape':
+                    e.preventDefault();
+                    if (this.isPlaying) this.pause();
+                    break;
+                // Teclas numéricas 1, 2, 3 para cambiar índices
+                case '1':
+                    e.preventDefault();
+                    this.changeIndice('ndvi');
+                    break;
+                case '2':
+                    e.preventDefault();
+                    this.changeIndice('ndmi');
+                    break;
+                case '3':
+                    e.preventDefault();
+                    this.changeIndice('savi');
+                    break;
             }
         });
     }
     
     /**
-     * Carga datos del timeline desde la API
+     * Carga datos del timeline desde la API con progreso
      */
     async loadTimelineData() {
-        this.showLoading(true);
+        this.showLoading(true, 'Conectando con servidor...', 10);
         
         try {
-            console.log('📡 Cargando datos del timeline...');
+            console.log('Cargando datos del timeline...');
+            this.updateLoadingProgress(1, 5, 'Obteniendo frames...');
+            
             const response = await fetch(this.config.apiUrl);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
+            this.updateLoadingProgress(2, 5, 'Procesando datos...');
             const data = await response.json();
             
             if (data.error) {
@@ -238,23 +384,59 @@ class TimelinePlayer {
             }
             
             this.frames = data.frames || [];
-            console.log(`✅ Cargados ${this.frames.length} frames`);
+            console.log(`Cargados ${this.frames.length} frames`);
+            
+            if (this.frames.length === 0) {
+                throw new Error('No hay datos disponibles para mostrar');
+            }
+            
+            this.updateLoadingProgress(3, 5, `${this.frames.length} frames listos`);
             
             // Configurar slider
-            this.elements.slider.max = Math.max(0, this.frames.length - 1);
-            this.elements.slider.value = 0;
+            if (this.elements.slider) {
+                this.elements.slider.max = Math.max(0, this.frames.length - 1);
+                this.elements.slider.value = 0;
+            }
             
             // Actualizar contador
             this.updateFrameCounter();
             
-            // Pre-cargar algunas imágenes
-            this.preloadImages(0, Math.min(3, this.frames.length));
+            this.updateLoadingProgress(4, 5, 'Precargando imágenes...');
+            
+            // Pre-cargar las primeras imágenes con progreso
+            await this.preloadImagesWithProgress(0, Math.min(5, this.frames.length));
+            
+            this.updateLoadingProgress(5, 5, 'Listo');
             
         } catch (error) {
-            console.error('❌ Error cargando timeline:', error);
-            this.showError('Error cargando datos del timeline: ' + error.message);
+            console.error('Error cargando timeline:', error);
+            this.showError('Error cargando datos: ' + error.message);
         } finally {
-            this.showLoading(false);
+            setTimeout(() => {
+                this.showLoading(false);
+            }, 500);
+        }
+    }
+    
+    /**
+     * Precarga imágenes mostrando progreso
+     */
+    async preloadImagesWithProgress(startIndex, endIndex) {
+        const total = endIndex - startIndex;
+        let loaded = 0;
+        
+        for (let i = startIndex; i < endIndex; i++) {
+            if (i >= this.frames.length) break;
+            
+            const frame = this.frames[i];
+            const imageUrl = frame.imagenes[this.currentIndice];
+            
+            if (imageUrl) {
+                await this.loadImage(imageUrl);
+                loaded++;
+                this.updateLoadingProgress(4 + (loaded / total) * 0.8, 5, 
+                    `Precargando imagen ${loaded}/${total}...`);
+            }
         }
     }
     
@@ -263,7 +445,7 @@ class TimelinePlayer {
      */
     async renderFrame(index) {
         if (index < 0 || index >= this.frames.length) {
-            console.warn('⚠️ Índice de frame fuera de rango:', index);
+            console.warn('Índice de frame fuera de rango:', index);
             return;
         }
         
@@ -271,13 +453,10 @@ class TimelinePlayer {
         this.currentIndex = index;
         const frame = this.frames[index];
         
-        // Iniciar transición si cambiamos de frame
-        if (previousFrame && previousFrame !== frame) {
-            this.startTransition(previousFrame, frame);
-        }
-        
         // Actualizar slider sin disparar evento
-        this.elements.slider.value = index;
+        if (this.elements.slider) {
+            this.elements.slider.value = index;
+        }
         
         // Actualizar contador
         this.updateFrameCounter();
@@ -288,7 +467,7 @@ class TimelinePlayer {
         // Obtener URL de imagen según índice actual
         const imageUrl = frame.imagenes[this.currentIndice];
         
-        console.log(`🖼️ Frame ${index} - ${this.currentIndice.toUpperCase()} URL:`, imageUrl);
+        console.log(`Frame ${index} - ${this.currentIndice.toUpperCase()} URL:`, imageUrl);
         
         if (imageUrl) {
             // Cargar y renderizar imagen
@@ -296,11 +475,10 @@ class TimelinePlayer {
             if (img) {
                 this.drawImage(img, frame);
             } else {
-                this.drawPlaceholder(frame, 'Error cargando imagen. Verifica que la URL sea válida.');
+                this.drawPlaceholder(frame, 'Error cargando imagen');
             }
         } else {
-            // Mostrar placeholder con opción de descarga
-            this.drawPlaceholder(frame, 'No hay imagen descargada. Ve a "Datos Satelitales" para descargar.');
+            this.drawPlaceholder(frame, 'Sin imagen descargada');
         }
         
         // Pre-cargar imágenes adyacentes
@@ -308,9 +486,10 @@ class TimelinePlayer {
     }
     
     /**
-     * Dibuja una imagen en el canvas
+     * Dibuja una imagen en el canvas (responsive)
      */
     drawImage(img, frame) {
+        // Usar dimensiones CSS del canvas (no las del canvas interno que están escaladas por DPR)
         const rect = this.canvas.getBoundingClientRect();
         const canvasWidth = rect.width;
         const canvasHeight = rect.height;
@@ -319,24 +498,24 @@ class TimelinePlayer {
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         
-        // Calcular dimensiones para centrar y ajustar la imagen
+        // Calcular dimensiones para centrar y ajustar la imagen (cover)
         const imgRatio = img.width / img.height;
         const canvasRatio = canvasWidth / canvasHeight;
         
         let drawWidth, drawHeight, offsetX, offsetY;
         
         if (imgRatio > canvasRatio) {
-            // Imagen más ancha
-            drawWidth = canvasWidth;
-            drawHeight = canvasWidth / imgRatio;
-            offsetX = 0;
-            offsetY = (canvasHeight - drawHeight) / 2;
-        } else {
-            // Imagen más alta
+            // Imagen más ancha - ajustar por altura
             drawHeight = canvasHeight;
             drawWidth = canvasHeight * imgRatio;
             offsetX = (canvasWidth - drawWidth) / 2;
             offsetY = 0;
+        } else {
+            // Imagen más alta - ajustar por anchura
+            drawWidth = canvasWidth;
+            drawHeight = canvasWidth / imgRatio;
+            offsetX = 0;
+            offsetY = (canvasHeight - drawHeight) / 2;
         }
         
         // Dibujar imagen
@@ -347,66 +526,104 @@ class TimelinePlayer {
     }
     
     /**
-     * Dibuja overlay con información del frame
+     * Dibuja overlay con información del frame (responsive)
      */
     drawOverlay(frame, canvasWidth, canvasHeight) {
         const clasificacion = frame.clasificaciones[this.currentIndice];
         if (!clasificacion) return;
         
+        // Calcular tamaños de fuente responsivos basados en el ancho del canvas
+        const baseFontSize = Math.max(12, canvasWidth / 50); // Mínimo 12px
+        const titleFontSize = baseFontSize * 1.4;
+        const valueFontSize = baseFontSize * 2.4;
+        const labelFontSize = baseFontSize;
+        const smallFontSize = baseFontSize * 0.7;
+        
+        // Altura del overlay adaptativa
+        const overlayHeight = Math.min(120, canvasHeight * 0.25);
+        
         // Gradiente de fondo para el overlay
-        const gradient = this.ctx.createLinearGradient(0, canvasHeight - 120, 0, canvasHeight);
+        const gradient = this.ctx.createLinearGradient(
+            0, canvasHeight - overlayHeight, 
+            0, canvasHeight
+        );
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
         
         this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, canvasHeight - 120, canvasWidth, 120);
+        this.ctx.fillRect(0, canvasHeight - overlayHeight, canvasWidth, overlayHeight);
+        
+        // Padding adaptativo
+        const padding = Math.max(10, canvasWidth * 0.015);
         
         // Texto del período
         this.ctx.fillStyle = '#fff';
-        this.ctx.font = 'bold 28px Arial';
+        this.ctx.font = `bold ${titleFontSize}px Arial`;
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(frame.periodo_texto, 20, canvasHeight - 80);
+        this.ctx.fillText(
+            frame.periodo_texto, 
+            padding, 
+            canvasHeight - overlayHeight + titleFontSize + padding
+        );
         
         // Valor del índice
         const valorIndice = frame[this.currentIndice].promedio;
         if (valorIndice !== null) {
-            this.ctx.font = 'bold 48px Arial';
+            this.ctx.font = `bold ${valueFontSize}px Arial`;
             this.ctx.fillStyle = clasificacion.color;
             const texto = `${this.currentIndice.toUpperCase()}: ${valorIndice.toFixed(3)}`;
-            this.ctx.fillText(texto, 20, canvasHeight - 35);
+            this.ctx.fillText(
+                texto, 
+                padding, 
+                canvasHeight - padding - smallFontSize - 5
+            );
         }
         
-        // Estado (etiqueta)
-        this.ctx.font = 'bold 20px Arial';
+        // Estado (etiqueta) - lado derecho
+        this.ctx.font = `bold ${labelFontSize}px Arial`;
         this.ctx.fillStyle = '#fff';
         this.ctx.textAlign = 'right';
         const etiquetaCompleta = `${clasificacion.icono} ${clasificacion.etiqueta}`;
-        this.ctx.fillText(etiquetaCompleta, canvasWidth - 20, canvasHeight - 70);
+        this.ctx.fillText(
+            etiquetaCompleta, 
+            canvasWidth - padding, 
+            canvasHeight - overlayHeight + titleFontSize + padding + labelFontSize + 5
+        );
         
         // Descripción
-        this.ctx.font = '16px Arial';
+        this.ctx.font = `${smallFontSize}px Arial`;
         this.ctx.fillStyle = '#ddd';
-        this.ctx.fillText(clasificacion.descripcion, canvasWidth - 20, canvasHeight - 45);
+        this.ctx.fillText(
+            clasificacion.descripcion, 
+            canvasWidth - padding, 
+            canvasHeight - overlayHeight + titleFontSize + padding + labelFontSize * 2 + 10
+        );
         
         // Nubosidad
         if (frame.imagen_metadata.nubosidad !== null) {
             this.ctx.fillStyle = '#aaa';
-            this.ctx.font = '14px Arial';
+            this.ctx.font = `${smallFontSize}px Arial`;
             this.ctx.fillText(
                 `☁️ Nubosidad: ${frame.imagen_metadata.nubosidad.toFixed(1)}%`,
-                canvasWidth - 20,
-                canvasHeight - 20
+                canvasWidth - padding,
+                canvasHeight - padding
             );
         }
     }
     
     /**
-     * Dibuja placeholder cuando no hay imagen - Visualización con colores según índice
+     * Dibuja placeholder cuando no hay imagen - Visualización con colores según índice (responsive)
      */
     drawPlaceholder(frame, mensaje) {
         const rect = this.canvas.getBoundingClientRect();
         const canvasWidth = rect.width;
         const canvasHeight = rect.height;
+        
+        // Calcular tamaños responsivos
+        const iconSize = Math.max(60, canvasWidth / 10);
+        const valueFontSize = Math.max(24, canvasWidth / 20);
+        const labelFontSize = Math.max(16, canvasWidth / 35);
+        const borderRadius = Math.max(10, canvasWidth / 60);
         
         // Limpiar canvas
         this.ctx.fillStyle = '#1a1a1a';
@@ -452,13 +669,13 @@ class TimelinePlayer {
             
             // Sombra de parcela
             this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            this.ctx.shadowBlur = 20;
+            this.ctx.shadowBlur = Math.max(10, canvasWidth / 60);
             this.ctx.shadowOffsetX = 0;
-            this.ctx.shadowOffsetY = 10;
+            this.ctx.shadowOffsetY = Math.max(5, canvasWidth / 120);
             
             // Parcela con color del índice
             this.ctx.fillStyle = this.hexToRgba(baseColor, 0.9);
-            this.roundRect(parcelaX, parcelaY, parcelaWidth, parcelaHeight, 20);
+            this.roundRect(parcelaX, parcelaY, parcelaWidth, parcelaHeight, borderRadius);
             this.ctx.fill();
             
             // Resetear sombra
@@ -467,29 +684,29 @@ class TimelinePlayer {
             
             // Borde de parcela
             this.ctx.strokeStyle = '#fff';
-            this.ctx.lineWidth = 3;
-            this.roundRect(parcelaX, parcelaY, parcelaWidth, parcelaHeight, 20);
+            this.ctx.lineWidth = Math.max(2, canvasWidth / 400);
+            this.roundRect(parcelaX, parcelaY, parcelaWidth, parcelaHeight, borderRadius);
             this.ctx.stroke();
             
             // Icono del estado en el centro
-            this.ctx.font = '120px Arial';
+            this.ctx.font = `${iconSize}px Arial`;
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(clasificacion.icono, canvasWidth / 2, canvasHeight / 2 - 20);
+            this.ctx.fillText(clasificacion.icono, canvasWidth / 2, canvasHeight / 2 - iconSize / 4);
             
             // Valor del índice prominente (usar valor interpolado si hay transición)
-            this.ctx.font = 'bold 56px Arial';
+            this.ctx.font = `bold ${valueFontSize}px Arial`;
             this.ctx.fillStyle = '#fff';
             this.ctx.fillText(
                 `${this.currentIndice.toUpperCase()}: ${currentValor.toFixed(3)}`,
                 canvasWidth / 2,
-                canvasHeight / 2 + 80
+                canvasHeight / 2 + iconSize / 2 + 20
             );
             
             // Etiqueta del estado
-            this.ctx.font = 'bold 28px Arial';
-            this.ctx.fillText(clasificacion.etiqueta, canvasWidth / 2, canvasHeight / 2 + 125);
+            this.ctx.font = `bold ${labelFontSize}px Arial`;
+            this.ctx.fillText(clasificacion.etiqueta, canvasWidth / 2, canvasHeight / 2 + iconSize / 2 + 20 + labelFontSize + 10);
             
         } else {
             // Fallback: gradiente genérico verde
@@ -500,16 +717,16 @@ class TimelinePlayer {
             this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             
             // Icono grande
-            this.ctx.font = '120px Arial';
+            this.ctx.font = `${iconSize}px Arial`;
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText('🛰️', canvasWidth / 2, canvasHeight / 2 - 40);
+            this.ctx.fillText('🛰️', canvasWidth / 2, canvasHeight / 2 - iconSize / 3);
             
             // Mensaje
-            this.ctx.font = 'bold 24px Arial';
+            this.ctx.font = `bold ${labelFontSize}px Arial`;
             this.ctx.fillStyle = '#fff';
-            this.ctx.fillText(mensaje, canvasWidth / 2, canvasHeight / 2 + 60);
+            this.ctx.fillText(mensaje, canvasWidth / 2, canvasHeight / 2 + iconSize / 3);
         }
         
         // Overlay con período (siempre mostrar)
@@ -554,7 +771,6 @@ class TimelinePlayer {
         
         // Evitar cargas duplicadas
         if (this.loadingImages.has(url)) {
-            // Esperar a que termine la carga en curso
             return new Promise((resolve) => {
                 const checkInterval = setInterval(() => {
                     if (this.imageCache.has(url)) {
@@ -574,13 +790,13 @@ class TimelinePlayer {
             img.onload = () => {
                 this.imageCache.set(url, img);
                 this.loadingImages.delete(url);
-                console.log('✅ Imagen cargada:', url);
+                console.log('Imagen cargada:', url);
                 resolve(img);
             };
             
             img.onerror = () => {
                 this.loadingImages.delete(url);
-                console.error('❌ Error cargando imagen:', url);
+                console.error('Error cargando imagen:', url);
                 resolve(null);
             };
             
@@ -606,6 +822,12 @@ class TimelinePlayer {
      * Actualiza metadata en el panel
      */
     updateMetadata(frame) {
+        // Validar que el frame existe
+        if (!frame) {
+            console.warn('Frame no válido para actualizar metadata');
+            return;
+        }
+        
         // Período
         this.elements.valuePeriodo.textContent = frame.periodo_texto;
         
@@ -662,8 +884,35 @@ class TimelinePlayer {
      * Actualiza contador de frames
      */
     updateFrameCounter() {
-        this.elements.frameCounter.textContent = 
-            `${this.currentIndex + 1} / ${this.frames.length}`;
+        if (!this.elements.frameCounter) return;
+        
+        const current = this.currentIndex + 1;
+        const total = this.frames.length;
+        
+        this.elements.frameCounter.textContent = `${current} / ${total}`;
+    }
+    
+    /**
+     * FASE 2: Actualiza la UI para un frame sin renderizar
+     */
+    updateUIForFrame(index) {
+        if (index < 0 || index >= this.frames.length) return;
+        
+        this.currentIndex = index;
+        
+        // Actualizar slider
+        if (this.elements.slider) {
+            this.elements.slider.value = index;
+        }
+        
+        // Actualizar contador
+        this.updateFrameCounter();
+        
+        // Actualizar metadata si el frame existe
+        const frame = this.frames[index];
+        if (frame) {
+            this.updateMetadata(frame);
+        }
     }
     
     /**
@@ -719,578 +968,270 @@ class TimelinePlayer {
     /**
      * Ir a un frame específico
      */
+    /**
+     * Navega a un frame específico con transiciones opcionales
+     */
     async goToFrame(index) {
         if (index === this.currentIndex) return;
+        
+        // Validar índice
+        if (index < 0 || index >= this.frames.length) {
+            console.warn('Índice de frame fuera de rango:', index);
+            return;
+        }
+        
+        // Si TransitionEngine está disponible y habilitado, usar transición
+        if (this.transitionEngine && this.transitionEngine.enabled && this.frames.length > 0) {
+            const fromFrame = this.frames[this.currentIndex];
+            const toFrame = this.frames[index];
+            
+            if (fromFrame && toFrame) {
+                // Realizar transición (NO actualizar currentIndex aquí, lo hace renderFrame)
+                try {
+                    // La transición internamente llamará a renderFrame al finalizar
+                    await this.transitionEngine.transition(fromFrame, toFrame);
+                } catch (error) {
+                    console.error('Error en transición, renderizando directo:', error);
+                    await this.renderFrame(index);
+                }
+                return;
+            }
+        }
+        
+        // Renderizado directo sin transición
         await this.renderFrame(index);
     }
     
     /**
-     * Cambia el índice visualizado (NDVI, NDMI, SAVI)
+     * Cambia el índice activo con feedback visual
      */
     changeIndice(indice) {
         if (this.currentIndice === indice) return;
         
+        const oldIndice = this.currentIndice;
         this.currentIndice = indice;
         
-        // Actualizar botones
+        // Feedback visual: Animación de botones
         this.elements.indexButtons.forEach(btn => {
             if (btn.dataset.index === indice) {
                 btn.classList.add('active');
+                btn.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    btn.style.transform = '';
+                }, 150);
             } else {
                 btn.classList.remove('active');
             }
         });
         
-        // Re-renderizar frame actual con nuevo índice
-        this.renderFrame(this.currentIndex);
+        // Mensaje temporal en el resumen
+        const oldText = this.elements.resumenSimple.textContent;
+        this.elements.resumenSimple.textContent = `Cambiando a ${indice.toUpperCase()}...`;
+        this.elements.resumenSimple.style.color = '#3b82f6';
+        
+        // Fade out/in del canvas durante el cambio
+        this.canvas.style.opacity = '0.6';
+        this.canvas.style.transition = 'opacity 0.3s ease';
+        
+        setTimeout(() => {
+            // Re-renderizar frame actual con nuevo índice
+            this.renderFrame(this.currentIndex);
+            
+            // Restaurar opacidad
+            this.canvas.style.opacity = '1';
+            
+            // Restaurar texto del resumen después de actualización
+            setTimeout(() => {
+                this.elements.resumenSimple.style.color = '';
+            }, 500);
+        }, 200);
+        
+        console.log(`Índice cambiado: ${oldIndice.toUpperCase()} → ${indice.toUpperCase()}`);
     }
     
     /**
-     * Muestra/oculta loading overlay
+     * Maneja el hover del mouse sobre el canvas para mostrar tooltip
      */
-    showLoading(show) {
-        if (this.elements.loadingOverlay) {
-            this.elements.loadingOverlay.style.display = show ? 'flex' : 'none';
+    handleCanvasHover(event) {
+        if (!this.frames.length || this.currentIndex >= this.frames.length) return;
+        
+        const frame = this.frames[this.currentIndex];
+        const indiceData = frame[this.currentIndice];
+        
+        // Solo mostrar valores válidos, nunca "undefined"
+        const periodoTexto = frame.periodo || 'Sin datos';
+        const ndviValor = (indiceData.promedio !== null && indiceData.promedio !== undefined) 
+            ? indiceData.promedio.toFixed(3) 
+            : 'Sin datos';
+        const maxValor = (indiceData.max !== null && indiceData.max !== undefined) 
+            ? indiceData.max.toFixed(3) 
+            : 'Sin datos';
+        const minValor = (indiceData.min !== null && indiceData.min !== undefined) 
+            ? indiceData.min.toFixed(3) 
+            : 'Sin datos';
+        
+        // Clima: Solo agregar línea si HAY ALGÚN dato climático
+        let climaHTML = '';
+        const hayTemperatura = frame.temperatura !== null && frame.temperatura !== undefined;
+        const hayPrecipitacion = frame.precipitacion !== null && frame.precipitacion !== undefined;
+        
+        if (hayTemperatura || hayPrecipitacion) {
+            climaHTML = '<br>';
+            if (hayTemperatura) {
+                climaHTML += `Temp: ${frame.temperatura.toFixed(1)}°C`;
+            }
+            if (hayPrecipitacion) {
+                climaHTML += `${hayTemperatura ? ' | ' : ''}Lluvia: ${frame.precipitacion.toFixed(0)}mm`;
+            }
+        }
+        
+        const tooltipHTML = `
+            <div style="font-weight: 700; margin-bottom: 8px; color: #4ade80;">
+                ${periodoTexto}
+            </div>
+            <div style="font-size: 0.85rem; line-height: 1.6;">
+                <strong>${this.currentIndice.toUpperCase()}:</strong> ${ndviValor}<br>
+                <span style="color: #fbbf24;">Max:</span> ${maxValor} | 
+                <span style="color: #60a5fa;">Min:</span> ${minValor}${climaHTML}
+            </div>
+        `;
+        
+        // Mostrar tooltip
+        const tooltip = this.tooltip.element;
+        tooltip.innerHTML = tooltipHTML;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (event.clientX + 15) + 'px';
+        tooltip.style.top = (event.clientY + 15) + 'px';
+        this.tooltip.visible = true;
+    }
+    
+    /**
+     * Oculta el tooltip cuando el mouse sale del canvas
+     */
+    handleCanvasLeave() {
+        if (this.tooltip.element) {
+            this.tooltip.element.style.display = 'none';
+            this.tooltip.visible = false;
         }
     }
     
     /**
-     * Muestra error en el canvas
+     * Cambia al siguiente o anterior índice (para flechas arriba/abajo)
+     */
+    cycleIndice(direction) {
+        const indices = ['ndvi', 'ndmi', 'savi'];
+        const currentIdx = indices.indexOf(this.currentIndice);
+        const newIdx = (currentIdx + direction + indices.length) % indices.length;
+        this.changeIndice(indices[newIdx]);
+    }
+    
+    /**
+     * Muestra loading overlay con progreso
+     */
+    showLoading(show, text = 'Cargando timeline...', progress = 0) {
+        const overlay = this.elements.loadingOverlay;
+        const textEl = this.elements.loadingText;
+        const progressBar = this.elements.loadingProgress;
+        const percentageEl = this.elements.loadingPercentage;
+        
+        if (show) {
+            if (overlay) overlay.style.display = 'flex';
+            if (textEl) textEl.textContent = text;
+            if (progressBar) progressBar.style.width = progress + '%';
+            if (percentageEl) percentageEl.textContent = Math.round(progress) + '%';
+            this.loading.active = true;
+        } else {
+            if (overlay) overlay.style.display = 'none';
+            this.loading.active = false;
+        }
+    }
+    
+    /**
+     * Actualiza el progreso del loading
+     */
+    updateLoadingProgress(loaded, total, text = null) {
+        if (!this.loading.active) return;
+        
+        const progress = (loaded / total) * 100;
+        const progressBar = this.elements.loadingProgress;
+        const percentageEl = this.elements.loadingPercentage;
+        const textEl = this.elements.loadingText;
+        
+        if (progressBar) progressBar.style.width = progress + '%';
+        if (percentageEl) percentageEl.textContent = Math.round(progress) + '%';
+        if (text && textEl) textEl.textContent = text;
+        
+        this.loading.loaded = loaded;
+        this.loading.total = total;
+        this.loading.progress = progress;
+    }
+    
+    /**
+     * Muestra un mensaje de error
      */
     showError(mensaje) {
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasWidth = rect.width;
-        const canvasHeight = rect.height;
+        console.error(mensaje);
         
-        this.ctx.fillStyle = '#1a1a1a';
-        this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        this.ctx.font = 'bold 24px Arial';
-        this.ctx.fillStyle = '#dc3545';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText('❌ ' + mensaje, canvasWidth / 2, canvasHeight / 2);
-    }
-    
-    /**
-     * Inicia una transición suave entre frames
-     */
-    startTransition(fromFrame, toFrame) {
-        // Cancelar transición anterior si existe
-        if (this.transition.animationId) {
-            cancelAnimationFrame(this.transition.animationId);
-        }
-        
-        this.transition = {
-            active: true,
-            progress: 0,
-            fromFrame: fromFrame,
-            toFrame: toFrame,
-            startTime: performance.now(),
-            duration: 1200,
-            animationId: null
-        };
-        
-        this.animateTransition();
-    }
-    
-    /**
-     * Anima la transición
-     */
-    animateTransition() {
-        if (!this.transition.active) return;
-        
-        const elapsed = performance.now() - this.transition.startTime;
-        const rawProgress = Math.min(elapsed / this.transition.duration, 1);
-        
-        // Ease-in-out cúbico (más suave)
-        const eased = rawProgress < 0.5
-            ? 4 * rawProgress * rawProgress * rawProgress
-            : 1 - Math.pow(-2 * rawProgress + 2, 3) / 2;
-        
-        this.transition.progress = eased;
-        
-        // Redibujar con progreso actual
-        const frame = this.frames[this.currentIndex];
-        const imageUrl = frame.imagenes[this.currentIndice];
-        
-        if (imageUrl) {
-            this.loadImage(imageUrl).then(img => {
-                if (img) {
-                    this.drawImage(img, frame);
-                } else {
-                    this.drawPlaceholder(frame, 'Imagen no disponible');
-                }
-            });
-        } else {
-            this.drawPlaceholder(frame, 'Imagen no descargada aún');
-        }
-        
-        // Continuar animación
-        if (rawProgress < 1) {
-            this.transition.animationId = requestAnimationFrame(() => this.animateTransition());
-        } else {
-            this.transition.active = false;
-            this.transition.animationId = null;
+        if (this.loading.active && this.elements.loadingText) {
+            this.elements.loadingText.textContent = 'Error: ' + mensaje;
+            this.elements.loadingText.style.color = '#ef4444';
+            
+            if (this.elements.loadingProgress) {
+                this.elements.loadingProgress.parentElement.style.display = 'none';
+            }
+            
+            setTimeout(() => {
+                this.showLoading(false);
+            }, 5000);
         }
     }
     
     /**
-     * Interpola entre dos colores hexadecimales
+     * FASE 3: Descarga video del timeline (Placeholder)
+     * @param {string} indice - Índice a exportar (ndvi, ndmi, savi)
      */
-    interpolateColorHex(hex1, hex2, progress) {
-        const r1 = parseInt(hex1.slice(1, 3), 16);
-        const g1 = parseInt(hex1.slice(3, 5), 16);
-        const b1 = parseInt(hex1.slice(5, 7), 16);
+    downloadVideo(indice) {
+        console.log(`Exportación de video solicitada para índice: ${indice.toUpperCase()}`);
         
-        const r2 = parseInt(hex2.slice(1, 3), 16);
-        const g2 = parseInt(hex2.slice(3, 5), 16);
-        const b2 = parseInt(hex2.slice(5, 7), 16);
+        // Mensaje informativo al usuario
+        const mensaje = `La funcionalidad de exportación de video/GIF estará disponible en la Fase 3.\n\n` +
+                       `Por ahora, puedes:\n` +
+                       `• Reproducir el timeline con los controles\n` +
+                       `• Capturar frames individuales con capturas de pantalla\n` +
+                       `• Usar las transiciones y filtros disponibles`;
         
+        alert(mensaje);
+        
+        // TODO FASE 3: Implementar exportación real usando:
+        // - MediaRecorder API para video MP4/WebM
+        // - gif.js para exportación GIF
+        // - Canvas.captureStream() para grabar frames
+        // - Controles de calidad, FPS y duración
+    }
+    
+    /**
+     * FASE 3: Interpolación de colores (Utilidad para transiciones)
+     */
+    interpolateColorHex(color1, color2, progress) {
+        // Extraer componentes RGB
+        const r1 = parseInt(color1.slice(1, 3), 16);
+        const g1 = parseInt(color1.slice(3, 5), 16);
+        const b1 = parseInt(color1.slice(5, 7), 16);
+        
+        const r2 = parseInt(color2.slice(1, 3), 16);
+        const g2 = parseInt(color2.slice(3, 5), 16);
+        const b2 = parseInt(color2.slice(5, 7), 16);
+        
+        // Interpolar
         const r = Math.round(r1 + (r2 - r1) * progress);
         const g = Math.round(g1 + (g2 - g1) * progress);
         const b = Math.round(b1 + (b2 - b1) * progress);
         
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-    }
-    
-    /**
-     * Descarga el timeline como video MP4 para un índice específico
-     */
-    async downloadVideo(indice) {
-        // Verificar si el navegador soporta MediaRecorder
-        if (!window.MediaRecorder) {
-            alert('Tu navegador no soporta la grabación de video. Usa Chrome o Firefox.');
-            return;
-        }
-        
-        console.log(`🎬 Iniciando descarga de video para ${indice.toUpperCase()}...`);
-        
-        // Guardar estado actual
-        const originalIndex = this.currentIndex;
-        const originalIndice = this.currentIndice;
-        const wasPlaying = this.isPlaying;
-        
-        // Pausar si está reproduciendo
-        if (wasPlaying) {
-            this.pause();
-        }
-        
-        // Cambiar al índice solicitado
-        this.changeIndice(indice);
-        
-        // Crear canvas temporal con mejor resolución
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 1200;
-        tempCanvas.height = 600;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        try {
-            // Capturar stream del canvas
-            const stream = tempCanvas.captureStream(2); // 2 FPS
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'video/webm;codecs=vp9',
-                videoBitsPerSecond: 2500000 // 2.5 Mbps para buena calidad
-            });
-            
-            const chunks = [];
-            
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    chunks.push(e.data);
-                }
-            };
-            
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `timeline_${this.config.parcelaNombre}_${indice.toUpperCase()}_${new Date().toISOString().split('T')[0]}.webm`;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                console.log('✅ Video descargado exitosamente');
-                
-                // Restaurar estado original
-                this.changeIndice(originalIndice);
-                this.goToFrame(originalIndex);
-                if (wasPlaying) {
-                    this.play();
-                }
-            };
-            
-            // Iniciar grabación
-            mediaRecorder.start();
-            console.log('🔴 Grabación iniciada');
-            
-            // Renderizar todos los frames
-            for (let i = 0; i < this.frames.length; i++) {
-                const frame = this.frames[i];
-                
-                // Renderizar en canvas temporal
-                await this.renderFrameToCanvas(tempCanvas, tempCtx, frame, indice);
-                
-                // Esperar 500ms por frame (2 FPS)
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                console.log(`📹 Frame ${i + 1}/${this.frames.length} capturado`);
-            }
-            
-            // Detener grabación
-            mediaRecorder.stop();
-            console.log('⏹️ Grabación detenida');
-            
-        } catch (error) {
-            console.error('❌ Error al generar video:', error);
-            alert('Error al generar el video. Por favor, intenta de nuevo.');
-            
-            // Restaurar estado original
-            this.changeIndice(originalIndice);
-            this.goToFrame(originalIndex);
-            if (wasPlaying) {
-                this.play();
-            }
-        }
-    }
-    
-    /**
-     * Renderiza un frame en un canvas específico con diseño profesional completo
-     */
-    async renderFrameToCanvas(canvas, ctx, frame, indice) {
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        
-        // Obtener clasificación y valor del índice
-        const clasificacion = frame.clasificaciones[indice];
-        const valorIndice = frame[indice].promedio;
-        
-        if (!clasificacion || valorIndice === null) return;
-        
-        const baseColor = clasificacion.color;
-        
-        // ========== INTENTAR CARGAR IMAGEN SATELITAL REAL ==========
-        const imageUrl = frame.imagenes[indice];
-        let hasRealImage = false;
-        let satelliteImage = null;
-        
-        if (imageUrl) {
-            try {
-                satelliteImage = await this.loadImagePromise(imageUrl);
-                hasRealImage = true;
-                console.log('✅ Imagen satelital cargada para', frame.periodo_texto);
-            } catch (error) {
-                console.log('⚠️ No se pudo cargar imagen satelital para', frame.periodo_texto);
-                hasRealImage = false;
-            }
-        }
-        
-        // ========== FONDO CON GRADIENTE ==========
-        const bgGradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-        bgGradient.addColorStop(0, '#1a1a1a');
-        bgGradient.addColorStop(1, '#2d2d2d');
-        ctx.fillStyle = bgGradient;
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        // ========== HEADER CON INFORMACIÓN DE LA PARCELA ==========
-        ctx.fillStyle = 'rgba(46, 139, 87, 0.9)';
-        ctx.fillRect(0, 0, canvasWidth, 80);
-        
-        // Logo/Título
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 28px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('🌾 AgroTech Histórico', 30, 35);
-        
-        // Nombre de la parcela
-        ctx.font = '20px Arial';
-        ctx.fillText(`Parcela: ${this.config.parcelaNombre}`, 30, 62);
-        
-        // Fecha en la esquina derecha
-        ctx.textAlign = 'right';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText(frame.periodo_texto, canvasWidth - 30, 50);
-        
-        // ========== ÁREA PRINCIPAL ==========
-        const mainAreaY = 100;
-        const mainAreaHeight = 340;
-        
-        if (hasRealImage && satelliteImage) {
-            // ===== MOSTRAR IMAGEN SATELITAL REAL =====
-            const imgRatio = satelliteImage.width / satelliteImage.height;
-            const areaRatio = (canvasWidth - 100) / mainAreaHeight;
-            
-            let drawWidth, drawHeight, offsetX, offsetY;
-            
-            if (imgRatio > areaRatio) {
-                drawWidth = canvasWidth - 100;
-                drawHeight = drawWidth / imgRatio;
-                offsetX = 50;
-                offsetY = mainAreaY + (mainAreaHeight - drawHeight) / 2;
-            } else {
-                drawHeight = mainAreaHeight;
-                drawWidth = drawHeight * imgRatio;
-                offsetX = 50 + (canvasWidth - 100 - drawWidth) / 2;
-                offsetY = mainAreaY;
-            }
-            
-            // Dibujar imagen satelital
-            ctx.drawImage(satelliteImage, offsetX, offsetY, drawWidth, drawHeight);
-            
-            // Badge pequeño con estado en esquina superior derecha
-            const badgeX = canvasWidth - 80;
-            const badgeY = mainAreaY + 15;
-            const badgeWidth = 160;
-            const badgeHeight = 60;
-            
-            // Fondo semitransparente del badge
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.beginPath();
-            ctx.roundRect(badgeX - badgeWidth / 2, badgeY, badgeWidth, badgeHeight, 8);
-            ctx.fill();
-            
-            // Borde del badge con color del índice
-            ctx.strokeStyle = baseColor;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            // Texto del badge
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(indice.toUpperCase(), badgeX, badgeY + 20);
-            
-            ctx.font = 'bold 20px Arial';
-            ctx.fillStyle = baseColor;
-            ctx.fillText(valorIndice.toFixed(3), badgeX, badgeY + 42);
-            
-            // Icono pequeño
-            ctx.font = '16px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(`${clasificacion.icono} ${clasificacion.etiqueta}`, badgeX, badgeY + 58);
-            
-            // Borde con el color del índice
-            ctx.strokeStyle = baseColor;
-            ctx.lineWidth = 6;
-            ctx.strokeRect(50, mainAreaY, canvasWidth - 100, mainAreaHeight);
-            
-        } else {
-            // ===== VISUALIZACIÓN CON COLORES (FALLBACK) =====
-            const r = parseInt(baseColor.slice(1, 3), 16);
-            const g = parseInt(baseColor.slice(3, 5), 16);
-            const b = parseInt(baseColor.slice(5, 7), 16);
-            
-            const mainGradient = ctx.createRadialGradient(
-                canvasWidth / 2, mainAreaY + mainAreaHeight / 2, 0,
-                canvasWidth / 2, mainAreaY + mainAreaHeight / 2, 350
-            );
-            mainGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
-            mainGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.3)`);
-            
-            ctx.fillStyle = mainGradient;
-            ctx.fillRect(50, mainAreaY, canvasWidth - 100, mainAreaHeight);
-            
-            // Badge pequeño con estado en esquina superior derecha
-            const badgeX = canvasWidth - 80;
-            const badgeY = mainAreaY + 15;
-            const badgeWidth = 160;
-            const badgeHeight = 60;
-            
-            // Fondo semitransparente del badge
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.beginPath();
-            ctx.roundRect(badgeX - badgeWidth / 2, badgeY, badgeWidth, badgeHeight, 8);
-            ctx.fill();
-            
-            // Borde del badge con color del índice
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            // Texto del badge
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(indice.toUpperCase(), badgeX, badgeY + 20);
-            
-            ctx.font = 'bold 20px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(valorIndice.toFixed(3), badgeX, badgeY + 42);
-            
-            // Icono pequeño
-            ctx.font = '16px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(`${clasificacion.icono} ${clasificacion.etiqueta}`, badgeX, badgeY + 58);
-            
-            // Borde con el color del índice
-            ctx.strokeStyle = baseColor;
-            ctx.lineWidth = 6;
-            ctx.strokeRect(50, mainAreaY, canvasWidth - 100, mainAreaHeight);
-        }
-        
-        // ========== PANEL INFERIOR CON DATOS ADICIONALES ==========
-        const bottomY = 460;
-        
-        // Fondo del panel de datos
-        ctx.fillStyle = 'rgba(30, 30, 30, 0.95)';
-        ctx.fillRect(0, bottomY, canvasWidth, 140);
-        
-        // Línea separadora superior
-        ctx.strokeStyle = baseColor;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(0, bottomY);
-        ctx.lineTo(canvasWidth, bottomY);
-        ctx.stroke();
-        
-        // ========== GRID DE INFORMACIÓN (4 columnas) ==========
-        ctx.textAlign = 'center';
-        const colWidth = canvasWidth / 4;
-        
-        // COLUMNA 1: Índice Principal
-        let col1X = colWidth / 2;
-        ctx.fillStyle = '#888';
-        ctx.font = '16px Arial';
-        ctx.fillText(`ÍNDICE ${indice.toUpperCase()}`, col1X, bottomY + 30);
-        
-        // Valor e ícono del índice principal
-        ctx.font = '28px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(clasificacion.icono, col1X, bottomY + 60);
-        
-        ctx.font = 'bold 32px Arial';
-        ctx.fillStyle = baseColor;
-        ctx.fillText(valorIndice.toFixed(3), col1X, bottomY + 95);
-        
-        ctx.font = 'bold 18px Arial';
-        ctx.fillStyle = '#aaa';
-        ctx.fillText(clasificacion.etiqueta, col1X, bottomY + 118);
-        
-        // COLUMNA 2: Cambio vs Anterior
-        let col2X = colWidth * 1.5;
-        ctx.fillStyle = '#888';
-        ctx.font = '16px Arial';
-        ctx.fillText('CAMBIO VS ANTERIOR', col2X, bottomY + 30);
-        
-        if (frame.comparacion && frame.comparacion[indice]) {
-            const comp = frame.comparacion[indice];
-            ctx.font = 'bold 32px Arial';
-            ctx.fillStyle = comp.tendencia === 'mejora' ? '#28a745' : 
-                           comp.tendencia === 'deterioro' ? '#dc3545' : '#ffc107';
-            ctx.fillText(
-                `${comp.icono} ${comp.porcentaje >= 0 ? '+' : ''}${comp.porcentaje.toFixed(1)}%`,
-                col2X,
-                bottomY + 70
-            );
-            ctx.font = 'bold 18px Arial';
-            ctx.fillStyle = '#aaa';
-            ctx.fillText(comp.tendencia === 'mejora' ? 'Mejora' : 
-                        comp.tendencia === 'deterioro' ? 'Deterioro' : 'Estable',
-                col2X, bottomY + 95);
-        } else {
-            ctx.font = 'bold 24px Arial';
-            ctx.fillStyle = '#888';
-            ctx.fillText('Primer mes', col2X, bottomY + 70);
-        }
-        
-        // COLUMNA 3: Índices adicionales
-        let col3X = colWidth * 2.5;
-        ctx.fillStyle = '#888';
-        ctx.font = '16px Arial';
-        ctx.fillText('OTROS ÍNDICES', col3X, bottomY + 30);
-        
-        // Mostrar los otros 2 índices
-        const otrosIndices = ['ndvi', 'ndmi', 'savi'].filter(i => i !== indice);
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = '#17a2b8';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-            `${otrosIndices[0].toUpperCase()}: ${(frame[otrosIndices[0]].promedio || 0).toFixed(3)}`,
-            col3X, bottomY + 60
-        );
-        ctx.fillText(
-            `${otrosIndices[1].toUpperCase()}: ${(frame[otrosIndices[1]].promedio || 0).toFixed(3)}`,
-            col3X, bottomY + 88
-        );
-        
-        // COLUMNA 4: Clima y Calidad
-        let col4X = colWidth * 3.5;
-        ctx.fillStyle = '#888';
-        ctx.font = '16px Arial';
-        ctx.fillText('CLIMA & CALIDAD', col4X, bottomY + 30);
-        
-        // Datos climáticos
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = '#ff9800';
-        if (frame.temperatura !== null) {
-            ctx.fillText(`🌡️ ${frame.temperatura.toFixed(1)}°C`, col4X, bottomY + 58);
-        }
-        ctx.fillStyle = '#2196f3';
-        if (frame.precipitacion !== null) {
-            ctx.fillText(`💧 ${frame.precipitacion.toFixed(1)}mm`, col4X, bottomY + 82);
-        }
-        
-        // Calidad de imagen
-        const calidad = frame.calidad_datos;
-        if (calidad) {
-            let calidadIcono = '';
-            let calidadColor = '';
-            
-            if (calidad === 'excelente') {
-                calidadIcono = '⭐⭐⭐';
-                calidadColor = '#28a745';
-            } else if (calidad === 'buena') {
-                calidadIcono = '⭐⭐';
-                calidadColor = '#17a2b8';
-            } else if (calidad === 'aceptable') {
-                calidadIcono = '⭐';
-                calidadColor = '#ffc107';
-            } else {
-                calidadIcono = '⚠️';
-                calidadColor = '#dc3545';
-            }
-            
-            ctx.font = '20px Arial';
-            ctx.fillStyle = calidadColor;
-            ctx.fillText(calidadIcono, col4X, bottomY + 106);
-            
-            ctx.font = 'bold 16px Arial';
-            ctx.fillText(calidad.charAt(0).toUpperCase() + calidad.slice(1), col4X, bottomY + 125);
-        }
-        
-        // ========== PIE DE PÁGINA ==========
-        ctx.fillStyle = 'rgba(46, 139, 87, 0.8)';
-        ctx.fillRect(0, 600, canvasWidth, 0);
-        
-        // Marca de agua
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'left';
-        const now = new Date();
-        ctx.fillText(
-            `Generado: ${now.toLocaleDateString('es-ES')} ${now.toLocaleTimeString('es-ES')}`,
-            30, 
-            bottomY + 125
-        );
-        
-        ctx.textAlign = 'right';
-        ctx.fillText('AgroTech Histórico © 2025', canvasWidth - 30, bottomY + 125);
-    }
-    
-    /**
-     * Carga una imagen como Promise
-     */
-    loadImagePromise(url) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error('No se pudo cargar la imagen'));
-            img.src = url;
-        });
+        // Convertir de vuelta a hex
+        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
     }
 }
 
-// Exportar para uso global
+// Hacer disponible globalmente
 window.TimelinePlayer = TimelinePlayer;
 
