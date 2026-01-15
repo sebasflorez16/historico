@@ -330,17 +330,34 @@ class TransitionEngine {
      */
     renderFadeTransition(progress) {
         const ctx = this.player.ctx;
+        const rect = this.player.canvas.getBoundingClientRect();
+        const canvasWidth = rect.width;
+        const canvasHeight = rect.height;
+        
+        // Limpiar canvas
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        // Calcular dimensiones para mantener aspect ratio (igual que drawImage del player)
+        const scaleFactor = 0.88; // Mismo factor que el player principal
+        
+        // Calcular dimensiones para imagen origen
+        const fromDims = this.calculateImageDimensions(this.fromImage, canvasWidth, canvasHeight, scaleFactor);
+        const toDims = this.calculateImageDimensions(this.toImage, canvasWidth, canvasHeight, scaleFactor);
         
         // Dibujar imagen origen con opacidad decreciente
         ctx.globalAlpha = 1 - progress;
-        ctx.drawImage(this.fromImage, 0, 0, this.player.canvas.width, this.player.canvas.height);
+        ctx.drawImage(this.fromImage, fromDims.offsetX, fromDims.offsetY, fromDims.drawWidth, fromDims.drawHeight);
         
         // Dibujar imagen destino con opacidad creciente
         ctx.globalAlpha = progress;
-        ctx.drawImage(this.toImage, 0, 0, this.player.canvas.width, this.player.canvas.height);
+        ctx.drawImage(this.toImage, toDims.offsetX, toDims.offsetY, toDims.drawWidth, toDims.drawHeight);
         
         // Restaurar opacidad
         ctx.globalAlpha = 1;
+        
+        // Dibujar overlay interpolado entre ambos frames
+        this.drawInterpolatedOverlay(progress, canvasWidth, canvasHeight);
     }
     
     /**
@@ -349,16 +366,32 @@ class TransitionEngine {
      */
     renderSlideTransition(progress) {
         const ctx = this.player.ctx;
-        const width = this.player.canvas.width;
-        const height = this.player.canvas.height;
+        const rect = this.player.canvas.getBoundingClientRect();
+        const canvasWidth = rect.width;
+        const canvasHeight = rect.height;
         
-        const offset = width * progress;
+        // Limpiar canvas
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        const scaleFactor = 0.88;
+        const fromDims = this.calculateImageDimensions(this.fromImage, canvasWidth, canvasHeight, scaleFactor);
+        const toDims = this.calculateImageDimensions(this.toImage, canvasWidth, canvasHeight, scaleFactor);
+        
+        const offset = canvasWidth * progress;
         
         // Dibujar imagen origen saliendo por la izquierda
-        ctx.drawImage(this.fromImage, -offset, 0, width, height);
+        ctx.drawImage(this.fromImage, 
+            fromDims.offsetX - offset, fromDims.offsetY, 
+            fromDims.drawWidth, fromDims.drawHeight);
         
         // Dibujar imagen destino entrando por la derecha
-        ctx.drawImage(this.toImage, width - offset, 0, width, height);
+        ctx.drawImage(this.toImage, 
+            toDims.offsetX + canvasWidth - offset, toDims.offsetY, 
+            toDims.drawWidth, toDims.drawHeight);
+        
+        // Dibujar overlay interpolado
+        this.drawInterpolatedOverlay(progress, canvasWidth, canvasHeight);
     }
     
     /**
@@ -367,37 +400,72 @@ class TransitionEngine {
      */
     renderDissolveTransition(progress) {
         const ctx = this.player.ctx;
-        const offCtx = this.offscreenCtx;
-        const width = this.player.canvas.width;
-        const height = this.player.canvas.height;
+        const rect = this.player.canvas.getBoundingClientRect();
+        const canvasWidth = rect.width;
+        const canvasHeight = rect.height;
         
-        // Dibujar imagen origen en offscreen
-        offCtx.clearRect(0, 0, width, height);
-        offCtx.drawImage(this.fromImage, 0, 0, width, height);
+        // Limpiar canvas
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         
-        // Obtener datos de píxeles
-        const imageData = offCtx.getImageData(0, 0, width, height);
-        const data = imageData.data;
+        const scaleFactor = 0.88;
+        const fromDims = this.calculateImageDimensions(this.fromImage, canvasWidth, canvasHeight, scaleFactor);
+        const toDims = this.calculateImageDimensions(this.toImage, canvasWidth, canvasHeight, scaleFactor);
         
-        // Dibujar imagen destino en offscreen
-        offCtx.clearRect(0, 0, width, height);
-        offCtx.drawImage(this.toImage, 0, 0, width, height);
-        const toImageData = offCtx.getImageData(0, 0, width, height);
-        const toData = toImageData.data;
+        // Para dissolve, usar fade simple con las dimensiones correctas
+        // (dissolve pixel-por-pixel es muy pesado en producción)
+        ctx.globalAlpha = 1 - progress;
+        ctx.drawImage(this.fromImage, fromDims.offsetX, fromDims.offsetY, fromDims.drawWidth, fromDims.drawHeight);
         
-        // Mezclar píxeles con ruido
-        for (let i = 0; i < data.length; i += 4) {
-            const noise = Math.random();
-            if (noise < progress) {
-                data[i] = toData[i];
-                data[i + 1] = toData[i + 1];
-                data[i + 2] = toData[i + 2];
-                data[i + 3] = toData[i + 3];
-            }
+        ctx.globalAlpha = progress;
+        ctx.drawImage(this.toImage, toDims.offsetX, toDims.offsetY, toDims.drawWidth, toDims.drawHeight);
+        
+        ctx.globalAlpha = 1;
+        
+        // Dibujar overlay interpolado
+        this.drawInterpolatedOverlay(progress, canvasWidth, canvasHeight);
+    }
+    
+    /**
+     * Calcula las dimensiones y posición de una imagen respetando aspect ratio
+     * (Replica la lógica de drawImage del player principal)
+     */
+    calculateImageDimensions(img, canvasWidth, canvasHeight, scaleFactor) {
+        const imgRatio = img.width / img.height;
+        const canvasRatio = canvasWidth / canvasHeight;
+        
+        let drawWidth, drawHeight, offsetX, offsetY;
+        
+        if (imgRatio > canvasRatio) {
+            // Imagen más ancha - ajustar por anchura
+            drawWidth = canvasWidth * scaleFactor;
+            drawHeight = (canvasWidth * scaleFactor) / imgRatio;
+            offsetX = (canvasWidth - drawWidth) / 2;
+            offsetY = (canvasHeight - drawHeight) / 2;
+        } else {
+            // Imagen más alta - ajustar por altura
+            drawHeight = canvasHeight * scaleFactor;
+            drawWidth = (canvasHeight * scaleFactor) * imgRatio;
+            offsetX = (canvasWidth - drawWidth) / 2;
+            offsetY = (canvasHeight - drawHeight) / 2;
         }
         
-        // Dibujar resultado
-        ctx.putImageData(imageData, 0, 0);
+        return { drawWidth, drawHeight, offsetX, offsetY };
+    }
+    
+    /**
+     * Dibuja el overlay interpolado entre dos frames durante la transición
+     */
+    drawInterpolatedOverlay(progress, canvasWidth, canvasHeight) {
+        // Usar overlay del frame de destino (más simple y claro)
+        // Evitar interpolación compleja que puede causar parpadeos
+        if (progress > 0.5) {
+            // Mostrar overlay del frame de destino
+            this.player.drawOverlay(this.toFrame, canvasWidth, canvasHeight);
+        } else {
+            // Mostrar overlay del frame de origen
+            this.player.drawOverlay(this.fromFrame, canvasWidth, canvasHeight);
+        }
     }
     
     /**

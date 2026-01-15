@@ -1972,13 +1972,21 @@ def generar_informe_pdf(request, parcela_id):
             
             logger.info(f"✅ Informe creado exitosamente - ID: {informe.id}")
             
-            # Enviar archivo para descarga
+            # Enviar archivo para descarga con nombre descriptivo
             from django.http import FileResponse
+            from datetime import datetime
+            
+            # Crear nombre de archivo descriptivo: Propietario_Parcela_Fecha.pdf
+            propietario_limpio = parcela.propietario.replace(" ", "_").replace("/", "-")
+            parcela_limpia = parcela.nombre.replace(" ", "_").replace("/", "-")
+            fecha_str = datetime.now().strftime("%Y%m%d")
+            nombre_archivo = f"informe_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
+            
             response = FileResponse(
                 open(ruta_pdf, 'rb'),
                 content_type='application/pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="informe_{parcela.nombre.replace(" ", "_")}.pdf"'
+            response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
             
             # Log de éxito
             logger.info(f"Informe PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")

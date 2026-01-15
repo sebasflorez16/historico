@@ -2249,318 +2249,178 @@ def timeline_api(request, parcela_id):
         }, status=500)
 
 
-# =====================================================
-# VISTAS DEL SISTEMA CONTABLE
-# =====================================================
-
 @login_required
-def registrar_pago_informe(request, informe_id):
+def exportar_video_timeline(request, parcela_id):
     """
-    Vista para registrar pagos de informes
-    """
-    from .forms import RegistrarPagoForm
+    Exporta el timeline como video MP4 de alta calidad
+    Genera el video en backend usando FFmpeg
     
-    try:
-        informe = get_object_or_404(Informe, id=informe_id)
-        
-        # Verificar permisos
-        if not request.user.is_superuser and informe.parcela.propietario != request.user.username:
-            messages.error(request, 'No tiene permisos para registrar pagos de este informe.')
-            return redirect('informes:detalle_informe', informe_id=informe_id)
-        
-        if request.method == 'POST':
-            form = RegistrarPagoForm(request.POST, informe=informe)
-            
-            if form.is_valid():
-                monto = form.cleaned_data['monto']
-                metodo = form.cleaned_data['metodo_pago']
-                referencia = form.cleaned_data.get('referencia_pago', '')
-                notas = form.cleaned_data.get('notas', '')
-                
-                # Registrar pago
-                if monto >= informe.saldo_pendiente:
-                    # Pago completo
-                    informe.marcar_como_pagado(
-                        monto=monto,
-                        metodo=metodo,
-                        referencia=referencia,
-                        notas=notas
-                    )
-                    messages.success(request, f'✅ Pago completo registrado. Informe marcado como pagado.')
-                else:
-                    # Pago parcial
-                    informe.registrar_pago_parcial(
-                        monto=monto,
-                        metodo=metodo,
-                        referencia=referencia,
-                        notas=notas
-                    )
-                    messages.success(request, 
-                                   f'✅ Pago parcial de ${monto:,.2f} COP registrado. '
-                                   f'Saldo pendiente: ${informe.saldo_pendiente:,.2f} COP')
-                
-                logger.info(f"Pago registrado para informe {informe_id}: ${monto} COP")
-                return redirect('informes:detalle_informe', informe_id=informe_id)
-        else:
-            form = RegistrarPagoForm(informe=informe)
-        
-        contexto = {
-            'form': form,
-            'informe': informe,
-        }
-        
-        return render(request, 'informes/informes/registrar_pago.html', contexto)
-        
-    except Exception as e:
-        logger.error(f"Error registrando pago para informe {informe_id}: {str(e)}")
-        messages.error(request, f'Error registrando pago: {str(e)}')
-        return redirect('informes:detalle_informe', informe_id=informe_id)
-
-
-@login_required
-def aplicar_descuento_informe(request, informe_id):
-    """
-    Vista para aplicar descuentos a informes
-    """
-    from .forms import AplicarDescuentoForm
-    
-    try:
-        informe = get_object_or_404(Informe, id=informe_id)
-        
-        # Verificar permisos (solo superusuarios pueden dar descuentos)
-        if not request.user.is_superuser:
-            messages.error(request, 'Solo los administradores pueden aplicar descuentos.')
-            return redirect('informes:detalle_informe', informe_id=informe_id)
-        
-        if request.method == 'POST':
-            form = AplicarDescuentoForm(request.POST, informe=informe)
-            
-            if form.is_valid():
-                porcentaje = form.cleaned_data['porcentaje']
-                notas = form.cleaned_data['notas']
-                
-                # Aplicar descuento
-                precio_anterior = informe.precio_final
-                nuevo_precio = informe.aplicar_descuento(
-                    porcentaje=porcentaje,
-                    notas=notas
-                )
-                
-                descuento_monto = precio_anterior - nuevo_precio
-                
-                messages.success(request, 
-                               f'✅ Descuento del {porcentaje}% aplicado. '
-                               f'Descuento: ${descuento_monto:,.2f} COP. '
-                               f'Nuevo precio: ${nuevo_precio:,.2f} COP')
-                
-                logger.info(f"Descuento aplicado a informe {informe_id}: {porcentaje}%")
-                return redirect('informes:detalle_informe', informe_id=informe_id)
-        else:
-            form = AplicarDescuentoForm(informe=informe)
-        
-        contexto = {
-            'form': form,
-            'informe': informe,
-        }
-        
-        return render(request, 'informes/informes/aplicar_descuento.html', contexto)
-        
-    except Exception as e:
-        logger.error(f"Error aplicando descuento a informe {informe_id}: {str(e)}")
-        messages.error(request, f'Error aplicando descuento: {str(e)}')
-        return redirect('informes:detalle_informe', informe_id=informe_id)
-
-
-@login_required
-def anular_pago_informe(request, informe_id):
-    """
-    Vista para anular el pago de un informe
+    Parámetros GET:
+        - indice: 'ndvi', 'ndmi' o 'savi' (default: 'ndvi')
+        - fps: Frames por segundo (default: 2)
+        - width: Ancho del video (default: 1920)
+        - height: Alto del video (default: 1080)
+        - bitrate: Bitrate del video (default: '8000k')
     """
     try:
-        informe = get_object_or_404(Informe, id=informe_id)
+        from .processors.timeline_processor import TimelineProcessor
+        from .exporters.video_exporter import TimelineVideoExporter
         
-        # Solo superusuarios pueden anular pagos
-        if not request.user.is_superuser:
-            messages.error(request, 'Solo los administradores pueden anular pagos.')
-            return redirect('informes:detalle_informe', informe_id=informe_id)
+        parcela = get_object_or_404(Parcela, id=parcela_id)
         
-        if request.method == 'POST':
-            motivo = request.POST.get('motivo', 'Anulación administrativa')
-            
-            # Anular pago
-            informe.anular_pago(motivo=motivo)
-            
-            messages.warning(request, f'⚠️ Pago anulado. Motivo: {motivo}')
-            logger.info(f"Pago anulado para informe {informe_id}: {motivo}")
-            
-            return redirect('informes:detalle_informe', informe_id=informe_id)
+        # Parámetros de exportación
+        indice = request.GET.get('indice', 'ndvi')
+        fps = int(request.GET.get('fps', 2))
+        width = int(request.GET.get('width', 1920))
+        height = int(request.GET.get('height', 1080))
+        bitrate = request.GET.get('bitrate', '8000k')
         
-        contexto = {
-            'informe': informe,
-        }
+        # Validar índice
+        if indice not in ['ndvi', 'ndmi', 'savi']:
+            return JsonResponse({
+                'error': True,
+                'mensaje': f'Índice inválido: {indice}. Debe ser ndvi, ndmi o savi.'
+            }, status=400)
         
-        return render(request, 'informes/informes/anular_pago.html', contexto)
+        logger.info(f"Iniciando exportación de video para parcela {parcela_id}, índice={indice}")
+        
+        # Obtener datos del timeline
+        timeline_data = TimelineProcessor.generar_timeline_completo(
+            parcela=parcela,
+            fecha_inicio=None,
+            fecha_fin=None,
+            request=request
+        )
+        
+        frames = timeline_data.get('frames', [])
+        
+        if not frames:
+            return JsonResponse({
+                'error': True,
+                'mensaje': 'No hay datos disponibles para generar el video'
+            }, status=404)
+        
+        # Crear exportador
+        exporter = TimelineVideoExporter(
+            width=width,
+            height=height,
+            fps=fps,
+            bitrate=bitrate
+        )
+        
+        # Generar video
+        video_path = exporter.export_timeline(
+            frames_data=frames,
+            indice=indice
+        )
+        
+        # Verificar que el archivo existe
+        if not os.path.exists(video_path):
+            raise RuntimeError("El video fue generado pero no se encuentra")
+        
+        # Retornar archivo como descarga
+        response = FileResponse(
+            open(video_path, 'rb'),
+            content_type='video/mp4'
+        )
+        
+        # Nombre del archivo
+        filename = f"timeline_{parcela.nombre}_{indice}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        logger.info(f"Video generado exitosamente: {video_path}")
+        
+        return response
+        
+    except ValueError as e:
+        logger.error(f"Error de validación en exportación de video: {e}")
+        return JsonResponse({
+            'error': True,
+            'mensaje': str(e)
+        }, status=400)
+        
+    except RuntimeError as e:
+        logger.error(f"Error de runtime en exportación de video: {e}")
+        return JsonResponse({
+            'error': True,
+            'mensaje': f'Error generando video: {str(e)}'
+        }, status=500)
         
     except Exception as e:
-        logger.error(f"Error anulando pago de informe {informe_id}: {str(e)}")
-        messages.error(request, f'Error anulando pago: {str(e)}')
-        return redirect('informes:detalle_informe', informe_id=informe_id)
+        logger.error(f"Error inesperado en exportación de video: {e}")
+        logger.exception(e)
+        return JsonResponse({
+            'error': True,
+            'mensaje': f'Error inesperado: {str(e)}'
+        }, status=500)
 
 
-@login_required
-def generar_factura_informe(request, informe_id):
-    """
-    Vista para generar y descargar factura de un informe
-    """
-    try:
-        informe = get_object_or_404(Informe, id=informe_id)
-        
-        # Verificar permisos
-        if not request.user.is_superuser and informe.parcela.propietario != request.user.username:
-            messages.error(request, 'No tiene permisos para ver la factura de este informe.')
-            return redirect('informes:detalle_informe', informe_id=informe_id)
-        
-        # Generar datos de factura
-        factura_data = informe.generar_factura_data()
-        
-        # Renderizar template de factura
-        contexto = {
-            'factura': factura_data,
-            'informe': informe,
-        }
-        
-        return render(request, 'informes/informes/factura.html', contexto)
-        
-    except Exception as e:
-        logger.error(f"Error generando factura para informe {informe_id}: {str(e)}")
-        messages.error(request, f'Error generando factura: {str(e)}')
-        return redirect('informes:detalle_informe', informe_id=informe_id)
-
+# ============================================================================
+# VISTAS DE FACTURACIÓN Y PAGOS (TEMPORAL - EN DESARROLLO)
+# ============================================================================
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def arqueo_caja(request):
     """
-    Vista de arqueo de caja - gestión completa de facturación
+    Vista temporal de arqueo de caja / facturación
+    TODO: Implementar funcionalidad completa de arqueo de caja
+    Por ahora muestra un resumen básico de informes y sus estados de pago
     """
     try:
+        # Obtener todos los informes con información de pago
+        # Nota: propietario es CharField, no ForeignKey, no usar select_related
+        informes = Informe.objects.select_related(
+            'parcela', 'cliente'
+        ).order_by('-fecha_generacion')
+        
+        # Filtros
+        filtro_estado = request.GET.get('estado', '')
+        filtro_mes = request.GET.get('mes', '')
+        filtro_anio = request.GET.get('anio', '')
+        
+        if filtro_estado:
+            informes = informes.filter(metodo_pago=filtro_estado)
+        
+        if filtro_mes and filtro_anio:
+            informes = informes.filter(
+                fecha_generacion__month=int(filtro_mes),
+                fecha_generacion__year=int(filtro_anio)
+            )
+        elif filtro_anio:
+            informes = informes.filter(fecha_generacion__year=int(filtro_anio))
+        
+        # Estadísticas
         from decimal import Decimal
-        from datetime import timedelta
+        total_ingresos = Decimal('0')
+        total_pendiente = Decimal('0')
         
-        # Obtener filtros
-        estado_filtro = request.GET.get('estado', 'todos')
-        busqueda = request.GET.get('busqueda', '')
-        
-        # Verificar si existen los campos de pago
-        if not hasattr(Informe, 'precio_base'):
-            messages.warning(request, 'El sistema de pagos aún no está completamente configurado. Ejecute las migraciones pendientes.')
-            return redirect('informes:dashboard')
-        
-        # Query base
-        informes_query = Informe.objects.select_related('parcela').order_by('-fecha_generacion')
-        
-        # Aplicar filtros
-        if estado_filtro != 'todos':
-            informes_query = informes_query.filter(estado_pago=estado_filtro)
-        
-        if busqueda:
-            from django.db.models import Q
-            informes_query = informes_query.filter(
-                Q(parcela__nombre__icontains=busqueda) |
-                Q(parcela__propietario__icontains=busqueda)
-            )
-        
-        # Paginación
-        from django.core.paginator import Paginator
-        paginator = Paginator(informes_query, 20)
-        page_number = request.GET.get('page')
-        informes = paginator.get_page(page_number)
-        
-        # Estadísticas generales
-        total_informes = Informe.objects.count()
-        
-        # Estadísticas financieras
-        ingresos_totales = Informe.objects.filter(
-            metodo_pago__in=['pagado', 'parcial']
-        ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
-        
-        cuentas_por_cobrar = sum([
-            inf.saldo_pendiente for inf in Informe.objects.filter(
+        if hasattr(Informe, 'precio_base'):
+            # Si tiene campos de pago
+            total_ingresos = informes.filter(
+                metodo_pago__in=['pagado', 'parcial']
+            ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
+            
+            informes_con_saldo = informes.filter(
                 metodo_pago__in=['pendiente', 'parcial', 'vencido']
-            )
-        ])
+            ).exclude(metodo_pago='cortesia')
+            
+            total_pendiente = sum([inf.saldo_pendiente for inf in informes_con_saldo])
         
-        ahora = timezone.now()
-        informes_vencidos = Informe.objects.filter(
-            fecha_vencimiento__lt=ahora,
-            metodo_pago__in=['pendiente', 'parcial']
-        ).count()
-        
-        informes_pagados = Informe.objects.filter(metodo_pago='pagado').count()
-        informes_pendientes = Informe.objects.filter(metodo_pago='pendiente').count()
-        informes_parciales = Informe.objects.filter(metodo_pago='parcial').count()
-        
-        # Distribución por estado
-        estados_count = {
-            'pagado': Informe.objects.filter(estado_pago='pagado').count(),
-            'parcial': Informe.objects.filter(estado_pago='parcial').count(),
-            'pendiente': Informe.objects.filter(estado_pago='pendiente').count(),
-            'vencido': Informe.objects.filter(estado_pago='vencido').count(),
-            'cortesia': Informe.objects.filter(estado_pago='cortesia').count(),
-        }
-        
-        contexto = {
+        context = {
             'informes': informes,
-            'estado_filtro': estado_filtro,
-            'busqueda': busqueda,
-            'total_informes': total_informes,
-            'ingresos_totales': float(ingresos_totales),
-            'cuentas_por_cobrar': float(cuentas_por_cobrar),
-            'informes_vencidos': informes_vencidos,
-            'informes_pagados': informes_pagados,
-            'informes_pendientes': informes_pendientes,
-            'informes_parciales': informes_parciales,
-            'estados_count': estados_count,
+            'total_ingresos': total_ingresos,
+            'total_pendiente': total_pendiente,
+            'filtro_estado': filtro_estado,
+            'filtro_mes': filtro_mes,
+            'filtro_anio': filtro_anio,
         }
         
-        return render(request, 'informes/arqueo_caja.html', contexto)
+        return render(request, 'informes/arqueo_caja.html', context)
         
     except Exception as e:
-        logger.error(f"Error en arqueo de caja: {str(e)}")
+        logger.error(f"❌ Error en arqueo_caja: {e}")
+        logger.exception(e)
         messages.error(request, f'Error cargando arqueo de caja: {str(e)}')
         return redirect('informes:dashboard')
-
-
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-@require_http_methods(["POST"])
-def eliminar_informe_facturacion(request, informe_id):
-    """
-    Eliminar un informe desde la vista de facturación (solo admin)
-    Requiere método POST con CSRF token
-    """
-    try:
-        informe = get_object_or_404(Informe, id=informe_id)
-        parcela_nombre = informe.parcela.nombre
-        
-        # Eliminar archivo PDF si existe
-        if informe.archivo_pdf and os.path.exists(informe.archivo_pdf):
-            try:
-                os.remove(informe.archivo_pdf)
-                logger.info(f"✅ Archivo PDF eliminado: {informe.archivo_pdf}")
-            except Exception as e:
-                logger.warning(f"⚠️ No se pudo eliminar el archivo PDF: {e}")
-        
-        # Eliminar el registro
-        informe.delete()
-        
-        messages.success(request, f'✅ Informe de "{parcela_nombre}" eliminado correctamente')
-        logger.info(f"✅ Informe ID {informe_id} eliminado por usuario {request.user.username}")
-        
-        return redirect('informes:arqueo_caja')
-        
-    except Exception as e:
-        logger.error(f"❌ Error eliminando informe {informe_id}: {str(e)}")
-        messages.error(request, f'Error eliminando informe: {str(e)}')
-        return redirect('informes:arqueo_caja')
 

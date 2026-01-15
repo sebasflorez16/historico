@@ -405,13 +405,16 @@
                 
                 <!-- Botones de acción de pago -->
                 <div class="mt-4 d-flex gap-2 flex-wrap">
+                    <!-- TODO: Descomentar cuando se implemente registrar_pago_informe
                     {% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
                         <a href="{% url 'informes:registrar_pago' informe.id %}" class="btn btn-payment">
                             <i class="fas fa-cash-register me-2"></i>
                             Registrar Pago
                         </a>
                     {% endif %}
+                    -->
                     
+                    <!-- TODO: Descomentar cuando se implementen las vistas de facturación
                     {% if user.is_superuser %}
                         {% if informe.estado_pago != 'cortesia' and informe.descuento_porcentaje == 0 %}
                         <a href="{% url 'informes:aplicar_descuento' informe.id %}" class="btn btn-warning">
@@ -432,6 +435,7 @@
                         <i class="fas fa-file-invoice me-2"></i>
                         Ver Factura
                     </a>
+                    -->
                 </div>
                 
                 <!-- Historial de pagos (notas) -->

@@ -1160,31 +1160,40 @@ class TimelinePlayer {
         ctx.fillStyle = '#aaa';
         ctx.fillText(clasificacion.etiqueta, col1X, bottomY + 118);
         
-        // COLUMNA 2: Cambio vs Anterior
+        // COLUMNA 2: Cambio vs mes anterior
         let col2X = colWidth * 1.5;
         ctx.fillStyle = '#888';
         ctx.font = '16px Arial';
-        ctx.fillText('CAMBIO VS ANTERIOR', col2X, bottomY + 30);
+        ctx.fillText('CAMBIO VS MES ANTERIOR', col2X, bottomY + 30);
         
         if (frame.comparacion && frame.comparacion[indice]) {
             const comp = frame.comparacion[indice];
+            
+            // Determinar mensaje claro para agricultores
+            let mensaje = '';
+            if (comp.tendencia === 'mejora') {
+                mensaje = 'Mejoró';
+            } else if (comp.tendencia === 'deterioro') {
+                mensaje = 'Disminuyó';
+            } else {
+                mensaje = 'Sin cambios';
+            }
+            
             ctx.font = 'bold 32px Arial';
             ctx.fillStyle = comp.tendencia === 'mejora' ? '#28a745' : 
                            comp.tendencia === 'deterioro' ? '#dc3545' : '#ffc107';
             ctx.fillText(
-                `${comp.icono} ${comp.porcentaje >= 0 ? '+' : ''}${comp.porcentaje.toFixed(1)}%`,
+                `${comp.porcentaje >= 0 ? '+' : ''}${comp.porcentaje.toFixed(1)}%`,
                 col2X,
                 bottomY + 70
             );
             ctx.font = 'bold 18px Arial';
             ctx.fillStyle = '#aaa';
-            ctx.fillText(comp.tendencia === 'mejora' ? 'Mejora' : 
-                        comp.tendencia === 'deterioro' ? 'Deterioro' : 'Estable',
-                col2X, bottomY + 95);
+            ctx.fillText(mensaje, col2X, bottomY + 95);
         } else {
             ctx.font = 'bold 24px Arial';
             ctx.fillStyle = '#888';
-            ctx.fillText('Primer mes', col2X, bottomY + 70);
+            ctx.fillText('Primer registro', col2X, bottomY + 70);
         }
         
         // COLUMNA 3: Índices adicionales

@@ -222,6 +222,8 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
+                                        {% comment %}
+                                        TODO: Descomentar cuando se implementen las vistas de pago
                                         {% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
                                         <a href="{% url 'informes:registrar_pago' informe.id %}" 
                                            class="btn btn-outline-success" 
@@ -234,6 +236,7 @@
                                            title="Ver Factura">
                                             <i class="fas fa-file-invoice"></i>
                                         </a>
+                                        {% endcomment %}
                                         <a href="{% url 'informes:detalle_informe' informe.id %}" 
                                            class="btn btn-outline-info" 
                                            title="Ver Detalle">

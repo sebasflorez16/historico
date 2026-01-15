@@ -590,38 +590,34 @@
         <!-- Leyenda de colores interpretativa -->
         <div class="color-legend" style="
             margin-top: 20px;
-            padding: 20px;
+            padding: 25px;
             background: var(--timeline-card-bg);
             border-radius: 16px;
             box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
         ">
-            <h5 style="text-align: center; color: var(--timeline-primary); margin-bottom: 15px; font-weight: 700;">
-                <i class="fas fa-palette me-2"></i>Interpretación de Colores
+            <h5 style="text-align: center; color: var(--timeline-primary); margin-bottom: 20px; font-weight: 700; font-size: 1.2rem;">
+                Interpretación de Colores
             </h5>
             <div class="row text-center">
                 <div class="col-6 col-md-3 mb-3">
-                    <div style="background: #8B0000; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
-                    <strong style="color: #8B0000;">Muy Bajo</strong>
-                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">< 0.2</p>
-                    <small style="font-size: 0.75rem; color: #999;">Suelo/Agua</small>
+                    <div style="background: #8B0000; height: 40px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(139, 0, 0, 0.3);"></div>
+                    <strong style="color: #8B0000; font-size: 1rem;">Muy Bajo</strong>
+                    <small style="font-size: 0.9rem; color: #6c757d; display: block; margin-top: 5px;">Suelo expuesto o agua</small>
                 </div>
                 <div class="col-6 col-md-3 mb-3">
-                    <div style="background: #FFD700; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
-                    <strong style="color: #B8860B;">Bajo</strong>
-                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">0.2 - 0.4</p>
-                    <small style="font-size: 0.75rem; color: #999;">Vegetación débil</small>
+                    <div style="background: #FFD700; height: 40px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);"></div>
+                    <strong style="color: #B8860B; font-size: 1rem;">Bajo</strong>
+                    <small style="font-size: 0.9rem; color: #6c757d; display: block; margin-top: 5px;">Zonas con estrés o baja vegetación</small>
                 </div>
                 <div class="col-6 col-md-3 mb-3">
-                    <div style="background: #ADFF2F; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
-                    <strong style="color: #6B8E23;">Moderado</strong>
-                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">0.4 - 0.6</p>
-                    <small style="font-size: 0.75rem; color: #999;">Saludable</small>
+                    <div style="background: #90EE90; height: 40px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(144, 238, 144, 0.3);"></div>
+                    <strong style="color: #2E8B57; font-size: 1rem;">Saludable</strong>
+                    <small style="font-size: 0.9rem; color: #6c757d; display: block; margin-top: 5px;">Plantas sanas con buen desarrollo</small>
                 </div>
                 <div class="col-6 col-md-3 mb-3">
-                    <div style="background: #006400; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
-                    <strong style="color: #006400;">Alto</strong>
-                    <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">0.6 - 1.0</p>
-                    <small style="font-size: 0.75rem; color: #999;">Óptimo</small>
+                    <div style="background: #006400; height: 40px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0, 100, 0, 0.3);"></div>
+                    <strong style="color: #006400; font-size: 1rem;">Óptimo</strong>
+                    <small style="font-size: 0.9rem; color: #6c757d; display: block; margin-top: 5px;">Verde intenso = plantas muy sanas</small>
                 </div>
             </div>
         </div>
@@ -651,7 +647,7 @@
                     <div class="metadata-item">
                         <div class="metadata-icon" id="icon-tendencia">📈</div>
                         <div class="metadata-content">
-                            <div class="metadata-label">Cambio vs Anterior</div>
+                            <div class="metadata-label">Cambio vs mes anterior</div>
                             <div class="metadata-value" id="value-tendencia">-</div>
                         </div>
                     </div>

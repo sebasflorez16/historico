@@ -66,8 +66,6 @@ class TimelinePlayer {
         this.prev = this.prev.bind(this);
         this.goToFrame = this.goToFrame.bind(this);
         this.changeIndice = this.changeIndice.bind(this);
-        this.handleCanvasHover = this.handleCanvasHover.bind(this);
-        this.handleCanvasLeave = this.handleCanvasLeave.bind(this);
     }
     
     /**
@@ -295,10 +293,6 @@ class TimelinePlayer {
             }
         });
         
-        // 🆕 Tooltip en hover sobre canvas
-        this.canvas.addEventListener('mousemove', this.handleCanvasHover);
-        this.canvas.addEventListener('mouseleave', this.handleCanvasLeave);
-        
         // 🆕 Atajos de teclado mejorados
         document.addEventListener('keydown', (e) => {
             // Ignorar si el usuario está escribiendo en un input
@@ -478,7 +472,7 @@ class TimelinePlayer {
                 this.drawPlaceholder(frame, 'Error cargando imagen');
             }
         } else {
-            this.drawPlaceholder(frame, 'Sin imagen descargada');
+            this.drawPlaceholder(frame, 'No disponible por nubosidad');
         }
         
         // Pre-cargar imágenes adyacentes
@@ -486,7 +480,7 @@ class TimelinePlayer {
     }
     
     /**
-     * Dibuja una imagen en el canvas (responsive)
+     * Dibuja una imagen en el canvas (responsive con mejor aspect ratio)
      */
     drawImage(img, frame) {
         // Usar dimensiones CSS del canvas (no las del canvas interno que están escaladas por DPR)
@@ -498,23 +492,25 @@ class TimelinePlayer {
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         
-        // Calcular dimensiones para centrar y ajustar la imagen (cover)
+        // Calcular dimensiones para CONTAIN (mostrar imagen completa sin recorte)
+        // Reducir para dar espacio al overlay y crear un marco visual limpio
         const imgRatio = img.width / img.height;
         const canvasRatio = canvasWidth / canvasHeight;
+        const scaleFactor = 0.88; // Reducir 12% para marco visual limpio
         
         let drawWidth, drawHeight, offsetX, offsetY;
         
         if (imgRatio > canvasRatio) {
-            // Imagen más ancha - ajustar por altura
-            drawHeight = canvasHeight;
-            drawWidth = canvasHeight * imgRatio;
+            // Imagen más ancha - ajustar por anchura
+            drawWidth = canvasWidth * scaleFactor;
+            drawHeight = (canvasWidth * scaleFactor) / imgRatio;
             offsetX = (canvasWidth - drawWidth) / 2;
-            offsetY = 0;
+            offsetY = (canvasHeight - drawHeight) / 2;
         } else {
-            // Imagen más alta - ajustar por anchura
-            drawWidth = canvasWidth;
-            drawHeight = canvasWidth / imgRatio;
-            offsetX = 0;
+            // Imagen más alta - ajustar por altura
+            drawHeight = canvasHeight * scaleFactor;
+            drawWidth = (canvasHeight * scaleFactor) * imgRatio;
+            offsetX = (canvasWidth - drawWidth) / 2;
             offsetY = (canvasHeight - drawHeight) / 2;
         }
         
@@ -526,89 +522,59 @@ class TimelinePlayer {
     }
     
     /**
-     * Dibuja overlay con información del frame (responsive)
+     * Dibuja overlay con información del frame (responsive y legible)
      */
     drawOverlay(frame, canvasWidth, canvasHeight) {
         const clasificacion = frame.clasificaciones[this.currentIndice];
         if (!clasificacion) return;
         
-        // Calcular tamaños de fuente responsivos basados en el ancho del canvas
-        const baseFontSize = Math.max(12, canvasWidth / 50); // Mínimo 12px
-        const titleFontSize = baseFontSize * 1.4;
-        const valueFontSize = baseFontSize * 2.4;
-        const labelFontSize = baseFontSize;
-        const smallFontSize = baseFontSize * 0.7;
+        // Tamaños de fuente balanceados para óptima legibilidad
+        const baseFontSize = Math.max(11, canvasWidth / 85);
+        const periodFontSize = baseFontSize * 1.0; // Período legible
+        const valueFontSize = baseFontSize * 1.4; // Valor del índice destacado
+        const labelFontSize = baseFontSize * 0.95; // Etiqueta clara
+        const smallFontSize = baseFontSize * 0.75; // Descripción
         
-        // Altura del overlay adaptativa
-        const overlayHeight = Math.min(120, canvasHeight * 0.25);
+        // Altura del overlay compacta pero legible
+        const overlayHeight = Math.min(50, canvasHeight * 0.09);
         
-        // Gradiente de fondo para el overlay
-        const gradient = this.ctx.createLinearGradient(
-            0, canvasHeight - overlayHeight, 
-            0, canvasHeight
-        );
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
-        
-        this.ctx.fillStyle = gradient;
+        // Fondo SÓLIDO con opacidad adecuada
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         this.ctx.fillRect(0, canvasHeight - overlayHeight, canvasWidth, overlayHeight);
         
-        // Padding adaptativo
-        const padding = Math.max(10, canvasWidth * 0.015);
+        // Padding balanceado
+        const padding = Math.max(10, canvasWidth * 0.012);
+        const lineHeight = baseFontSize * 1.2;
         
-        // Texto del período
+        // IZQUIERDA: Período y Valor del índice EN UNA SOLA LÍNEA
+        let yPos = canvasHeight - overlayHeight / 2;
+        
+        // Texto del período + valor del índice juntos
         this.ctx.fillStyle = '#fff';
-        this.ctx.font = `bold ${titleFontSize}px Arial`;
+        this.ctx.font = `600 ${periodFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial`;
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(
-            frame.periodo_texto, 
-            padding, 
-            canvasHeight - overlayHeight + titleFontSize + padding
-        );
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(frame.periodo_texto, padding, yPos);
         
-        // Valor del índice
+        // Valor del índice al lado del período
         const valorIndice = frame[this.currentIndice].promedio;
         if (valorIndice !== null) {
-            this.ctx.font = `bold ${valueFontSize}px Arial`;
+            const periodoWidth = this.ctx.measureText(frame.periodo_texto).width;
+            this.ctx.font = `700 ${valueFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial`;
             this.ctx.fillStyle = clasificacion.color;
-            const texto = `${this.currentIndice.toUpperCase()}: ${valorIndice.toFixed(3)}`;
-            this.ctx.fillText(
-                texto, 
-                padding, 
-                canvasHeight - padding - smallFontSize - 5
-            );
+            const texto = ` ${this.currentIndice.toUpperCase()}: ${valorIndice.toFixed(3)}`;
+            this.ctx.fillText(texto, padding + periodoWidth + 10, yPos);
         }
         
-        // Estado (etiqueta) - lado derecho
-        this.ctx.font = `bold ${labelFontSize}px Arial`;
-        this.ctx.fillStyle = '#fff';
+        // DERECHA: Estado EN UNA SOLA LÍNEA
         this.ctx.textAlign = 'right';
-        const etiquetaCompleta = `${clasificacion.icono} ${clasificacion.etiqueta}`;
-        this.ctx.fillText(
-            etiquetaCompleta, 
-            canvasWidth - padding, 
-            canvasHeight - overlayHeight + titleFontSize + padding + labelFontSize + 5
-        );
+        this.ctx.textBaseline = 'middle';
         
-        // Descripción
-        this.ctx.font = `${smallFontSize}px Arial`;
-        this.ctx.fillStyle = '#ddd';
-        this.ctx.fillText(
-            clasificacion.descripcion, 
-            canvasWidth - padding, 
-            canvasHeight - overlayHeight + titleFontSize + padding + labelFontSize * 2 + 10
-        );
-        
-        // Nubosidad
-        if (frame.imagen_metadata.nubosidad !== null) {
-            this.ctx.fillStyle = '#aaa';
-            this.ctx.font = `${smallFontSize}px Arial`;
-            this.ctx.fillText(
-                `☁️ Nubosidad: ${frame.imagen_metadata.nubosidad.toFixed(1)}%`,
-                canvasWidth - padding,
-                canvasHeight - padding
-            );
-        }
+        // Estado (etiqueta + descripción juntos)
+        this.ctx.font = `600 ${labelFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial`;
+        this.ctx.fillStyle = clasificacion.color;
+        const textoEstado = `${clasificacion.etiqueta} - ${clasificacion.descripcion}`;
+        this.ctx.fillText(textoEstado, canvasWidth - padding, yPos);
     }
     
     /**
@@ -838,16 +804,32 @@ class TimelinePlayer {
             this.elements.valueIndice.textContent = frame[this.currentIndice].promedio?.toFixed(3) || '-';
         }
         
-        // Tendencia
+        // Tendencia (Cambio vs mes anterior)
         if (frame.comparacion && frame.comparacion[this.currentIndice]) {
             const comp = frame.comparacion[this.currentIndice];
-            this.elements.iconTendencia.textContent = comp.icono;
-            this.elements.valueTendencia.textContent = `${comp.porcentaje >= 0 ? '+' : ''}${comp.porcentaje.toFixed(1)}%`;
+            
+            // Determinar mensaje claro para agricultores
+            let mensaje = '';
+            let iconoMensaje = comp.icono;
+            
+            if (comp.tendencia === 'mejora') {
+                mensaje = 'Mejoró';
+                iconoMensaje = '📈';
+            } else if (comp.tendencia === 'deterioro') {
+                mensaje = 'Disminuyó';
+                iconoMensaje = '📉';
+            } else {
+                mensaje = 'Sin cambios significativos';
+                iconoMensaje = '➡️';
+            }
+            
+            this.elements.iconTendencia.textContent = iconoMensaje;
+            this.elements.valueTendencia.textContent = `${mensaje} (${comp.porcentaje >= 0 ? '+' : ''}${comp.porcentaje.toFixed(1)}%)`;
             this.elements.valueTendencia.style.color = comp.tendencia === 'mejora' ? '#28a745' : 
                                                        comp.tendencia === 'deterioro' ? '#dc3545' : '#6c757d';
         } else {
-            this.elements.iconTendencia.textContent = '➡️';
-            this.elements.valueTendencia.textContent = 'Primer mes';
+            this.elements.iconTendencia.textContent = '📋';
+            this.elements.valueTendencia.textContent = 'Primer registro disponible';
             this.elements.valueTendencia.style.color = '#6c757d';
         }
         
@@ -1050,72 +1032,6 @@ class TimelinePlayer {
     }
     
     /**
-     * Maneja el hover del mouse sobre el canvas para mostrar tooltip
-     */
-    handleCanvasHover(event) {
-        if (!this.frames.length || this.currentIndex >= this.frames.length) return;
-        
-        const frame = this.frames[this.currentIndex];
-        const indiceData = frame[this.currentIndice];
-        
-        // Solo mostrar valores válidos, nunca "undefined"
-        const periodoTexto = frame.periodo || 'Sin datos';
-        const ndviValor = (indiceData.promedio !== null && indiceData.promedio !== undefined) 
-            ? indiceData.promedio.toFixed(3) 
-            : 'Sin datos';
-        const maxValor = (indiceData.max !== null && indiceData.max !== undefined) 
-            ? indiceData.max.toFixed(3) 
-            : 'Sin datos';
-        const minValor = (indiceData.min !== null && indiceData.min !== undefined) 
-            ? indiceData.min.toFixed(3) 
-            : 'Sin datos';
-        
-        // Clima: Solo agregar línea si HAY ALGÚN dato climático
-        let climaHTML = '';
-        const hayTemperatura = frame.temperatura !== null && frame.temperatura !== undefined;
-        const hayPrecipitacion = frame.precipitacion !== null && frame.precipitacion !== undefined;
-        
-        if (hayTemperatura || hayPrecipitacion) {
-            climaHTML = '<br>';
-            if (hayTemperatura) {
-                climaHTML += `Temp: ${frame.temperatura.toFixed(1)}°C`;
-            }
-            if (hayPrecipitacion) {
-                climaHTML += `${hayTemperatura ? ' | ' : ''}Lluvia: ${frame.precipitacion.toFixed(0)}mm`;
-            }
-        }
-        
-        const tooltipHTML = `
-            <div style="font-weight: 700; margin-bottom: 8px; color: #4ade80;">
-                ${periodoTexto}
-            </div>
-            <div style="font-size: 0.85rem; line-height: 1.6;">
-                <strong>${this.currentIndice.toUpperCase()}:</strong> ${ndviValor}<br>
-                <span style="color: #fbbf24;">Max:</span> ${maxValor} | 
-                <span style="color: #60a5fa;">Min:</span> ${minValor}${climaHTML}
-            </div>
-        `;
-        
-        // Mostrar tooltip
-        const tooltip = this.tooltip.element;
-        tooltip.innerHTML = tooltipHTML;
-        tooltip.style.display = 'block';
-        tooltip.style.left = (event.clientX + 15) + 'px';
-        tooltip.style.top = (event.clientY + 15) + 'px';
-        this.tooltip.visible = true;
-    }
-    
-    /**
-     * Oculta el tooltip cuando el mouse sale del canvas
-     */
-    handleCanvasLeave() {
-        if (this.tooltip.element) {
-            this.tooltip.element.style.display = 'none';
-            this.tooltip.visible = false;
-        }
-    }
-    
-    /**
      * Cambia al siguiente o anterior índice (para flechas arriba/abajo)
      */
     cycleIndice(direction) {
@@ -1187,26 +1103,69 @@ class TimelinePlayer {
     }
     
     /**
-     * FASE 3: Descarga video del timeline (Placeholder)
+     * Descarga video del timeline en alta calidad
+     * La generación se realiza en backend usando FFmpeg
+     * 
      * @param {string} indice - Índice a exportar (ndvi, ndmi, savi)
      */
-    downloadVideo(indice) {
-        console.log(`Exportación de video solicitada para índice: ${indice.toUpperCase()}`);
+    async downloadVideo(indice) {
+        console.log(`Iniciando descarga de video para índice: ${indice.toUpperCase()}`);
         
-        // Mensaje informativo al usuario
-        const mensaje = `La funcionalidad de exportación de video/GIF estará disponible en la Fase 3.\n\n` +
-                       `Por ahora, puedes:\n` +
-                       `• Reproducir el timeline con los controles\n` +
-                       `• Capturar frames individuales con capturas de pantalla\n` +
-                       `• Usar las transiciones y filtros disponibles`;
+        // Mostrar loading
+        this.showLoading(true, 'Generando video de alta calidad...', 10);
         
-        alert(mensaje);
-        
-        // TODO FASE 3: Implementar exportación real usando:
-        // - MediaRecorder API para video MP4/WebM
-        // - gif.js para exportación GIF
-        // - Canvas.captureStream() para grabar frames
-        // - Controles de calidad, FPS y duración
+        try {
+            // Obtener parcela_id de la URL
+            const parcelaId = this.config.apiUrl.match(/parcelas\/(\d+)\//)[1];
+            
+            // Construir URL de exportación
+            const exportUrl = `/informes/parcelas/${parcelaId}/timeline/exportar-video/?indice=${indice}`;
+            
+            this.updateLoadingProgress(2, 5, 'Procesando frames...');
+            
+            // Realizar petición de descarga
+            const response = await fetch(exportUrl);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.mensaje || `HTTP ${response.status}`);
+            }
+            
+            this.updateLoadingProgress(4, 5, 'Descargando video...');
+            
+            // Obtener blob del video
+            const blob = await response.blob();
+            
+            // Crear URL temporal y descargar
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `timeline_${indice}_${new Date().getTime()}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Limpiar
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            this.updateLoadingProgress(5, 5, 'Completado');
+            
+            console.log(`Video descargado exitosamente: ${indice.toUpperCase()}`);
+            
+            // Mensaje de éxito
+            setTimeout(() => {
+                this.showLoading(false);
+                alert('✅ Video descargado exitosamente en alta calidad');
+            }, 500);
+            
+        } catch (error) {
+            console.error('Error descargando video:', error);
+            this.showError(`Error al generar video: ${error.message}`);
+            
+            setTimeout(() => {
+                this.showLoading(false);
+            }, 3000);
+        }
     }
     
     /**

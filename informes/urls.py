@@ -40,12 +40,12 @@ urlpatterns = [
     path('informes/<int:informe_id>/', views.detalle_informe, name='detalle_informe'),
     path('informes/<int:informe_id>/eliminar/', views_eliminacion.eliminar_informe, name='eliminar_informe'),
     
-    # Sistema de pagos de informes
-    path('informes/<int:informe_id>/registrar-pago/', views.registrar_pago_informe, name='registrar_pago'),
-    path('informes/<int:informe_id>/aplicar-descuento/', views.aplicar_descuento_informe, name='aplicar_descuento'),
-    path('informes/<int:informe_id>/anular-pago/', views.anular_pago_informe, name='anular_pago'),
-    path('informes/<int:informe_id>/factura/', views.generar_factura_informe, name='generar_factura'),
-    path('informes/<int:informe_id>/eliminar/', views.eliminar_informe_facturacion, name='eliminar_informe_facturacion'),
+    # Sistema de pagos de informes (TODO: Implementar estas vistas)
+    # path('informes/<int:informe_id>/registrar-pago/', views.registrar_pago_informe, name='registrar_pago'),
+    # path('informes/<int:informe_id>/aplicar-descuento/', views.aplicar_descuento_informe, name='aplicar_descuento'),
+    # path('informes/<int:informe_id>/anular-pago/', views.anular_pago_informe, name='anular_pago'),
+    # path('informes/<int:informe_id>/factura/', views.generar_factura_informe, name='generar_factura'),
+    # path('informes/<int:informe_id>/eliminar/', views.eliminar_informe_facturacion, name='eliminar_informe_facturacion'),
     
     # Arqueo de caja / Facturación
     path('facturacion/', views.arqueo_caja, name='arqueo_caja'),
@@ -72,6 +72,7 @@ urlpatterns = [
     # Timeline Visual
     path('parcelas/<int:parcela_id>/timeline/', views.timeline_parcela, name='timeline_parcela'),
     path('parcelas/<int:parcela_id>/timeline/api/', views.timeline_api, name='timeline_api'),
+    path('parcelas/<int:parcela_id>/timeline/exportar-video/', views.exportar_video_timeline, name='exportar_video_timeline'),
     
     # API endpoints
     path('api/parcelas/<int:parcela_id>/datos/', views.api_datos_parcela, name='api_datos_parcela'),
