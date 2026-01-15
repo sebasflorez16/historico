@@ -1,0 +1,155 @@
+"""
+EJEMPLO VISUAL: Columna Dinámica en Frame de Video Timeline
+============================================================
+
+FRAME: Marzo 2025 - Parcela #2 (Maíz)
+ÍNDICE: NDVI
+VALOR PROMEDIO: 0.62
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║  NDVI · Marzo 2025                                           CAMBIO MENSUAL ║
+║                                                              -6.1% (ROJO)   ║
+║                                                              vs mes anterior ║
+║                                                                              ║
+║                                                              CALIDAD IMAGEN  ║
+║                                                              Buena (VERDE)   ║
+║                        [RASTER SATELITAL                     Nubosidad: 12.0%║
+║                         NDVI CENTRADO                                        ║
+║                         85-90% DEL FRAME]                    CLIMA DEL MES   ║
+║                                                              Temp: 25.2°C    ║
+║                                                              Precip: 110.0 mm║
+║                                                                              ║
+║  LEYENDA                                                                     ║
+║  ■ Muy bajo                                                                  ║
+║  ■ Bajo                                                                      ║
+║  ■ Moderado                                                                  ║
+║  ■ Bueno                                                                     ║
+║  ■ Excelente                                                                 ║
+║                                                                              ║
+║  NDVI promedio: 0.62                         Estado general: Salud Moderada ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+DETALLES DE LA COLUMNA DINÁMICA
+===============================
+
+Posición en Frame Full HD (1920x1080):
+--------------------------------------
+X inicial: 1632px (85% del ancho)
+Y inicial: 150px
+Ancho reservado: ~288px (15% del frame)
+Alto total: ~300px (3 secciones)
+
+Sección 1: CAMBIO MENSUAL (Y: 150-240px)
+-----------------------------------------
+Línea 1: "CAMBIO MENSUAL" (blanco, bold 20px)
+Línea 2: "-6.1%" (rojo #ff4444, 18px) <- DINÁMICO
+Línea 3: "vs mes anterior" (gris #999999, 18px)
+
+Espaciado: 30px entre líneas
+Espaciado sección: +15px
+
+Sección 2: CALIDAD IMAGEN (Y: 255-345px)
+-----------------------------------------
+Línea 1: "CALIDAD IMAGEN" (blanco, bold 20px)
+Línea 2: "Buena" (verde claro #90ee90, 18px) <- DINÁMICO
+Línea 3: "Nubosidad: 12.0%" (gris #999999, 18px) <- DINÁMICO
+
+Lógica de color por nubosidad:
+  < 10%: "Excelente" verde #00ff00
+  10-30%: "Buena" verde claro #90ee90  <- ESTE CASO
+  30-50%: "Moderada" amarillo #ffcc00
+  > 50%: "Baja" rojo #ff4444
+
+Espaciado: 30px entre líneas
+Espaciado sección: +15px
+
+Sección 3: CLIMA DEL MES (Y: 360-420px)
+----------------------------------------
+Línea 1: "CLIMA DEL MES" (blanco, bold 20px)
+Línea 2: "Temp: 25.2°C" (amarillo #ffcc66, 18px) <- DINÁMICO
+Línea 3: "Precip: 110.0 mm" (azul oscuro #0066cc, 18px) <- DINÁMICO
+
+Lógica de color por precipitación:
+  < 20mm: naranja claro #ffaa66
+  20-100mm: azul claro #6699ff
+  > 100mm: azul oscuro #0066cc  <- ESTE CASO
+
+VALORES DINÁMICOS POR FRAME
+============================
+
+Frame 1 (Enero 2025):
+  Cambio: "Primer periodo"
+  Calidad: "Excelente" (3% nubes)
+  Temp: 28.5°C
+  Precip: 45.0 mm
+
+Frame 2 (Febrero 2025):
+  Cambio: "+8.2%" (verde)
+  Calidad: "Buena" (18% nubes)
+  Temp: 27.1°C
+  Precip: 89.0 mm
+
+Frame 3 (Marzo 2025):  <- EJEMPLO MOSTRADO ARRIBA
+  Cambio: "-6.1%" (rojo)
+  Calidad: "Buena" (12% nubes)
+  Temp: 25.2°C
+  Precip: 110.0 mm
+
+Frame 4 (Abril 2025):
+  Cambio: "+2.3%" (verde)
+  Calidad: "Moderada" (42% nubes)
+  Temp: 23.8°C
+  Precip: 156.0 mm
+
+Frame con datos faltantes (Ejemplo):
+  Cambio: "[Sin datos]" (naranja)
+  Calidad: "[Sin datos]" (naranja)
+  Temp: "Temp: [N/D]" (naranja)
+  Precip: "Precip: [N/D]" (naranja)
+
+COMPARACIÓN: ANTES vs DESPUÉS
+==============================
+
+ANTES (sin columna):
+-------------------
+- Solo header, footer, leyenda
+- Información limitada del frame actual
+- No hay comparación mensual
+- No se muestra calidad de imagen
+- No hay datos climáticos visibles
+
+DESPUÉS (con columna):
+---------------------
+✅ Cambio mensual claro con color semántico
+✅ Calidad de imagen evidenciada
+✅ Datos climáticos del periodo
+✅ Todos los valores actualizados por mes
+✅ Advertencias cuando faltan datos
+✅ Diseño limpio sin overlap con raster
+
+CASOS DE USO
+============
+
+Agricultor revisando video:
+---------------------------
+"En marzo bajó el NDVI un 6.1%, pero la calidad de imagen 
+es buena (12% nubes). Hubo buena precipitación (110mm) 
+con temperatura normal (25°C). El deterioro podría ser 
+real y no por mala calidad de imagen."
+
+Técnico agronómico analizando tendencias:
+-----------------------------------------
+"Los frames muestran cambios mensuales consistentes.
+La columna permite validar que los cambios no son
+por artefactos (nubosidad alta) sino por condiciones
+reales del cultivo y clima."
+
+Cliente evaluando el producto:
+------------------------------
+"El video es profesional y completo. Toda la información
+relevante está visible sin tener que buscar en reportes
+separados. La visualización GIS es clara y los datos
+dinámicos agregan mucho valor."
+
+"""

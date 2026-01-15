@@ -1,0 +1,111 @@
+"""
+RESUMEN TÉCNICO: Columna Dinámica de Información en Videos Timeline
+=====================================================================
+
+IMPLEMENTACIÓN COMPLETADA: 15 de enero de 2026
+
+OBJETIVO
+--------
+Agregar columna dinámica de información en el lado derecho de videos NDVI,
+mostrando datos específicos de cada mes analizado.
+
+UBICACIÓN DEL CÓDIGO
+-------------------
+Archivo: /informes/exporters/video_exporter.py
+Función principal: _draw_dynamic_info_column()
+Líneas agregadas: ~130
+
+ESTRUCTURA DE LA COLUMNA
+------------------------
+Posición X: 85% del ancho del frame (1632px en Full HD)
+Posición Y inicial: 150px
+Espaciado: 30px entre líneas, 15px entre secciones
+
+SECCIONES IMPLEMENTADAS
+----------------------
+
+1. CAMBIO MENSUAL
+   - Porcentaje de cambio vs mes anterior
+   - Signo (+ o -) con color semántico (verde/rojo)
+   - Texto "vs mes anterior"
+   - Caso especial: "Primer periodo" si no hay comparación
+   
+   Fuente de datos:
+   - frame_data['comparacion'][indice]['porcentaje']
+   - frame_data['comparacion'][indice]['diferencia']
+   - frame_data['comparacion'][indice]['tendencia']
+
+2. CALIDAD DE IMAGEN
+   - Etiqueta de calidad: Excelente/Buena/Moderada/Baja
+   - Porcentaje de nubosidad
+   - Color dinámico según umbral de nubes
+   
+   Umbrales:
+   - Excelente (verde): < 10% nubes
+   - Buena (verde claro): 10-30% nubes
+   - Moderada (amarillo): 30-50% nubes
+   - Baja (rojo): > 50% nubes
+   
+   Fuente de datos:
+   - frame_data['imagen_metadata']['nubosidad']
+
+3. CLIMA DEL MES
+   - Temperatura promedio (°C) en amarillo
+   - Precipitación total (mm) con color por rango:
+     * Naranja: < 20mm (bajo)
+     * Azul claro: 20-100mm (moderado)
+     * Azul oscuro: > 100mm (alto)
+   
+   Fuente de datos:
+   - frame_data['temperatura']
+   - frame_data['precipitacion']
+
+MANEJO DE DATOS FALTANTES
+-------------------------
+Si un valor no está disponible, se muestra:
+- "[Sin datos]" en color naranja (#ff8800)
+- "Temp: [N/D]" o "Precip: [N/D]" para clima
+
+VALIDACIÓN
+----------
+✅ Video de prueba generado: parcela 6, índice NDVI
+✅ 10 frames con columna dinámica funcional
+✅ Duración: 25 segundos (2.5s por frame)
+✅ Resolución: 1920x1080 Full HD
+✅ Tamaño: 0.64 MB
+✅ Archivo: media/timeline_videos/timeline_ndvi_20260115_173703.mp4
+
+REGLAS CUMPLIDAS
+----------------
+✅ Todos los valores dinámicos (no hardcoded)
+✅ Solo texto, sin paneles de fondo
+✅ Coordenadas fijas (no automáticas)
+✅ Sin overlap con el raster
+✅ Advertencias para datos faltantes
+
+PALETA DE COLORES
+----------------
+Títulos:           #FFFFFF (blanco)
+Mejora:            #00FF00 (verde brillante)
+Deterioro:         #FF4444 (rojo)
+Texto secundario:  #999999 (gris)
+Advertencia:       #FF8800 (naranja)
+Temperatura:       #FFCC66 (amarillo suave)
+Precipitación baja: #FFAA66 (naranja claro)
+Precipitación media: #6699FF (azul claro)
+Precipitación alta:  #0066CC (azul oscuro)
+
+TIPOGRAFÍA
+----------
+Fuente: Helvetica.ttc (macOS) o default
+Tamaño títulos: 20px (bold)
+Tamaño contenido: 18px (regular)
+
+COMANDO DE PRUEBA
+----------------
+python generar_video_timeline.py --parcela 6 --indice ndvi
+
+DOCUMENTACIÓN COMPLETA
+---------------------
+docs/COLUMNA_DINAMICA_VIDEO_COMPLETADA.md
+"""
