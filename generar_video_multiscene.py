@@ -112,11 +112,13 @@ def generar_video_multiscene(parcela_id: int, indice: str = 'ndvi', output_path:
     
     logger.info(f"✅ Timeline procesado: {len(frames_data)} frames")
     
-    # 4. Información de parcela
+    # 4. Información completa de parcela
     parcela_info = {
         'nombre': parcela.nombre,
-        'area': float(parcela.area_hectareas) if parcela.area_hectareas else None,
-        'cultivo': parcela.tipo_cultivo or 'No especificado'
+        'area_hectareas': float(parcela.area_hectareas) if parcela.area_hectareas else 0,
+        'tipo_cultivo': parcela.tipo_cultivo or 'Sin especificar',
+        'centro_lat': parcela.geometria.centroid.y if parcela.geometria else 0,
+        'centro_lon': parcela.geometria.centroid.x if parcela.geometria else 0
     }
     
     # 5. Obtener análisis y recomendaciones del motor

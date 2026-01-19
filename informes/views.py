@@ -2326,6 +2326,44 @@ def exportar_video_timeline(request, parcela_id):
         
         logger.info(f"📊 Procesando {len(frames)} frames para el video")
         
+        # Preparar información completa de la parcela
+        parcela_info = {
+            'nombre': parcela.nombre,
+            'area_hectareas': float(parcela.area_hectareas) if parcela.area_hectareas else 0,
+            'tipo_cultivo': parcela.tipo_cultivo or 'Sin especificar',
+            'centro_lat': parcela.geometria.centroid.y if parcela.geometria else 0,
+            'centro_lon': parcela.geometria.centroid.x if parcela.geometria else 0
+        }
+        
+        # Obtener análisis y recomendaciones del último informe (si existe)
+        analisis_texto = None
+        recomendaciones_texto = None
+        
+        try:
+            from .models import InformeGenerado
+            ultimo_informe = InformeGenerado.objects.filter(
+                parcela=parcela
+            ).order_by('-fecha_generacion').first()
+            
+            if ultimo_informe and ultimo_informe.contenido_json:
+                analisis_ia = ultimo_informe.contenido_json.get('analisis_ia', {})
+                
+                # Extraer análisis textual
+                analisis_texto = analisis_ia.get('analisis_textual', '')
+                if not analisis_texto:
+                    analisis_texto = analisis_ia.get('resumen_ejecutivo', '')
+                
+                # Extraer recomendaciones
+                recomendaciones = analisis_ia.get('recomendaciones_priorizadas', [])
+                if recomendaciones:
+                    recomendaciones_texto = '\n'.join([f"- {r.get('accion', '')}" for r in recomendaciones[:4]])
+                else:
+                    recomendaciones_texto = analisis_ia.get('recomendaciones_texto', '')
+                
+                logger.info(f"✅ Análisis obtenido del informe #{ultimo_informe.id}")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo obtener análisis del informe: {e}")
+        
         # Crear exportador multi-escena
         exporter = TimelineVideoExporterMultiScene(
             width=width,
@@ -2338,7 +2376,9 @@ def exportar_video_timeline(request, parcela_id):
         video_path = exporter.export_timeline(
             frames_data=frames,
             indice=indice,
-            parcela_nombre=parcela.nombre
+            parcela_info=parcela_info,
+            analisis_texto=analisis_texto,
+            recomendaciones_texto=recomendaciones_texto
         )
         
         # Verificar que el archivo existe
