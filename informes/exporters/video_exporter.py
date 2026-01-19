@@ -94,14 +94,27 @@ class TimelineVideoExporter:
     def export_timeline(self,
                        frames_data: List[Dict],
                        indice: str,
-                       output_path: Optional[str] = None) -> str:
+                       output_path: Optional[str] = None,
+                       parcela_info: Optional[Dict] = None,
+                       analisis_texto: Optional[str] = None,
+                       recomendaciones_texto: Optional[str] = None) -> str:
         """
-        Exporta el timeline completo a video MP4
+        Exporta el timeline completo a video MP4 con estructura multi-escena profesional
+        
+        Estructura del video:
+        1. Escena de portada (3 segundos)
+        2. Escenas de mapas mensuales (2.5 segundos cada una)
+        3. Escena de análisis IA (5 segundos si hay análisis)
+        4. Escena de recomendaciones (5 segundos si hay recomendaciones)
+        5. Escena de cierre (3 segundos)
         
         Args:
             frames_data: Lista de frames del timeline (del TimelineProcessor)
             indice: Índice a exportar ('ndvi', 'ndmi', 'savi')
             output_path: Ruta de salida del video (opcional)
+            parcela_info: Información de la parcela (nombre, área, cultivo, etc.)
+            analisis_texto: Texto del análisis IA generado por Gemini
+            recomendaciones_texto: Texto de recomendaciones generadas por Gemini
         
         Returns:
             Ruta del archivo de video generado
@@ -116,14 +129,21 @@ class TimelineVideoExporter:
         if indice not in ['ndvi', 'ndmi', 'savi']:
             raise ValueError(f"Índice inválido: {indice}")
         
-        logger.info(f"Iniciando exportación de video: {len(frames_data)} frames, índice={indice}")
+        logger.info(f"🎬 Iniciando exportación de video multi-escena: {len(frames_data)} frames, índice={indice}")
         
         # Crear directorio temporal para frames
         temp_dir = tempfile.mkdtemp(prefix='agrotech_video_')
         
         try:
-            # Generar frames individuales
-            frame_paths = self._generate_frames(frames_data, indice, temp_dir)
+            # Generar todas las escenas del video
+            frame_paths = self._generate_all_scenes(
+                frames_data=frames_data,
+                indice=indice,
+                temp_dir=temp_dir,
+                parcela_info=parcela_info,
+                analisis_texto=analisis_texto,
+                recomendaciones_texto=recomendaciones_texto
+            )
             
             if not frame_paths:
                 raise RuntimeError("No se generaron frames")
@@ -134,16 +154,16 @@ class TimelineVideoExporter:
             
             self._create_video_ffmpeg(frame_paths, output_path)
             
-            logger.info(f"Video generado exitosamente: {output_path}")
+            logger.info(f"✅ Video generado exitosamente: {output_path}")
             return output_path
             
         finally:
             # Limpiar archivos temporales
             try:
                 shutil.rmtree(temp_dir)
-                logger.info(f"Directorio temporal eliminado: {temp_dir}")
+                logger.info(f"🗑️ Directorio temporal eliminado: {temp_dir}")
             except Exception as e:
-                logger.warning(f"No se pudo eliminar directorio temporal: {e}")
+                logger.warning(f"⚠️ No se pudo eliminar directorio temporal: {e}")
     
     def _generate_frames(self, 
                         frames_data: List[Dict],
@@ -395,13 +415,14 @@ class TimelineVideoExporter:
         - Fixed legend bottom-left
         - Right-side dynamic information column
         """
-        # Fixed font sizes for 1080p readability
+        # Fixed font sizes optimized for 1080p legibility
+        # Increased by 2-4px for better readability without changing design
         try:
-            font_header = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 24)
-            font_footer = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
-            font_legend = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 18)
-            font_info = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 18)
-            font_info_bold = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
+            font_header = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 26)
+            font_footer = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 22)
+            font_legend = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
+            font_info = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
+            font_info_bold = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 22)
         except:
             font_header = font_footer = font_legend = font_info = font_info_bold = ImageFont.load_default()
         
@@ -484,7 +505,7 @@ class TimelineVideoExporter:
         # X position: 85% of width to avoid raster overlap
         info_x = int(self.width * 0.85)
         info_y_start = 150  # Start below header
-        line_spacing = 30
+        line_spacing = 32  # Increased by 2px for better readability
         
         current_y = info_y_start
         
@@ -514,14 +535,14 @@ class TimelineVideoExporter:
                 draw.text((info_x, current_y), f"vs mes anterior", font=font_info, fill='#999999', anchor='lt')
                 current_y += line_spacing
             else:
-                draw.text((info_x, current_y), "[Sin datos]", font=font_info, fill='#ff8800', anchor='lt')
+                draw.text((info_x, current_y), "[Sin datos]", font=font_info, fill='#ffaa00', anchor='lt')
                 current_y += line_spacing
         else:
             # Primer mes sin comparación
             draw.text((info_x, current_y), "Primer periodo", font=font_info, fill='#999999', anchor='lt')
             current_y += line_spacing
         
-        current_y += 15  # Espacio entre secciones
+        current_y += 18  # Increased spacing between sections for clarity
         
         # SECCIÓN 2: CALIDAD DE IMAGEN
         draw.text((info_x, current_y), "CALIDAD IMAGEN", font=font_info_bold, fill='white', anchor='lt')
@@ -557,7 +578,7 @@ class TimelineVideoExporter:
             draw.text((info_x, current_y), "[Sin datos]", font=font_info, fill='#ff8800', anchor='lt')
             current_y += line_spacing
         
-        current_y += 15  # Espacio entre secciones
+        current_y += 18  # Increased spacing between sections for clarity
         
         # SECCIÓN 3: RESUMEN CLIMÁTICO
         draw.text((info_x, current_y), "CLIMA DEL MES", font=font_info_bold, fill='white', anchor='lt')
@@ -571,7 +592,7 @@ class TimelineVideoExporter:
             draw.text((info_x, current_y), texto_temp, font=font_info, fill='#ffcc66', anchor='lt')
             current_y += line_spacing
         else:
-            draw.text((info_x, current_y), "Temp: [N/D]", font=font_info, fill='#ff8800', anchor='lt')
+            draw.text((info_x, current_y), "Temp: [N/D]", font=font_info, fill='#ffaa00', anchor='lt')
             current_y += line_spacing
         
         if precipitacion is not None:
@@ -587,7 +608,7 @@ class TimelineVideoExporter:
             draw.text((info_x, current_y), texto_precip, font=font_info, fill=color_precip, anchor='lt')
             current_y += line_spacing
         else:
-            draw.text((info_x, current_y), "Precip: [N/D]", font=font_info, fill='#ff8800', anchor='lt')
+            draw.text((info_x, current_y), "Precip: [N/D]", font=font_info, fill='#ffaa00', anchor='lt')
             current_y += line_spacing
 
     def _draw_multiline_text_with_shadow(self, draw, position, text, font, fill, anchor='lt', max_width=900):

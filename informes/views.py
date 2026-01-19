@@ -38,7 +38,14 @@ from .generador_pdf import GeneradorPDFProfesional
 logger = logging.getLogger(__name__)
 
 
+# Helper para verificar superusuario
+def es_superusuario(user):
+    """Verifica que el usuario sea superusuario"""
+    return user.is_superuser
+
+
 @login_required
+@user_passes_test(es_superusuario, login_url='/')
 def dashboard(request):
     """
     Panel principal del sistema - Vista general de parcelas y datos
@@ -584,11 +591,13 @@ def mapa_parcela(request, parcela_id):
         return redirect('informes:detalle_parcela', parcela_id=parcela_id)
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def procesar_datos_parcela(request, parcela_id):
     """
     API endpoint para procesar datos satelitales de una parcela
+    Requiere autenticación
     """
     try:
         parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
@@ -628,9 +637,11 @@ def procesar_datos_parcela(request, parcela_id):
         }, status=500)
 
 
+@login_required
 def analisis_tendencias(request, parcela_id):
     """
     Vista para mostrar análisis de tendencias de una parcela
+    Requiere autenticación
     """
     try:
         parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
@@ -662,9 +673,11 @@ def analisis_tendencias(request, parcela_id):
         return redirect('informes:detalle_parcela', parcela_id=parcela_id)
 
 
+@login_required
 def lista_informes(request):
     """
     Lista todos los informes generados
+    Requiere autenticación
     """
     try:
         informes_queryset = Informe.objects.all().order_by('-fecha_generacion')
@@ -696,9 +709,11 @@ def lista_informes(request):
         return render(request, 'informes/informes/lista.html', {'error': str(e)})
 
 
+@login_required
 def detalle_informe(request, informe_id):
     """
     Muestra el detalle de un informe específico
+    Requiere autenticación
     """
     try:
         informe = get_object_or_404(Informe, id=informe_id)
@@ -715,9 +730,12 @@ def detalle_informe(request, informe_id):
         return redirect('informes:lista_informes')
 
 
+@login_required
+@user_passes_test(es_superusuario, login_url='/')
 def estado_sistema(request):
     """
     Vista para monitorear el estado del sistema
+    Solo para superusuarios
     """
     try:
         # Verificar conectividad EOSDA dinámicamente
@@ -816,11 +834,13 @@ def probar_email(request):
     return redirect('informes:estado_sistema')
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_datos_parcela(request, parcela_id):
     """
     API para obtener datos de una parcela en formato JSON
+    Requiere autenticación
     """
     try:
         parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
@@ -932,8 +952,8 @@ def is_superuser(user):
     return user.is_superuser
 
 
-@user_passes_test(is_superuser, login_url='informes:crear_parcela')
 @login_required
+@user_passes_test(es_superusuario, login_url='/')
 def admin_dashboard(request):
     """
     Dashboard completo solo para superusuarios
@@ -1762,10 +1782,12 @@ def sincronizar_con_eosda(request, parcela_id):
         return redirect('informes:detalle_parcela', parcela_id=parcela_id)
 
 
-@login_required 
+@login_required
+@user_passes_test(es_superusuario, login_url='/')
 def estado_sincronizacion_eosda(request):
     """
     Vista para mostrar el estado de sincronización de todas las parcelas con EOSDA
+    Solo para superusuarios
     """
     try:
         parcelas = Parcela.objects.filter(activa=True).order_by('-fecha_registro')
@@ -2252,8 +2274,10 @@ def timeline_api(request, parcela_id):
 @login_required
 def exportar_video_timeline(request, parcela_id):
     """
-    Exporta el timeline como video MP4 de alta calidad
-    Genera el video en backend usando FFmpeg
+    Exporta el timeline como video MP4 de alta calidad con múltiples escenas
+    Genera el video en backend usando FFmpeg y el nuevo TimelineVideoExporterMultiScene
+    
+    ACTUALIZADO: Ahora usa TimelineVideoExporterMultiScene con columna dinámica de información
     
     Parámetros GET:
         - indice: 'ndvi', 'ndmi' o 'savi' (default: 'ndvi')
@@ -2264,7 +2288,7 @@ def exportar_video_timeline(request, parcela_id):
     """
     try:
         from .processors.timeline_processor import TimelineProcessor
-        from .exporters.video_exporter import TimelineVideoExporter
+        from .exporters.video_exporter_multiscene import TimelineVideoExporterMultiScene
         
         parcela = get_object_or_404(Parcela, id=parcela_id)
         
@@ -2282,7 +2306,7 @@ def exportar_video_timeline(request, parcela_id):
                 'mensaje': f'Índice inválido: {indice}. Debe ser ndvi, ndmi o savi.'
             }, status=400)
         
-        logger.info(f"Iniciando exportación de video para parcela {parcela_id}, índice={indice}")
+        logger.info(f"🎬 Iniciando exportación de video multi-escena para parcela {parcela_id}, índice={indice}")
         
         # Obtener datos del timeline
         timeline_data = TimelineProcessor.generar_timeline_completo(
@@ -2300,23 +2324,28 @@ def exportar_video_timeline(request, parcela_id):
                 'mensaje': 'No hay datos disponibles para generar el video'
             }, status=404)
         
-        # Crear exportador
-        exporter = TimelineVideoExporter(
+        logger.info(f"📊 Procesando {len(frames)} frames para el video")
+        
+        # Crear exportador multi-escena
+        exporter = TimelineVideoExporterMultiScene(
             width=width,
             height=height,
             fps=fps,
             bitrate=bitrate
         )
         
-        # Generar video
+        # Generar video con el nuevo sistema multi-escena
         video_path = exporter.export_timeline(
             frames_data=frames,
-            indice=indice
+            indice=indice,
+            parcela_nombre=parcela.nombre
         )
         
         # Verificar que el archivo existe
         if not os.path.exists(video_path):
             raise RuntimeError("El video fue generado pero no se encuentra")
+        
+        logger.info(f"✅ Video generado exitosamente: {video_path}")
         
         # Retornar archivo como descarga
         response = FileResponse(
@@ -2324,11 +2353,10 @@ def exportar_video_timeline(request, parcela_id):
             content_type='video/mp4'
         )
         
-        # Nombre del archivo
-        filename = f"timeline_{parcela.nombre}_{indice}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+        # Nombre del archivo con formato mejorado
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"timeline_{parcela.nombre}_{indice.upper()}_{timestamp}.mp4"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
-        logger.info(f"Video generado exitosamente: {video_path}")
         
         return response
         
