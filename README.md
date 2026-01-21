@@ -2,6 +2,15 @@
 
 Sistema Django completo para análisis satelital agrícola con integración EOSDA API, generación automática de informes PDF y mapas interactivos.
 
+## ⚠️ IMPORTANTE: Generación de Informes PDF
+
+**ÚNICO generador oficial:**
+- **Archivo:** `informes/generador_pdf.py`
+- **Clase:** `GeneradorPDFProfesional`
+- **Documentación:** Ver `REGLAS_GENERADOR_PDF.md` y `docs/FLUJO_GENERACION_INFORMES_PDF.md`
+
+❌ **NO USAR:** `informes/services/generador_pdf_OBSOLETO_NO_USAR.py`
+
 ## 🌱 Características Principales
 
 - **🛰️ Integración EOSDA**: Obtención automática de datos satelitales (NDVI, NDMI, SAVI)

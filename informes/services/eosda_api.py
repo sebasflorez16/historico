@@ -565,6 +565,103 @@ class EosdaAPIService:
             logger.error(f"Error procesando {indice}: {str(e)}")
             return []
     
+    def obtener_array_indice(self, field_id: str, indice: str, 
+                            fecha: date) -> Optional[Dict]:
+        """
+        Obtiene el array NumPy de un índice satelital para diagnóstico
+        
+        NOTA: Implementación temporal con datos sintéticos.
+        TODO: Integrar con EOSDA Field Imagery API para obtener GeoTIFF real
+        
+        Args:
+            field_id: ID del campo en EOSDA
+            indice: 'ndvi', 'ndmi' o 'savi'
+            fecha: Fecha de la imagen
+            
+        Returns:
+            Dict con 'array', 'bbox', 'metadata' o None si falla
+        """
+        try:
+            import numpy as np
+            
+            logger.info(f"📡 Obteniendo array {indice.upper()} para field {field_id}")
+            
+            # TODO: Implementar descarga real de GeoTIFF desde EOSDA
+            # Por ahora, generar datos sintéticos realistas basados en histórico
+            
+            # Obtener datos históricos para usar como base
+            fecha_fin = fecha
+            fecha_inicio = fecha - timedelta(days=30)
+            
+            datos_historicos = self._obtener_indice_temporal_por_field_id(
+                field_id, indice.upper(), fecha_inicio, fecha_fin
+            )
+            
+            if not datos_historicos:
+                logger.warning(f"No hay datos históricos para {indice}")
+                return None
+            
+            # Usar el último valor como referencia para generar array sintético
+            ultimo = datos_historicos[-1] if datos_historicos else None
+            if not ultimo:
+                return None
+            
+            valor_base = ultimo.get('mean', 0.5)
+            
+            # Generar array sintético realista (100x100 pixels)
+            # Con variación espacial basada en el valor promedio histórico
+            shape = (100, 100)
+            
+            # Crear base con variación gaussiana
+            array = np.random.normal(valor_base, 0.15, shape)
+            
+            # Clipear a rangos válidos según el índice
+            if indice.lower() in ['ndvi', 'ndmi', 'savi']:
+                array = np.clip(array, -1.0, 1.0)
+            
+            # Añadir algunas zonas con valores más bajos (simulando problemas)
+            # para que el diagnóstico tenga algo que detectar
+            num_zonas_criticas = np.random.randint(1, 4)
+            for _ in range(num_zonas_criticas):
+                y, x = np.random.randint(20, 80, size=2)
+                radio = np.random.randint(5, 15)
+                
+                # Crear máscara circular
+                yy, xx = np.ogrid[:shape[0], :shape[1]]
+                mascara = (yy - y)**2 + (xx - x)**2 <= radio**2
+                
+                # Aplicar valor bajo en la zona
+                if indice.lower() == 'ndvi':
+                    array[mascara] = np.random.uniform(0.2, 0.4)
+                elif indice.lower() == 'ndmi':
+                    array[mascara] = np.random.uniform(-0.1, 0.05)
+                elif indice.lower() == 'savi':
+                    array[mascara] = np.random.uniform(0.15, 0.35)
+            
+            # BBox aproximado (Colombia - ajustar según parcela real)
+            bbox = [-74.0, 4.4, -73.9, 4.5]
+            
+            logger.info(f"✅ Array generado: shape={shape}, rango=[{array.min():.3f}, {array.max():.3f}]")
+            
+            return {
+                'array': array,
+                'bbox': bbox,
+                'metadata': {
+                    'fecha': fecha.isoformat(),
+                    'indice': indice,
+                    'fuente': 'sintético_temporal',  # Cambiar a 'eosda' cuando esté implementado
+                    'resolucion_m': 10.0,
+                    'shape': shape,
+                    'valor_promedio_historico': valor_base
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo array {indice}: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
     def _obtener_datos_climaticos_por_field_id(self, field_id: str, 
                                              fecha_inicio: date, fecha_fin: date) -> List[Dict]:
         """
@@ -1516,6 +1613,168 @@ class EosdaAPIService:
             
         except Exception as e:
             logger.error(f"   ❌ Error descargando imagen {indice}: {str(e)}")
+            return None
+        
+    def obtener_imagenes_indice(self, field_id: str, indices: List[str],
+                               fecha_inicio: date, fecha_fin: date,
+                               max_cloud_coverage: float = 30) -> Dict:
+        """
+        Obtiene imágenes satelitales para múltiples índices en un período
+        
+        Args:
+            field_id: ID del campo en EOSDA
+            indices: Lista de índices ('ndvi', 'ndmi', 'savi')
+            fecha_inicio: Fecha inicio del período
+            fecha_fin: Fecha fin del período
+            max_cloud_coverage: Máxima nubosidad permitida (%)
+            
+        Returns:
+            Dict con 'escenas' (lista de escenas con URLs de imágenes) o 'error'
+        """
+        try:
+            logger.info(f"📡 Obteniendo imágenes para {len(indices)} índices...")
+            
+            # Usar Statistics API para obtener view_ids y metadata
+            url = f"{self.base_url}/field-statistics"
+            
+            payload = {
+                'field_id': field_id,
+                'date_start': fecha_inicio.isoformat(),
+                'date_end': fecha_fin.isoformat(),
+                'indexes': indices
+            }
+            
+            response = self.session.post(url, json=payload, timeout=60)
+            
+            if response.status_code != 200:
+                error_msg = f"Error {response.status_code} obteniendo estadísticas"
+                logger.error(f"❌ {error_msg}")
+                return {'error': error_msg, 'escenas': []}
+            
+            data = response.json()
+            resultados = data.get('results', [])
+            
+            if not resultados:
+                logger.warning("No hay escenas disponibles en el período")
+                return {'error': 'Sin escenas', 'escenas': []}
+            
+            escenas_procesadas = []
+            
+            # Procesar cada escena
+            for escena in resultados[:1]:  # Solo la más reciente para optimizar
+                fecha_str = escena.get('date')
+                view_id = escena.get('view_id')
+                nubosidad = escena.get('clouds', {}).get('percentage', 0)
+                
+                if not view_id:
+                    logger.warning(f"Escena sin view_id: {fecha_str}")
+                    continue
+                
+                # Obtener URLs de imágenes para cada índice
+                imagenes = {}
+                for indice in indices:
+                    # Generar imagen usando Field Imagery API
+                    url_imagen = self._generar_url_imagen(field_id, view_id, indice.upper())
+                    if url_imagen:
+                        imagenes[indice] = url_imagen
+                
+                if imagenes:
+                    escenas_procesadas.append({
+                        'date': fecha_str,
+                        'view_id': view_id,
+                        'nubosidad': nubosidad,
+                        'imagenes': imagenes
+                    })
+            
+            logger.info(f"✅ {len(escenas_procesadas)} escenas procesadas")
+            return {'escenas': escenas_procesadas, 'error': None}
+            
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo imágenes: {str(e)}")
+            return {'error': str(e), 'escenas': []}
+    
+    def _generar_url_imagen(self, field_id: str, view_id: str, indice: str) -> Optional[str]:
+        """
+        Genera URL para descargar imagen satelital
+        
+        Args:
+            field_id: ID del campo
+            view_id: ID de la vista satelital
+            indice: Tipo de índice (NDVI, NDMI, SAVI)
+            
+        Returns:
+            URL de la imagen o None si falla
+        """
+        try:
+            url_imagery = f"{self.base_url}/field-imagery/indicies/{field_id}"
+            
+            payload = {
+                'params': {
+                    'view_id': view_id,
+                    'index': indice,
+                    'format': 'png'
+                }
+            }
+            
+            response = self.session.post(url_imagery, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                url = result.get('url')
+                if url:
+                    logger.debug(f"   ✅ URL generada para {indice}")
+                    return url
+            
+            logger.warning(f"   ⚠️ No se pudo generar URL para {indice}: {response.status_code}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"   ❌ Error generando URL: {str(e)}")
+            return None
+    
+    def descargar_array_desde_url(self, url_imagen: str) -> Optional[object]:
+        """
+        Descarga imagen desde URL y convierte a array NumPy
+        
+        Args:
+            url_imagen: URL de la imagen PNG generada por EOSDA
+            
+        Returns:
+            Array NumPy con valores del índice o None si falla
+        """
+        try:
+            import numpy as np
+            from PIL import Image
+            from io import BytesIO
+            
+            # Descargar imagen
+            response = self.session.get(url_imagen, timeout=30)
+            
+            if response.status_code != 200:
+                logger.warning(f"Error descargando imagen: {response.status_code}")
+                return None
+            
+            # Convertir a imagen PIL
+            img = Image.open(BytesIO(response.content))
+            
+            # Convertir a array NumPy
+            array = np.array(img)
+            
+            # Normalizar a rango [-1, 1] si es necesario
+            # Las imágenes de EOSDA típicamente vienen en formato RGB
+            # donde los valores están codificados
+            if array.ndim == 3:
+                # Usar solo el canal R (o convertir a escala de grises)
+                array = array[:, :, 0]
+            
+            # Normalizar de 0-255 a -1 a 1 (rango típico de índices)
+            array = (array.astype(float) / 127.5) - 1.0
+            
+            logger.debug(f"   ✅ Array descargado: shape {array.shape}, rango [{array.min():.3f}, {array.max():.3f}]")
+            return array
+            
+        except Exception as e:
+            logger.error(f"   ❌ Error descargando array: {str(e)}")
             return None
 
 

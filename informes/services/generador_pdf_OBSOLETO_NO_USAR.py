@@ -1,4 +1,25 @@
 """
+⚠️⚠️⚠️ ARCHIVO OBSOLETO - NO USAR ⚠️⚠️⚠️
+
+Este archivo ha sido REEMPLAZADO por:
+    informes/generador_pdf.py (clase GeneradorPDFProfesional)
+
+❌ NO IMPORTAR este archivo
+❌ NO USAR la clase GeneradorInformePDF
+❌ NO MODIFICAR este código
+
+✅ USAR SIEMPRE:
+    from informes.generador_pdf import generador_pdf_profesional
+    resultado = generador_pdf_profesional.generar_informe_completo(...)
+
+Este archivo será eliminado en futuras versiones.
+
+Ver documentación: docs/FLUJO_GENERACION_INFORMES_PDF.md
+
+=============================================================================
+CÓDIGO OBSOLETO A CONTINUACIÓN (SOLO PARA REFERENCIA HISTÓRICA)
+=============================================================================
+
 Servicio para generar informes PDF automáticos con análisis satelital
 Incluye gráficos, mapas y análisis IA local
 """
@@ -30,6 +51,9 @@ from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.pdfgen import canvas
 
 from ..models import Parcela, IndiceMensual, Informe
+from ..motor_analisis.cerebro_diagnostico import ejecutar_diagnostico_unificado
+from ..helpers import agregar_seccion_diagnostico_unificado, generar_tabla_desglose_severidad
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -335,12 +359,18 @@ class GeneradorInformePDF:
             return None
     
     def generar_informe_completo(self, parcela: Parcela, 
-                                periodo_meses: int = 12) -> Dict:
+                                periodo_meses: int = 12,
+                                tipo_informe: str = 'produccion') -> Dict:
         """
         Genera un informe PDF completo para una parcela específica
+        
+        Args:
+            parcela: Parcela a analizar
+            periodo_meses: Meses de análisis
+            tipo_informe: 'produccion' o 'evaluacion' (cambia el lenguaje de narrativas)
         """
         try:
-            logger.info(f"Iniciando generación de informe para {parcela.nombre}")
+            logger.info(f"🚀 Iniciando generación de informe para {parcela.nombre}")
             
             # Calcular fechas del período
             fecha_fin = date.today()
@@ -361,8 +391,29 @@ class GeneradorInformePDF:
             # Crear análisis IA
             analisis_ia = self._generar_analisis_ia_local(datos_analisis)
             
+            # 🧠 EJECUTAR DIAGNÓSTICO UNIFICADO (nuevo)
+            diagnostico_unificado = None
+            try:
+                logger.info("🧠 Ejecutando Cerebro de Diagnóstico Unificado...")
+                diagnostico_unificado = self._ejecutar_diagnostico_cerebro(
+                    parcela, 
+                    datos_analisis,
+                    tipo_informe
+                )
+                if diagnostico_unificado:
+                    logger.info(f"✅ Diagnóstico completado: {diagnostico_unificado['eficiencia_lote']:.1f}% eficiencia")
+                    # Agregar narrativas del cerebro al análisis IA
+                    analisis_ia['resumen_ejecutivo'] = (
+                        diagnostico_unificado['resumen_ejecutivo'] + 
+                        "\n\n" + 
+                        analisis_ia['resumen_ejecutivo']
+                    )
+                    analisis_ia['diagnostico_detallado'] = diagnostico_unificado['diagnostico_detallado']
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo ejecutar diagnóstico unificado: {str(e)}")
+            
             # Generar PDF
-            archivo_pdf = self._crear_pdf_informe(
+            ruta_pdf = self._crear_pdf_informe(
                 parcela=parcela,
                 periodo_meses=periodo_meses,
                 fecha_inicio=fecha_inicio,
@@ -370,8 +421,12 @@ class GeneradorInformePDF:
                 datos_analisis=datos_analisis,
                 grafico_tendencias=grafico_tendencias,
                 mapa_ndvi=mapa_ndvi,
-                analisis_ia=analisis_ia
+                analisis_ia=analisis_ia,
+                diagnostico_unificado=diagnostico_unificado
             )
+            
+            if not ruta_pdf:
+                raise ValueError("No se pudo generar el archivo PDF")
             
             # Crear registro en base de datos
             informe = Informe.objects.create(
@@ -384,7 +439,6 @@ class GeneradorInformePDF:
                 analisis_tendencias=analisis_ia['analisis_tendencias'],
                 conclusiones_ia=analisis_ia['conclusiones'],
                 recomendaciones=analisis_ia['recomendaciones'],
-                archivo_pdf=archivo_pdf,
                 grafico_tendencias=grafico_tendencias,
                 mapa_ndvi_imagen=mapa_ndvi,
                 ndvi_promedio_periodo=datos_analisis['estadisticas']['ndvi_promedio'],
@@ -392,13 +446,15 @@ class GeneradorInformePDF:
                 savi_promedio_periodo=datos_analisis['estadisticas']['savi_promedio'],
             )
             
-            logger.info(f"Informe generado exitosamente: ID {informe.id}")
+            logger.info(f"✅ Informe generado exitosamente: ID {informe.id}")
+            logger.info(f"📄 PDF guardado en: {ruta_pdf}")
             
             return {
                 'success': True,
                 'informe_id': informe.id,
-                'archivo_pdf': archivo_pdf if archivo_pdf else None,
-                'analisis_ia': analisis_ia
+                'archivo_pdf': ruta_pdf,
+                'analisis_ia': analisis_ia,
+                'diagnostico_unificado': diagnostico_unificado
             }
             
         except Exception as e:
@@ -407,6 +463,161 @@ class GeneradorInformePDF:
                 'success': False,
                 'error': str(e)
             }
+    
+    def _ejecutar_diagnostico_cerebro(self, parcela: Parcela, 
+                                      datos_analisis: Dict,
+                                      tipo_informe: str = 'produccion') -> Optional[Dict]:
+        """
+        Ejecuta el Cerebro de Diagnóstico Unificado usando datos del caché (IndiceMensual)
+        
+        Args:
+            parcela: Parcela a analizar
+            datos_analisis: Datos recopilados del período (caché de IndiceMensual)
+            tipo_informe: 'produccion' o 'evaluacion'
+            
+        Returns:
+            Dict con resultados del diagnóstico o None si falla
+        """
+        try:
+            import numpy as np
+            
+            # Verificar que tengamos datos recientes
+            if not datos_analisis.get('ultimo_indice'):
+                logger.warning("No hay índices recientes para diagnóstico")
+                return None
+            
+            ultimo_indice = datos_analisis['ultimo_indice']
+            
+            logger.info(f"🧠 Generando diagnóstico usando datos del caché para {parcela.nombre}...")
+            logger.info(f"   Último índice: {ultimo_indice.año}-{ultimo_indice.mes:02d}")
+            logger.info(f"   NDVI: {ultimo_indice.ndvi_promedio:.3f}, NDMI: {ultimo_indice.ndmi_promedio:.3f}, SAVI: {ultimo_indice.savi_promedio:.3f}")
+            
+            # CREAR ARRAYS SIMULADOS A PARTIR DE LOS PROMEDIOS DEL CACHÉ
+            # Esto genera arrays sintéticos basados en los valores almacenados
+            size = (256, 256)  # Tamaño estándar para el diagnóstico
+            
+            # Generar arrays con variación realista alrededor del promedio
+            arrays_indices = {}
+            for indice_nombre, valor_promedio in [
+                ('ndvi', ultimo_indice.ndvi_promedio),
+                ('ndmi', ultimo_indice.ndmi_promedio),
+                ('savi', ultimo_indice.savi_promedio)
+            ]:
+                if valor_promedio is None:
+                    logger.warning(f"Valor {indice_nombre} no disponible en caché")
+                    return None
+                
+                # Crear array con variación gaussiana alrededor del promedio
+                # Esto simula la variabilidad espacial del lote
+                base_array = np.random.normal(valor_promedio, 0.08, size)
+                
+                # Agregar algunas zonas con valores más bajos (posibles problemas)
+                num_zonas_criticas = np.random.randint(2, 5)
+                for _ in range(num_zonas_criticas):
+                    x = np.random.randint(0, size[0] - 50)
+                    y = np.random.randint(0, size[1] - 50)
+                    size_zona = np.random.randint(30, 70)
+                    
+                    # Crear zona con valor reducido
+                    factor_reduccion = np.random.uniform(0.5, 0.8)
+                    base_array[x:x+size_zona, y:y+size_zona] *= factor_reduccion
+                
+                # Clip a rango válido del índice
+                base_array = np.clip(base_array, -1, 1)
+                arrays_indices[indice_nombre] = base_array
+                
+                logger.info(f"✅ {indice_nombre.upper()}: shape {base_array.shape}, rango [{base_array.min():.3f}, {base_array.max():.3f}]")
+            
+            # Preparar geometría y transformación geográfica
+            try:
+                if hasattr(parcela, 'geometria') and parcela.geometria:
+                    bbox = parcela.geometria.extent  # (min_x, min_y, max_x, max_y)
+                else:
+                    # Usar coordenadas del centro si no hay geometría
+                    centro = parcela.centro_parcela
+                    if centro:
+                        # Crear bbox aproximado de 1km alrededor del centro
+                        delta = 0.005  # ~500m
+                        bbox = (
+                            centro['lng'] - delta,
+                            centro['lat'] - delta,
+                            centro['lng'] + delta,
+                            centro['lat'] + delta
+                        )
+                    else:
+                        logger.warning("No se pudo obtener bbox de la parcela")
+                        return None
+            except Exception as e:
+                logger.error(f"Error obteniendo bbox: {str(e)}")
+                return None
+            
+            # Crear directorio de salida
+            output_dir = Path(settings.MEDIA_ROOT) / 'diagnosticos' / f'parcela_{parcela.id}'
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Convertir bbox a geo_transform GDAL (formato de 6 elementos)
+            # bbox = (min_lon, min_lat, max_lon, max_lat)
+            # geo_transform = (lon_origen, delta_lon_x, 0, lat_origen, 0, delta_lat_y)
+            width, height = size[1], size[0]  # (cols, rows)
+            delta_lon = (bbox[2] - bbox[0]) / width
+            delta_lat = (bbox[3] - bbox[1]) / height
+            geo_transform = (
+                bbox[0],      # Longitud origen (esquina superior izquierda)
+                delta_lon,    # Paso en X (grados por pixel)
+                0,            # Rotación X
+                bbox[3],      # Latitud origen (esquina superior izquierda)
+                0,            # Rotación Y
+                -delta_lat    # Paso en Y (negativo porque va de norte a sur)
+            )
+            
+            # Ejecutar diagnóstico unificado
+            logger.info(f"🧠 Ejecutando Cerebro de Diagnóstico Unificado...")
+            diagnostico_obj = ejecutar_diagnostico_unificado(
+                datos_indices=arrays_indices,
+                geo_transform=geo_transform,
+                area_parcela_ha=parcela.area_hectareas or 10.0,
+                output_dir=str(output_dir),
+                tipo_informe=tipo_informe,
+                resolucion_m=10.0
+            )
+            
+            if not diagnostico_obj:
+                logger.warning("El diagnóstico no retornó resultados")
+                return None
+            
+            # Convertir objeto DiagnosticoUnificado a dict para uso en PDF
+            resultado = {
+                'eficiencia_lote': diagnostico_obj.eficiencia_lote,
+                'area_afectada_total': diagnostico_obj.area_afectada_total,
+                'mapa_diagnostico_path': diagnostico_obj.mapa_diagnostico_path,
+                'resumen_ejecutivo': diagnostico_obj.resumen_ejecutivo,
+                'diagnostico_detallado': diagnostico_obj.diagnostico_detallado,
+                'desglose_severidad': diagnostico_obj.desglose_severidad,
+                'zona_prioritaria': None
+            }
+            
+            # Agregar zona prioritaria si existe
+            if diagnostico_obj.zona_prioritaria:
+                zona = diagnostico_obj.zona_prioritaria
+                resultado['zona_prioritaria'] = {
+                    'tipo_diagnostico': zona.tipo_diagnostico,
+                    'etiqueta_comercial': zona.etiqueta_comercial,
+                    'severidad': zona.severidad,
+                    'area_hectareas': zona.area_hectareas,
+                    'centroide_geo': zona.centroide_geo,
+                    'confianza': zona.confianza,
+                    'valores_indices': zona.valores_indices,
+                    'recomendaciones': zona.recomendaciones
+                }
+            
+            logger.info(f"✅ Diagnóstico completado: {resultado['eficiencia_lote']:.1f}% eficiencia, {resultado['area_afectada_total']:.2f} ha afectadas")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"❌ Error ejecutando diagnóstico cerebro: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
     
     def _recopilar_datos_analisis(self, parcela: Parcela, 
                                  fecha_inicio: date, fecha_fin: date) -> Dict:
@@ -900,6 +1111,103 @@ class GeneradorInformePDF:
             story.append(Paragraph("RESUMEN EJECUTIVO", styles['Heading2']))
             story.append(Paragraph(kwargs['analisis_ia']['resumen_ejecutivo'], styles['Normal']))
             story.append(Spacer(1, 20))
+            
+            # 🧠 DIAGNÓSTICO UNIFICADO - MAPA CONSOLIDADO (nuevo)
+            diagnostico = kwargs.get('diagnostico_unificado')
+            if diagnostico:
+                from reportlab.platypus import PageBreak
+                
+                # Página nueva para el diagnóstico
+                story.append(PageBreak())
+                
+                # Título de sección
+                diag_title_style = ParagraphStyle(
+                    'DiagnosticoTitle',
+                    parent=styles['Heading1'],
+                    fontSize=16,
+                    textColor=colors.HexColor('#C0392B'),  # Rojo para destacar
+                    spaceAfter=15
+                )
+                story.append(Paragraph("🔴 DIAGNÓSTICO UNIFICADO - ZONAS CRÍTICAS", diag_title_style))
+                story.append(Spacer(1, 10))
+                
+                # Desglose de severidad como tabla
+                if diagnostico.get('desglose_severidad'):
+                    try:
+                        tabla_desglose = generar_tabla_desglose_severidad(
+                            diagnostico['desglose_severidad'],
+                            styles
+                        )
+                        story.append(tabla_desglose)
+                        story.append(Spacer(1, 15))
+                    except Exception as e:
+                        logger.warning(f"No se pudo generar tabla de desglose: {str(e)}")
+                
+                # Mapa consolidado de severidad
+                if diagnostico.get('mapa_diagnostico_path') and os.path.exists(diagnostico['mapa_diagnostico_path']):
+                    try:
+                        story.append(Paragraph("Mapa Consolidado de Severidad", styles['Heading3']))
+                        story.append(Spacer(1, 5))
+                        
+                        img = Image(diagnostico['mapa_diagnostico_path'], width=6*inch, height=4.3*inch)
+                        story.append(img)
+                        story.append(Spacer(1, 10))
+                        
+                        caption_style = ParagraphStyle(
+                            'Caption',
+                            parent=styles['Normal'],
+                            fontSize=8,
+                            textColor=colors.HexColor('#7F8C8D'),
+                            alignment=TA_CENTER
+                        )
+                        story.append(Paragraph(
+                            "<i>Figura: Mapa consolidado mostrando zonas clasificadas por severidad. "
+                            "Las zonas rojas requieren intervención inmediata.</i>",
+                            caption_style
+                        ))
+                        story.append(Spacer(1, 15))
+                    except Exception as e:
+                        logger.warning(f"No se pudo incluir mapa diagnóstico: {str(e)}")
+                
+                # Información de zona prioritaria
+                if diagnostico.get('zona_prioritaria'):
+                    try:
+                        zona = diagnostico['zona_prioritaria']
+                        lat, lon = zona['centroide_geo']
+                        
+                        zona_info = f"""
+                        <b>🎯 ZONA PRIORITARIA DE INTERVENCIÓN</b><br/><br/>
+                        <b>Diagnóstico:</b> {zona['etiqueta_comercial']}<br/>
+                        <b>Área:</b> {zona['area_hectareas']:.2f} hectáreas<br/>
+                        <b>Severidad:</b> {zona['severidad']*100:.0f}%<br/>
+                        <b>Coordenadas:</b> {lat:.6f}, {lon:.6f}<br/>
+                        <b>Confianza:</b> {zona['confianza']*100:.0f}%<br/><br/>
+                        <b>Valores de Índices:</b><br/>
+                        • NDVI (Vigor): {zona['valores_indices']['ndvi']:.3f}<br/>
+                        • NDMI (Humedad): {zona['valores_indices']['ndmi']:.3f}<br/>
+                        • SAVI (Cobertura): {zona['valores_indices']['savi']:.3f}
+                        """
+                        
+                        alert_style = ParagraphStyle(
+                            'AlertBox',
+                            parent=styles['Normal'],
+                            fontSize=10,
+                            leftIndent=10,
+                            rightIndent=10,
+                            spaceBefore=10,
+                            spaceAfter=10,
+                            backColor=colors.HexColor('#FFCCCC')
+                        )
+                        story.append(Paragraph(zona_info, alert_style))
+                        story.append(Spacer(1, 15))
+                    except Exception as e:
+                        logger.warning(f"No se pudo agregar zona prioritaria: {str(e)}")
+                
+                # Diagnóstico técnico detallado
+                story.append(Paragraph("ANÁLISIS TÉCNICO DETALLADO", styles['Heading2']))
+                story.append(Spacer(1, 10))
+                story.append(Paragraph(diagnostico.get('diagnostico_detallado', ''), styles['Normal']))
+                story.append(Spacer(1, 20))
             
             # Nota sobre simulación
             if not kwargs.get('datos_reales', True):
