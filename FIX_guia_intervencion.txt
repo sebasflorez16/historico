@@ -1,0 +1,100 @@
+# CORRECCIÓN LIMPIA DEL MÉTODO _crear_seccion_guia_intervencion
+
+Debido a la complejidad de las ediciones, necesito que tú manualmente:
+
+1. Abre `informes/generador_pdf.py`
+2. Busca el método `def _crear_seccion_guia_intervencion`
+3. Elimina TODO desde esa línea hasta ANTES de `def _generar_narrativa_campo`
+4. Reemplaza con el siguiente código limpio:
+
+```python
+    def _crear_seccion_guia_intervencion(self, diagnostico: Dict, parcela: Parcela) -> List:
+        """
+        SECCIÓN FINAL: DIAGNÓSTICO DETALLADO Y PLAN DE ACCIÓN
+        
+        Diseño profesional: mapa grande, tabla limpia, lenguaje claro
+        """
+        elements = []
+        
+        # Espaciado y título
+        elements.append(Spacer(1, 1*cm))
+        elements.append(Paragraph(
+            '<para alignment="center"><font size="18" color="#2C3E50"><b>DIAGNÓSTICO DETALLADO</b></font></para>',
+            self.estilos['TituloSeccion']
+        ))
+        elements.append(Spacer(1, 1*cm))
+        
+        # Datos del diagnóstico
+        eficiencia = diagnostico.get('eficiencia_lote', 0)
+        area_afectada = diagnostico.get('area_afectada_total', 0)
+        desglose = diagnostico.get('desglose_severidad', {})
+        
+        # Resumen
+        resumen = f"""
+        <b>Resumen:</b> Eficiencia {eficiencia:.1f}% • {area_afectada:.1f} ha afectadas<br/>
+        Críticas: {desglose.get('critica', 0):.1f} ha • Moderadas: {desglose.get('moderada', 0):.1f} ha
+        """
+        elements.append(Paragraph(resumen, self.estilos['TextoNormal']))
+        elements.append(Spacer(1, 0.8*cm))
+        
+        # MAPA GRANDE
+        mapa_path = diagnostico.get('mapa_intervencion_limpio_path') or diagnostico.get('mapa_diagnostico_path')
+        if mapa_path and os.path.exists(mapa_path):
+            elements.append(Paragraph(
+                '<para alignment="center" backColor="#34495E" leftIndent="15" rightIndent="15" spaceBefore="8" spaceAfter="8">'
+                '<font size="12" color="white"><b>MAPA DE ZONAS DETECTADAS</b></font></para>',
+                self.estilos['SubtituloSeccion']
+            ))
+            elements.append(Spacer(1, 0.5*cm))
+            img = Image(mapa_path, width=18*cm, height=14*cm)
+            elements.append(img)
+            elements.append(Spacer(1, 1*cm))
+        
+        # TABLA DE ACCIONES
+        if diagnostico.get('zonas_por_severidad'):
+            from reportlab.platypus import Table, TableStyle
+            from reportlab.lib import colors
+            
+            data = [[
+                Paragraph('<b>Zona</b>', self.estilos['TextoNormal']),
+                Paragraph('<b>Problema</b>', self.estilos['TextoNormal']),
+                Paragraph('<b>Área</b>', self.estilos['TextoNormal']),
+                Paragraph('<b>Acción</b>', self.estilos['TextoNormal'])
+            ]]
+            
+            zona_num = 1
+            for nivel in ['critica', 'moderada', 'leve']:
+                for zona_dict in diagnostico['zonas_por_severidad'].get(nivel, []):
+                    etiqueta = zona_dict.get('etiqueta_comercial', 'Sin clasificar')
+                    area = zona_dict.get('area_hectareas', 0)
+                    recs = zona_dict.get('recomendaciones', [])
+                    accion = recs[0] if recs else 'Evaluar en campo'
+                    
+                    data.append([
+                        Paragraph(f'<b>{zona_num}</b>', self.estilos['TextoNormal']),
+                        Paragraph(etiqueta, self.estilos['TextoNormal']),
+                        Paragraph(f'{area:.1f} ha', self.estilos['TextoNormal']),
+                        Paragraph(accion, self.estilos['TextoNormal'])
+                    ])
+                    zona_num += 1
+            
+            tabla = Table(data, colWidths=[2*cm, 5*cm, 2.5*cm, 8*cm])
+            tabla.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495E')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ]))
+            elements.append(tabla)
+        
+        return elements
+```
+
+5. Guarda el archivo
+
+Luego genera el informe nuevamente.

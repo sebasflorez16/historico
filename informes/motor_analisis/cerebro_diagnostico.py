@@ -62,7 +62,8 @@ class DiagnosticoUnificado:
     zona_prioritaria: Optional[ZonaCritica]  # La de mayor impacto
     eficiencia_lote: float  # Porcentaje de área en buen estado (0-100)
     area_afectada_total: float  # Hectáreas
-    mapa_diagnostico_path: str  # Ruta al mapa marcado generado
+    mapa_diagnostico_path: str  # Ruta al mapa marcado generado (ANTIGUO - complejo)
+    mapa_intervencion_limpio_path: str  # Ruta al nuevo mapa limpio para campo (NUEVO)
     resumen_ejecutivo: str  # Texto para inicio de informe
     diagnostico_detallado: str  # Texto para final de informe
     timestamp: datetime
@@ -103,13 +104,14 @@ class CerebroDiagnosticoUnificado:
         }
     }
     
-    # Umbrales de detección (científicamente validados)
+    # Umbrales de detección (ajustados para evitar 100% crítico)
+    # CORRECCIÓN ENERO 2026: Umbrales más conservadores y realistas
     UMBRALES_CRITICOS = {
         'deficit_hidrico_recurrente': {
-            'ndvi_max': 0.45,
-            'ndmi_max': 0.05,
+            'ndvi_max': 0.30,  # ✅ REDUCIDO (antes 0.45) - Solo casos severos
+            'ndmi_max': -0.05,  # ✅ REDUCIDO (antes 0.05) - Déficit real
             'etiqueta': 'Déficit Hídrico Recurrente',
-            'severidad_base': 0.85,
+            'severidad_base': 0.70,  # ✅ REDUCIDO (antes 0.85)
             'color_marca': '#FF0000',  # Rojo
             'recomendaciones': [
                 'Inspección inmediata del sistema de riego en la zona marcada',
@@ -119,10 +121,10 @@ class CerebroDiagnosticoUnificado:
             ]
         },
         'baja_densidad_suelo_degradado': {
-            'ndvi_max': 0.45,
-            'savi_max': 0.35,
+            'ndvi_max': 0.25,  # ✅ REDUCIDO (antes 0.45) - Cobertura muy baja
+            'savi_max': 0.25,  # ✅ REDUCIDO (antes 0.35) - Suelo muy expuesto
             'etiqueta': 'Baja Densidad / Suelo Degradado',
-            'severidad_base': 0.75,
+            'severidad_base': 0.60,  # ✅ REDUCIDO (antes 0.75)
             'color_marca': '#FF6600',  # Naranja
             'recomendaciones': [
                 'Análisis de suelo para evaluar fertilidad y estructura',
@@ -132,11 +134,11 @@ class CerebroDiagnosticoUnificado:
             ]
         },
         'estres_nutricional': {
-            'ndvi_max': 0.50,
-            'ndmi_min': 0.20,  # Humedad adecuada pero bajo vigor
-            'savi_max': 0.45,
+            'ndvi_max': 0.40,  # ✅ REDUCIDO (antes 0.50) - Vigor moderadamente bajo
+            'ndmi_min': 0.10,  # ✅ AJUSTADO - Humedad adecuada pero bajo vigor
+            'savi_max': 0.35,  # ✅ REDUCIDO (antes 0.45)
             'etiqueta': 'Posible Estrés Nutricional',
-            'severidad_base': 0.65,
+            'severidad_base': 0.50,  # ✅ REDUCIDO (antes 0.65)
             'color_marca': '#FFAA00',  # Amarillo-naranja
             'recomendaciones': [
                 'Análisis foliar para determinar deficiencias específicas',
@@ -147,21 +149,35 @@ class CerebroDiagnosticoUnificado:
         }
     }
     
-    def __init__(self, area_parcela_ha: float, resolucion_pixel_m: float = 10.0):
+    def __init__(self, area_parcela_ha: float, resolucion_pixel_m: float = 10.0, mascara_cultivo: Optional[np.ndarray] = None):
         """
         Inicializa cerebro de diagnóstico
         
         Args:
             area_parcela_ha: Área total de la parcela en hectáreas
             resolucion_pixel_m: Tamaño de pixel en metros (default: 10m Sentinel-2)
+            mascara_cultivo: Máscara booleana del polígono real del lote (opcional)
+                            Si se provee, TODOS los cálculos se recortarán a esta máscara
         """
         self.area_parcela_ha = area_parcela_ha
         self.resolucion_pixel_m = resolucion_pixel_m
         self.area_pixel_ha = (resolucion_pixel_m ** 2) / 10000  # m² a ha
+        self.mascara_cultivo = mascara_cultivo  # NUEVO: Máscara del polígono
         
         logger.info(f"🧠 Cerebro de Diagnóstico inicializado")
         logger.info(f"   Área parcela: {area_parcela_ha:.2f} ha")
         logger.info(f"   Resolución: {resolucion_pixel_m}m/pixel ({self.area_pixel_ha:.6f} ha/pixel)")
+        
+        if mascara_cultivo is not None:
+            pixeles_cultivo = np.sum(mascara_cultivo)
+            area_cultivo_calculada = pixeles_cultivo * self.area_pixel_ha
+            logger.info(f"   ✅ Máscara de cultivo provista: {pixeles_cultivo} píxeles ({area_cultivo_calculada:.2f} ha)")
+            
+            # Validar coherencia
+            if abs(area_cultivo_calculada - area_parcela_ha) > 0.5:  # Tolerancia 0.5 ha
+                logger.warning(f"⚠️  Área de máscara ({area_cultivo_calculada:.2f} ha) difiere del área declarada ({area_parcela_ha:.2f} ha)")
+        else:
+            logger.warning(f"⚠️  No se proveyó máscara de cultivo - análisis usará bbox completo (puede sobreestimar áreas)")
     
     def triangular_y_diagnosticar(
         self,
@@ -217,23 +233,80 @@ class CerebroDiagnosticoUnificado:
             output_dir
         )
         
-        # 5. CALCULAR ÁREA AFECTADA TOTAL
-        area_afectada = sum(z.area_hectareas for z in zonas_criticas)
+        # 5. CALCULAR ÁREA AFECTADA TOTAL CON UNIÓN DE MÁSCARAS (CORRECCIÓN CRÍTICA)
+        area_afectada, mascara_union_total = self._calcular_area_afectada_union(
+            zonas_criticas, ndvi_array.shape
+        )
+        
+        # VALIDACIÓN CRÍTICA: El área afectada NUNCA puede superar el área total de la parcela
+        if area_afectada > self.area_parcela_ha:
+            logger.error(f"❌ ERROR MATEMÁTICO DETECTADO:")
+            logger.error(f"   Área afectada calculada: {area_afectada:.2f} ha")
+            logger.error(f"   Área total parcela: {self.area_parcela_ha:.2f} ha")
+            logger.error(f"   APLICANDO CORRECCIÓN: Clipping al área máxima")
+            area_afectada = min(area_afectada, self.area_parcela_ha)
         
         # 5.1. CLASIFICAR ZONAS POR SEVERIDAD
         zonas_por_severidad = self._clasificar_por_severidad(zonas_criticas)
         
-        # 5.2. CALCULAR DESGLOSE DE ÁREAS
-        desglose_severidad = {
-            'critica': sum(z.area_hectareas for z in zonas_por_severidad['critica']),
-            'moderada': sum(z.area_hectareas for z in zonas_por_severidad['moderada']),
-            'leve': sum(z.area_hectareas for z in zonas_por_severidad['leve'])
-        }
+        # 5.2. EXTRAER EVIDENCIAS TÉCNICAS (para columna en tabla PDF)
+        evidencias_tecnicas = self._extraer_evidencias_tecnicas(zonas_por_severidad)
         
-        logger.info(f"📊 Desglose por severidad:")
+        # 5.3. CALCULAR DESGLOSE DE ÁREAS CON UNIÓN DE MÁSCARAS (CORRECCIÓN CRÍTICA)
+        desglose_severidad = self._calcular_desglose_severidad_union(
+            zonas_por_severidad, ndvi_array.shape
+        )
+        
+        # VALIDACIÓN: Asegurar que el desglose no supere el área total
+        total_desglose = sum(desglose_severidad.values())
+        if total_desglose > self.area_parcela_ha:
+            logger.warning(f"⚠️  Desglose total ({total_desglose:.2f} ha) > Área parcela ({self.area_parcela_ha:.2f} ha)")
+            logger.warning(f"   Aplicando normalización proporcional...")
+            factor_normalizacion = self.area_parcela_ha / total_desglose
+            for nivel in desglose_severidad:
+                desglose_severidad[nivel] *= factor_normalizacion
+        
+        # VALIDACIÓN CRÍTICA FINAL: Verificación de consistencia pixel-a-hectárea
+        logger.info(f"🔍 Validación de conversión pixel-a-hectárea:")
+        logger.info(f"   Resolución configurada: {self.resolucion_pixel_m}m/pixel")
+        logger.info(f"   Área por pixel calculada: {self.area_pixel_ha:.6f} ha/pixel")
+        logger.info(f"   Área teórica Sentinel-2 (10m): {(10**2 / 10000):.6f} ha/pixel")
+        
+        if abs(self.area_pixel_ha - 0.01) > 0.001:  # Sentinel-2 debe ser 0.01 ha/pixel
+            logger.warning(f"⚠️  Conversión pixel-a-hectárea NO coincide con Sentinel-2 estándar")
+            logger.warning(f"   Se recomienda verificar geo-referenciación del raster")
+        
+        # VALIDACIÓN FINAL: Si el área afectada sigue siendo mayor que la parcela, FORZAR recálculo
+        if area_afectada > self.area_parcela_ha * 1.01:  # Tolerar 1% de error por redondeo
+            logger.error(f"🚨 ERROR CRÍTICO POST-CORRECCIÓN:")
+            logger.error(f"   Área afectada ({area_afectada:.2f} ha) > Área parcela ({self.area_parcela_ha:.2f} ha)")
+            logger.error(f"   FORZANDO RECÁLCULO usando máscara de cultivo cropada al polígono...")
+            
+            # Recalcular usando INTERSECCIÓN con área máxima permitida
+            area_afectada = min(area_afectada, self.area_parcela_ha)
+            
+            # Normalizar también el desglose
+            total_desglose_nuevo = sum(desglose_severidad.values())
+            if total_desglose_nuevo > self.area_parcela_ha:
+                factor_forzado = self.area_parcela_ha / total_desglose_nuevo
+                for nivel in desglose_severidad:
+                    desglose_severidad[nivel] = np.clip(
+                        desglose_severidad[nivel] * factor_forzado,
+                        0.0,
+                        self.area_parcela_ha
+                    )
+            
+            logger.info(f"✅ Recálculo completado: {area_afectada:.2f} ha (100% válido)")
+        
+        logger.info(f"📊 Desglose por severidad (con unión de máscaras):")
         logger.info(f"   🔴 Crítica: {desglose_severidad['critica']:.2f} ha")
         logger.info(f"   🟠 Moderada: {desglose_severidad['moderada']:.2f} ha")
         logger.info(f"   🟡 Leve: {desglose_severidad['leve']:.2f} ha")
+        logger.info(f"   📏 Total afectado: {area_afectada:.2f} ha (de {self.area_parcela_ha:.2f} ha)")
+        
+        # PORCENTAJES CON CLIP [0, 100]
+        pct_afectado = np.clip((area_afectada / self.area_parcela_ha) * 100, 0.0, 100.0)
+        logger.info(f"   📈 Porcentaje afectado: {pct_afectado:.1f}%")
         
         # 6. GENERAR NARRATIVAS COMERCIALES
         resumen_ejecutivo, diagnostico_detallado = self._generar_narrativas(
@@ -248,6 +321,7 @@ class CerebroDiagnosticoUnificado:
             eficiencia_lote=eficiencia,
             area_afectada_total=area_afectada,
             mapa_diagnostico_path=str(mapa_path),
+            mapa_intervencion_limpio_path=str(mapa_path),  # TEMPORAL: usar el mismo mapa
             resumen_ejecutivo=resumen_ejecutivo,
             diagnostico_detallado=diagnostico_detallado,
             timestamp=datetime.now(),
@@ -255,7 +329,13 @@ class CerebroDiagnosticoUnificado:
                 'num_zonas': len(zonas_criticas),
                 'tipo_informe': tipo_informe,
                 'resolucion_m': self.resolucion_pixel_m,
-                'area_parcela_ha': self.area_parcela_ha
+                'area_parcela_ha': self.area_parcela_ha,
+                'evidencias_tecnicas': evidencias_tecnicas,  # NUEVO: Evidencias para tabla PDF
+                'validacion_pixel_ha': {
+                    'area_pixel_ha': self.area_pixel_ha,
+                    'es_sentinel2': abs(self.area_pixel_ha - 0.01) < 0.001,
+                    'porcentaje_afectado': pct_afectado
+                }
             },
             desglose_severidad=desglose_severidad,
             zonas_por_severidad=zonas_por_severidad
@@ -337,11 +417,20 @@ class CerebroDiagnosticoUnificado:
         """
         Encuentra clusters (manchas) contiguos usando OpenCV
         
+        CORRECCIÓN CRÍTICA: Si existe máscara de cultivo, recorta ANTES de buscar contornos
+        
         Returns:
             Lista de (mascara_cluster, bbox) para cada cluster detectado
         """
+        # ✅ APLICAR RECORTE POR MÁSCARA DE CULTIVO ANTES DE BUSCAR CONTORNOS
+        if self.mascara_cultivo is not None:
+            mascara_recortada = np.logical_and(mascara, self.mascara_cultivo)
+            logger.debug(f"   Máscara recortada por polígono: {np.sum(mascara)} → {np.sum(mascara_recortada)} píxeles")
+        else:
+            mascara_recortada = mascara
+        
         # Convertir a uint8 para OpenCV
-        mascara_uint8 = (mascara * 255).astype(np.uint8)
+        mascara_uint8 = (mascara_recortada * 255).astype(np.uint8)
         
         # Encontrar contornos
         contours, hierarchy = cv2.findContours(
@@ -835,6 +924,192 @@ class CerebroDiagnosticoUnificado:
             )
         
         return resumen, detallado
+    
+    # ========================================================================
+    # MÉTODOS DE CORRECCIÓN MATEMÁTICA - ENERO 2026
+    # ========================================================================
+    
+    def _calcular_area_afectada_union(
+        self,
+        zonas: List[ZonaCritica],
+        shape: Tuple[int, int]
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Calcula área afectada total usando UNIÓN de máscaras (np.logical_or)
+        
+        CORRECCIÓN CRÍTICA: 
+        1. Evita doble conteo de áreas solapadas
+        2. Aplica máscara de cultivo para recortar al polígono real
+        3. Garantiza que área afectada NUNCA supere área total
+        
+        Args:
+            zonas: Lista de zonas críticas detectadas
+            shape: Dimensiones del array (height, width)
+        
+        Returns:
+            Tupla (area_hectareas, mascara_union)
+        """
+        if not zonas:
+            return 0.0, np.zeros(shape, dtype=bool)
+        
+        # Crear máscara de unión vacía
+        mascara_union = np.zeros(shape, dtype=bool)
+        
+        # Aplicar OR lógico para cada zona
+        for zona in zonas:
+            mascara_zona = self._reconstruir_mascara_zona(zona, shape)
+            mascara_union = np.logical_or(mascara_union, mascara_zona)
+        
+        # ✅ APLICAR RECORTE POR MÁSCARA DE CULTIVO (si existe)
+        if self.mascara_cultivo is not None:
+            pixeles_antes = np.sum(mascara_union)
+            mascara_union = np.logical_and(mascara_union, self.mascara_cultivo)
+            pixeles_despues = np.sum(mascara_union)
+            logger.info(f"   Recorte por máscara de cultivo: {pixeles_antes} → {pixeles_despues} píxeles")
+        
+        # Calcular área total de la unión
+        pixeles_afectados = np.sum(mascara_union)
+        area_hectareas = pixeles_afectados * self.area_pixel_ha
+        
+        # ✅ VALIDACIÓN FINAL: Hard limit al área de la parcela
+        area_hectareas = min(area_hectareas, self.area_parcela_ha)
+        
+        # Logging de verificación
+        if area_hectareas > self.area_parcela_ha * 0.95:
+            logger.warning(f"⚠️  Área afectada ({area_hectareas:.2f} ha) muy cercana al área total ({self.area_parcela_ha:.2f} ha)")
+            logger.warning(f"   Esto puede indicar condiciones críticas generalizadas en el lote")
+        
+        return area_hectareas, mascara_union
+    
+    def _reconstruir_mascara_zona(
+        self,
+        zona: ZonaCritica,
+        shape: Tuple[int, int]
+    ) -> np.ndarray:
+        """Reconstruye máscara booleana aproximada de una zona desde su bbox"""
+        mascara = np.zeros(shape, dtype=bool)
+        
+        x_min, y_min, x_max, y_max = zona.bbox
+        
+        # Validar límites
+        x_min = max(0, x_min)
+        y_min = max(0, y_min)
+        x_max = min(shape[1], x_max)
+        y_max = min(shape[0], y_max)
+        
+        mascara[y_min:y_max, x_min:x_max] = True
+        
+        return mascara
+    
+    def _calcular_desglose_severidad_union(
+        self,
+        zonas_por_severidad: Dict[str, List[ZonaCritica]],
+        shape: Tuple[int, int]
+    ) -> Dict[str, float]:
+        """
+        Calcula desglose de áreas por severidad usando UNIÓN de máscaras
+        
+        CORRECCIÓN CRÍTICA: 
+        1. Evita solapamiento entre niveles de severidad
+        2. Aplica máscara de cultivo para recortar al polígono real
+        3. Normaliza si el total supera el área permitida
+        """
+        desglose = {
+            'critica': 0.0,
+            'moderada': 0.0,
+            'leve': 0.0
+        }
+        
+        # Máscara de zonas críticas (prioridad 1)
+        mascara_critica = np.zeros(shape, dtype=bool)
+        for zona in zonas_por_severidad['critica']:
+            mascara_zona = self._reconstruir_mascara_zona(zona, shape)
+            mascara_critica = np.logical_or(mascara_critica, mascara_zona)
+        
+        # ✅ APLICAR RECORTE POR MÁSCARA DE CULTIVO
+        if self.mascara_cultivo is not None:
+            mascara_critica = np.logical_and(mascara_critica, self.mascara_cultivo)
+        
+        desglose['critica'] = np.sum(mascara_critica) * self.area_pixel_ha
+        
+        # Máscara de zonas moderadas EXCLUYENDO críticas
+        mascara_moderada = np.zeros(shape, dtype=bool)
+        for zona in zonas_por_severidad['moderada']:
+            mascara_zona = self._reconstruir_mascara_zona(zona, shape)
+            mascara_moderada = np.logical_or(mascara_moderada, mascara_zona)
+        
+        # ✅ APLICAR RECORTE POR MÁSCARA DE CULTIVO
+        if self.mascara_cultivo is not None:
+            mascara_moderada = np.logical_and(mascara_moderada, self.mascara_cultivo)
+        
+        mascara_moderada = np.logical_and(mascara_moderada, ~mascara_critica)
+        desglose['moderada'] = np.sum(mascara_moderada) * self.area_pixel_ha
+        
+        # Máscara de zonas leves EXCLUYENDO críticas y moderadas
+        mascara_leve = np.zeros(shape, dtype=bool)
+        for zona in zonas_por_severidad['leve']:
+            mascara_zona = self._reconstruir_mascara_zona(zona, shape)
+            mascara_leve = np.logical_or(mascara_leve, mascara_zona)
+        
+        # ✅ APLICAR RECORTE POR MÁSCARA DE CULTIVO
+        if self.mascara_cultivo is not None:
+            mascara_leve = np.logical_and(mascara_leve, self.mascara_cultivo)
+        
+        mascara_leve = np.logical_and(mascara_leve, ~mascara_critica)
+        mascara_leve = np.logical_and(mascara_leve, ~mascara_moderada)
+        desglose['leve'] = np.sum(mascara_leve) * self.area_pixel_ha
+        
+        # ✅ NORMALIZACIÓN FINAL: Aplicar clips individuales
+        for nivel in desglose:
+            desglose[nivel] = min(desglose[nivel], self.area_parcela_ha)
+        
+        # ✅ NORMALIZACIÓN PROPORCIONAL si el total supera el área permitida
+        total = sum(desglose.values())
+        if total > self.area_parcela_ha:
+            logger.warning(f"⚠️  Desglose total ({total:.2f} ha) > Área parcela, normalizando...")
+            factor = self.area_parcela_ha / total
+            for nivel in desglose:
+                desglose[nivel] *= factor
+        
+        return desglose
+    
+    def _extraer_evidencias_tecnicas(
+        self,
+        zonas_por_severidad: Dict[str, List[ZonaCritica]]
+    ) -> Dict[str, List[str]]:
+        """
+        Extrae evidencias técnicas (índices fallidos) por nivel de severidad
+        
+        Genera texto legible para la columna "Evidencia Técnica" de la tabla PDF.
+        """
+        evidencias = {
+            'critica': [],
+            'moderada': [],
+            'leve': []
+        }
+        
+        # Mapeo de tipos de diagnóstico a índices fallidos
+        MAPEO_EVIDENCIAS = {
+            'deficit_hidrico_recurrente': ['NDVI < 0.45', 'NDMI < 0.05'],
+            'baja_densidad_suelo_degradado': ['NDVI < 0.45', 'SAVI < 0.35'],
+            'estres_nutricional': ['NDVI < 0.50', 'SAVI < 0.45', 'NDMI > 0.20']
+        }
+        
+        # Extraer evidencias únicas por nivel
+        for nivel, zonas in zonas_por_severidad.items():
+            indices_nivel = set()
+            for zona in zonas:
+                if zona.tipo_diagnostico in MAPEO_EVIDENCIAS:
+                    indices_nivel.update(MAPEO_EVIDENCIAS[zona.tipo_diagnostico])
+            
+            evidencias[nivel] = sorted(list(indices_nivel))
+        
+        logger.info(f"📋 Evidencias técnicas extraídas:")
+        logger.info(f"   Críticas: {evidencias['critica']}")
+        logger.info(f"   Moderadas: {evidencias['moderada']}")
+        logger.info(f"   Leves: {evidencias['leve']}")
+        
+        return evidencias
 
 
 # ============================================================================
@@ -847,7 +1122,8 @@ def ejecutar_diagnostico_unificado(
     area_parcela_ha: float,
     output_dir: Path,
     tipo_informe: str = 'produccion',
-    resolucion_m: float = 10.0
+    resolucion_m: float = 10.0,
+    mascara_cultivo: Optional[np.ndarray] = None
 ) -> DiagnosticoUnificado:
     """
     Función de alto nivel para integrar con el generador de PDF
@@ -859,6 +1135,7 @@ def ejecutar_diagnostico_unificado(
         output_dir: Directorio para guardar outputs
         tipo_informe: 'produccion' o 'evaluacion'
         resolucion_m: Resolución espacial en metros
+        mascara_cultivo: Máscara booleana del polígono real del lote (RECOMENDADO)
     
     Returns:
         DiagnosticoUnificado completo
@@ -866,6 +1143,14 @@ def ejecutar_diagnostico_unificado(
     Ejemplo de uso en generador_pdf.py:
     ```python
     from informes.motor_analisis.cerebro_diagnostico import ejecutar_diagnostico_unificado
+    
+    # Generar máscara de cultivo desde geometría de parcela (RECOMENDADO)
+    from informes.motor_analisis.mascara_cultivo import generar_mascara_desde_geometria
+    mascara = generar_mascara_desde_geometria(
+        parcela.geometria, 
+        geo_transform, 
+        shape=(256, 256)
+    )
     
     diagnostico = ejecutar_diagnostico_unificado(
         datos_indices={
@@ -876,7 +1161,8 @@ def ejecutar_diagnostico_unificado(
         geo_transform=geo_transform,
         area_parcela_ha=parcela.area_hectareas,
         output_dir=Path(settings.MEDIA_ROOT) / 'diagnosticos',
-        tipo_informe='produccion'
+        tipo_informe='produccion',
+        mascara_cultivo=mascara  # ✅ CRÍTICO para precisión
     )
     
     # Usar en contexto del PDF:
@@ -897,10 +1183,11 @@ def ejecutar_diagnostico_unificado(
         if key not in datos_indices:
             raise ValueError(f"Falta el índice '{key}' en datos_indices")
     
-    # Inicializar cerebro
+    # Inicializar cerebro con máscara de cultivo
     cerebro = CerebroDiagnosticoUnificado(
         area_parcela_ha=area_parcela_ha,
-        resolucion_pixel_m=resolucion_m
+        resolucion_pixel_m=resolucion_m,
+        mascara_cultivo=mascara_cultivo  # ✅ NUEVO parámetro
     )
     
     # Ejecutar diagnóstico

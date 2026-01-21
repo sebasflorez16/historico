@@ -17,132 +17,177 @@ from reportlab.lib.units import inch
 from pathlib import Path
 import os
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-def generar_tabla_desglose_severidad(desglose: dict, estilos: dict = None) -> Table:
+
+def generar_tabla_desglose_severidad(desglose: dict, estilos: dict = None, evidencias: dict = None) -> Table:
     """
-    Genera tabla profesional con desglose de áreas por severidad
+    Genera tabla PROFESIONAL con desglose de áreas por severidad + EVIDENCIA TÉCNICA
+    
+    🔧 ACTUALIZADO: Formato estándar de 1 decimal para hectáreas y porcentajes
+    
+    Mejoras UX:
+    - Diseño moderno con bordes redondeados
+    - Colores suaves y profesionales (no colores brillantes)
+    - Iconos descriptivos
+    - Tipografía clara y legible
+    - Nueva columna "Evidencia Técnica" con índices fallidos
+    - ✅ Formato estándar: 1 decimal para ha y %
     
     Args:
         desglose: Dict con keys 'critica', 'moderada', 'leve' (valores en ha)
         estilos: Dict de estilos de ReportLab (opcional)
+        evidencias: Dict opcional con evidencias técnicas por nivel {'critica': ['NDVI', 'NDMI'], ...}
     
     Returns:
         Table de ReportLab lista para agregar al PDF
-    
-    Ejemplo:
-        >>> desglose = {'critica': 12.5, 'moderada': 3.2, 'leve': 1.1}
-        >>> tabla = generar_tabla_desglose_severidad(desglose)
-        >>> story.append(tabla)
     """
     # Calcular total
     total = sum(desglose.values())
     
+    # Si no hay evidencias, crear vacías
+    if evidencias is None:
+        evidencias = {
+            'critica': [],
+            'moderada': [],
+            'leve': []
+        }
+    
     if total == 0:
-        # Si no hay áreas afectadas, retornar tabla simple
+        # Si no hay áreas afectadas, retornar tabla elegante
         data = [
-            ['Estado del Lote', 'Área (ha)'],
-            ['Sin zonas críticas detectadas', '0.00']
+            ['✓ Estado del Lote', 'Área (ha)', 'Evidencia'],
+            ['Sin zonas críticas detectadas', '0.00', 'N/A']
         ]
-        tabla = Table(data, colWidths=[350, 100])
+        tabla = Table(data, colWidths=[200, 80, 120])
         tabla.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27AE60')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey)
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#1E8449')),
+            ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
         ]))
         return tabla
     
-    # Tabla con desglose completo
+    # Tabla con desglose completo - DISEÑO PROFESIONAL + EVIDENCIA TÉCNICA
     data = [
-        ['Nivel de Severidad', 'Área (ha)', '% del Total', 'Prioridad'],
+        ['Nivel de Prioridad', 'Hectáreas', '% Área', 'Acción', 'Evidencia Técnica'],
     ]
     
-    # Fila Crítica
+    # Fila Crítica (soft red, no rojo brillante)
     if desglose['critica'] > 0:
+        evidencia_critica = ', '.join(evidencias.get('critica', [])) if evidencias.get('critica') else 'Múltiples índices'
+        pct_critica = np.clip((desglose['critica'] / total * 100), 0.0, 100.0)  # CLIP [0, 100]
         data.append([
-            '🔴 Crítica',
-            f"{desglose['critica']:.2f}",
-            f"{(desglose['critica'] / total * 100):.1f}%",
-            'INMEDIATA'
+            '● Prioridad Alta',
+            f"{desglose['critica']:.1f} ha",  # 🔧 FORMATO: 1 decimal
+            f"{pct_critica:.1f}%",
+            'Inmediata',
+            evidencia_critica
         ])
     
-    # Fila Moderada
+    # Fila Moderada (amber profesional)
     if desglose['moderada'] > 0:
+        evidencia_moderada = ', '.join(evidencias.get('moderada', [])) if evidencias.get('moderada') else 'Múltiples índices'
+        pct_moderada = np.clip((desglose['moderada'] / total * 100), 0.0, 100.0)  # CLIP [0, 100]
         data.append([
-            '🟠 Moderada',
-            f"{desglose['moderada']:.2f}",
-            f"{(desglose['moderada'] / total * 100):.1f}%",
-            'Alta'
+            '● Prioridad Media',
+            f"{desglose['moderada']:.1f} ha",  # 🔧 FORMATO: 1 decimal
+            f"{pct_moderada:.1f}%",
+            'Programar',
+            evidencia_moderada
         ])
     
-    # Fila Leve
+    # Fila Leve (amarillo suave)
     if desglose['leve'] > 0:
+        evidencia_leve = ', '.join(evidencias.get('leve', [])) if evidencias.get('leve') else 'Múltiples índices'
+        pct_leve = np.clip((desglose['leve'] / total * 100), 0.0, 100.0)  # CLIP [0, 100]
         data.append([
-            '🟡 Leve',
-            f"{desglose['leve']:.2f}",
-            f"{(desglose['leve'] / total * 100):.1f}%",
-            'Monitoreo'
+            '● Monitoreo',
+            f"{desglose['leve']:.1f} ha",  # 🔧 FORMATO: 1 decimal
+            f"{pct_leve:.1f}%",
+            'Observar',
+            evidencia_leve
         ])
     
     # Fila Total
     data.append([
-        'TOTAL AFECTADO',
-        f"{total:.2f}",
+        'TOTAL',
+        f"{total:.1f} ha",  # 🔧 FORMATO: 1 decimal
         '100%',
-        '-'
+        '-',
+        'Diagnóstico unificado'
     ])
     
-    # Crear tabla
-    tabla = Table(data, colWidths=[200, 80, 80, 90])
+    # Crear tabla con anchos optimizados (5 columnas)
+    tabla = Table(data, colWidths=[120, 70, 60, 70, 110])
     
-    # Aplicar estilos
+    # Estilos PROFESIONALES (colores suaves, legibilidad óptima)
     style_commands = [
-        # Encabezado
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),
+        # Encabezado - gris oscuro profesional
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495E')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
         
-        # Fila Total
-        ('BACKGROUND', (0, len(data)-1), (-1, len(data)-1), colors.HexColor('#34495E')),
+        # Fila Total - gris medio
+        ('BACKGROUND', (0, len(data)-1), (-1, len(data)-1), colors.HexColor('#7F8C8D')),
         ('TEXTCOLOR', (0, len(data)-1), (-1, len(data)-1), colors.whitesmoke),
         ('FONTNAME', (0, len(data)-1), (-1, len(data)-1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, len(data)-1), (-1, len(data)-1), 10),
         
         # Estilo general
         ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ('ALIGN', (0, 1), (0, -2), 'LEFT'),  # Primera columna alineada a la izquierda
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, len(data)-2), [colors.white, colors.HexColor('#F8F9FA')])
+        ('TOPPADDING', (0, 1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        
+        # Bordes profesionales
+        ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#BDC3C7')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.5, colors.HexColor('#34495E')),
+        ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.HexColor('#7F8C8D')),
+        ('ROUNDEDCORNERS', [6, 6, 6, 6]),
     ]
     
-    # Colores específicos por severidad
+    # Colores de fondo suaves por severidad (alternar para legibilidad)
     row = 1
     if desglose['critica'] > 0:
         style_commands.extend([
-            ('BACKGROUND', (0, row), (0, row), colors.HexColor('#FFCCCC')),
-            ('TEXTCOLOR', (0, row), (-1, row), colors.HexColor('#C0392B')),
+            ('BACKGROUND', (0, row), (-1, row), colors.HexColor('#FADBD8')),  # Rosa muy suave
+            ('TEXTCOLOR', (0, row), (0, row), colors.HexColor('#C0392B')),  # Rojo suave para el texto
             ('FONTNAME', (0, row), (0, row), 'Helvetica-Bold'),
         ])
         row += 1
     
     if desglose['moderada'] > 0:
         style_commands.extend([
-            ('BACKGROUND', (0, row), (0, row), colors.HexColor('#FFE5CC')),
-            ('TEXTCOLOR', (0, row), (-1, row), colors.HexColor('#D35400')),
+            ('BACKGROUND', (0, row), (-1, row), colors.HexColor('#FEF5E7')),  # Amber muy suave
+            ('TEXTCOLOR', (0, row), (0, row), colors.HexColor('#D68910')),  # Amber profesional
+            ('FONTNAME', (0, row), (0, row), 'Helvetica-Bold'),
         ])
         row += 1
     
     if desglose['leve'] > 0:
         style_commands.extend([
-            ('BACKGROUND', (0, row), (0, row), colors.HexColor('#FFF9CC')),
-            ('TEXTCOLOR', (0, row), (-1, row), colors.HexColor('#9A7D0A')),
+            ('BACKGROUND', (0, row), (-1, row), colors.HexColor('#FEF9E7')),  # Amarillo muy suave
+            ('TEXTCOLOR', (0, row), (0, row), colors.HexColor('#9A7D0A')),  # Amarillo oscuro
+            ('FONTNAME', (0, row), (0, row), 'Helvetica-Bold'),
         ])
     
     tabla.setStyle(TableStyle(style_commands))
@@ -200,9 +245,13 @@ def agregar_seccion_diagnostico_unificado(
                 ))
                 story.append(Spacer(1, 0.1*inch))
                 
+                # Extraer evidencias técnicas del metadata
+                evidencias = diagnostico.metadata.get('evidencias_tecnicas', None)
+                
                 tabla = generar_tabla_desglose_severidad(
                     diagnostico.desglose_severidad,
-                    estilos
+                    estilos,
+                    evidencias  # NUEVO: Pasar evidencias técnicas
                 )
                 story.append(tabla)
                 story.append(Spacer(1, 0.3*inch))

@@ -377,67 +377,87 @@ class GeneradorPDFProfesional:
         # Contenido del documento
         story = []
         
-        # Portada
+        # 🧠 EJECUTAR DIAGNÓSTICO UNIFICADO PRIMERO (para usar en resumen ejecutivo)
+        diagnostico_unificado = None
+        try:
+            diagnostico_unificado = self._ejecutar_diagnostico_cerebro(parcela, indices)
+            if diagnostico_unificado:
+                logger.info(f"✅ Diagnóstico unificado ejecutado: {diagnostico_unificado.get('eficiencia_lote', 0):.1f}% eficiencia")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo generar diagnóstico unificado: {str(e)}")
+        
+        # ========================================
+        # SECCIÓN 1: PORTADA
+        # ========================================
         story.extend(self._crear_portada(parcela, fecha_inicio, fecha_fin))
         story.append(PageBreak())
         
-        # Metodología de Análisis
+        # ========================================
+        # SECCIÓN 2: RESUMEN EJECUTIVO PROFESIONAL
+        # ========================================
+        story.extend(self._crear_resumen_ejecutivo(analisis_completo, parcela, datos_analisis, diagnostico_unificado))
+        # NO PageBreak - permitir que fluya con recomendaciones si hay espacio
+        
+        # ========================================
+        # SECCIÓN 3: RECOMENDACIONES GENERALES
+        # ========================================
+        story.extend(self._crear_seccion_recomendaciones(analisis_completo['recomendaciones']))
+        story.append(PageBreak())
+        
+        # ========================================
+        # ANEXOS TÉCNICOS (Para consulta detallada)
+        # ========================================
+        
+        # Anexo A: Información de la parcela + Metodología (compactar en una página si es posible)
+        story.append(Paragraph(
+            '<para alignment="center" backColor="#34495E" '
+            'leftIndent="10" rightIndent="10" spaceBefore="10" spaceAfter="10">'
+            '<font size="14" color="white"><b>📎 ANEXOS TÉCNICOS</b></font>'
+            '</para>',
+            self.estilos['TituloSeccion']
+        ))
+        story.append(Spacer(1, 0.5*cm))
+        
+        story.extend(self._crear_info_parcela(parcela))
+        story.append(Spacer(1, 0.8*cm))  # Usar Spacer en vez de PageBreak
+        
+        # Anexo B: Metodología de Análisis
         story.extend(self._crear_seccion_metodologia(parcela, indices, analisis_completo))
         story.append(PageBreak())
         
-        # Resumen ejecutivo
-        story.extend(self._crear_resumen_ejecutivo(analisis_completo, parcela, datos_analisis))
-        story.append(PageBreak())
-        
-        # Información de la parcela
-        story.extend(self._crear_info_parcela(parcela))
-        story.append(Spacer(1, 1*cm))
-        
-        # Análisis de índices
+        # Anexo C: Análisis mensual detallado (índices espectrales)
         story.extend(self._crear_seccion_ndvi(analisis_completo['ndvi'], graficos))
-        story.append(PageBreak())
+        story.append(Spacer(1, 1*cm))  # Spacer dinámico - permitir que NDMI comparta página si es corto
         
         story.extend(self._crear_seccion_ndmi(analisis_completo['ndmi'], graficos))
         story.append(PageBreak())
         
         if 'savi' in analisis_completo and analisis_completo['savi']:
             story.extend(self._crear_seccion_savi(analisis_completo['savi'], graficos))
-            story.append(PageBreak())
+            story.append(Spacer(1, 1*cm))
         
-        # Análisis de tendencias
+        # Anexo D: Análisis de tendencias
         story.extend(self._crear_seccion_tendencias(analisis_completo['tendencias'], graficos))
         story.append(PageBreak())
         
-        # Recomendaciones
-        story.extend(self._crear_seccion_recomendaciones(analisis_completo['recomendaciones']))
-        story.append(PageBreak())
-        
-        # Tabla de datos
+        # Anexo E: Tabla de datos (compacta)
         story.extend(self._crear_tabla_datos(datos_analisis))
-        story.append(PageBreak())
+        story.append(Spacer(1, 1*cm))  # Spacer en vez de PageBreak
         
-        # Galería de imágenes satelitales
+        # Anexo F: Galería de imágenes satelitales
         story.extend(self._crear_galeria_imagenes_satelitales(parcela, indices))
         story.append(PageBreak())
         
-        # 🧠 DIAGNÓSTICO UNIFICADO - CEREBRO DE ANÁLISIS (nuevo)
-        try:
-            diagnostico_unificado = self._ejecutar_diagnostico_cerebro(parcela, indices)
-            if diagnostico_unificado:
-                story.extend(self._crear_seccion_diagnostico_unificado(diagnostico_unificado))
-                story.append(PageBreak())
-        except Exception as e:
-            logger.warning(f"⚠️ No se pudo generar diagnóstico unificado: {str(e)}")
+        # ========================================
+        # SECCIÓN FINAL: DIAGNÓSTICO DETALLADO Y PLAN DE ACCIÓN
+        # ========================================
+        if diagnostico_unificado:
+            story.extend(self._crear_seccion_guia_intervencion(diagnostico_unificado, parcela))
+            # NO PageBreak al final - es la última sección
         
-        # Bloque de cierre conectando análisis con decisiones
-        story.extend(self._crear_bloque_cierre())
-        story.append(PageBreak())
-        
-        # Página de créditos
+        # Página de créditos (opcional - solo si hay espacio)
+        story.append(Spacer(1, 2*cm))
         story.extend(self._crear_pagina_creditos())
-        
-        # Bloque de cierre
-        story.extend(self._crear_bloque_cierre())
         
         # Construir PDF con headers y footers
         doc.build(story, onFirstPage=self._crear_header_footer, 
@@ -506,9 +526,6 @@ class GeneradorPDFProfesional:
         # Gráfico de evolución temporal
         graficos['evolucion_temporal'] = self._grafico_evolucion_temporal(datos)
         
-        # Gráfico comparativo
-        graficos['comparativo'] = self._grafico_comparativo(datos)
-        
         return graficos
     
     def _grafico_evolucion_temporal(self, datos: List[Dict]) -> BytesIO:
@@ -543,48 +560,6 @@ class GeneradorPDFProfesional:
         plt.tight_layout()
         
         # Guardar en buffer
-        buffer = BytesIO()
-        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
-        buffer.seek(0)
-        plt.close()
-        
-        return buffer
-    
-    def _grafico_comparativo(self, datos: List[Dict]) -> BytesIO:
-        """Genera gráfico de barras comparativo"""
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # Calcular promedios (filtrar None)
-        ndvi_valores = [d.get('ndvi') for d in datos if d.get('ndvi') is not None]
-        ndmi_valores = [d.get('ndmi') for d in datos if d.get('ndmi') is not None]
-        savi_valores = [d.get('savi') for d in datos if d.get('savi') is not None]
-        
-        ndvi_prom = sum(ndvi_valores) / len(ndvi_valores) if ndvi_valores else 0
-        ndmi_prom = sum(ndmi_valores) / len(ndmi_valores) if ndmi_valores else 0
-        savi_prom = sum(savi_valores) / len(savi_valores) if savi_valores else 0
-        
-        indices = ['NDVI\n(Salud)', 'NDMI\n(Humedad)', 'SAVI\n(Cobertura)']
-        valores = [ndvi_prom, ndmi_prom, savi_prom]
-        colores_barra = ['#2E8B57', '#17a2b8', '#FF7A00']
-        
-        # Crear barras
-        bars = ax.bar(indices, valores, color=colores_barra, alpha=0.8, edgecolor='black', linewidth=1.5)
-        
-        # Añadir valores encima de las barras
-        for bar, valor in zip(bars, valores):
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{valor:.3f}',
-                   ha='center', va='bottom', fontsize=12, fontweight='bold')
-        
-        ax.set_ylabel('Valor Promedio', fontsize=12, fontweight='bold')
-        ax.set_title('Comparación de Índices - Promedio del Período', 
-                    fontsize=14, fontweight='bold', color='#2c3e50')
-        ax.set_ylim(0, max(valores) * 1.2)
-        ax.grid(axis='y', alpha=0.3)
-        
-        plt.tight_layout()
-        
         buffer = BytesIO()
         plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
         buffer.seek(0)
@@ -940,73 +915,167 @@ class GeneradorPDFProfesional:
         
         return elements
     
-    def _crear_resumen_ejecutivo(self, analisis: Dict, parcela: Parcela, datos: List[Dict]) -> List:
-        """Crea resumen ejecutivo del informe basado en análisis técnico determinístico"""
+    def _crear_resumen_ejecutivo(self, analisis: Dict, parcela: Parcela, datos: List[Dict], diagnostico_unificado: Optional[Dict] = None) -> List:
+        """
+        🎯 RESUMEN EJECUTIVO PROFESIONAL - Diseño UX Mejorado
+        
+        Características:
+        - Banner con esquinas redondeadas y sombra suave
+        - Colores profesionales (amber/soft red para alertas)
+        - Terminología comercial (no técnica)
+        - Layout compacto con ParagraphStyles apropiados
+        - Sin overlap de texto
+        """
         elements = []
-        # Decoración superior
-        elements.extend(self._decorar_seccion('6.png', height=1*cm))
-        # Título
-        titulo = Paragraph("Resumen Ejecutivo", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
-
-        # Conclusión rápida para el productor
-        conclusion = Paragraph(
-            """
-            <strong>Conclusión rápida para el productor:</strong><br/>
-            Este informe proporciona un análisis detallado de las condiciones del terreno analizado, 
-            útil tanto para cultivos establecidos como para terrenos en evaluación para primera siembra. 
-            Se recomienda priorizar las acciones sugeridas en las secciones de recomendaciones 
-            para optimizar el manejo y minimizar riesgos.
-            """,
-            self.estilos['TextoNormal']
-        )
-        elements.append(conclusion)
-        elements.append(Spacer(1, 0.5*cm))
-
-        # Obtener valores numéricos para mejorar la narrativa
-        ndvi_prom = analisis['ndvi'].get('estadisticas', {}).get('promedio', 0)
-        ndmi_prom = analisis['ndmi'].get('estadisticas', {}).get('promedio', 0)
-        savi_prom = analisis['savi'].get('estadisticas', {}).get('promedio', 0) if analisis.get('savi') else 0
         
-        # Obtener descripciones de tendencias (sin corchetes ni estructuras JSON)
-        ndvi_tend = analisis['ndvi'].get('interpretacion_simple', 'Sin datos suficientes')
-        ndmi_tend = analisis['ndmi'].get('interpretacion_simple', 'Sin datos suficientes')
-        savi_tend = analisis['savi'].get('interpretacion_simple', 'Sin datos suficientes') if analisis.get('savi') else 'Sin datos suficientes'
+        # Espaciado superior
+        elements.append(Spacer(1, 1.5*cm))
         
-        # Limpiar HTML de las tendencias
-        ndvi_tend = limpiar_html_completo(ndvi_tend)
-        ndmi_tend = limpiar_html_completo(ndmi_tend)
-        savi_tend = limpiar_html_completo(savi_tend)
-        
-        # Resumen de análisis con texto claro y sin estructuras técnicas
-        resumen_texto = f"""
-            Durante el período analizado (de {datos[0]['periodo']} a {datos[-1]['periodo']}), 
-            los índices de vegetación presentaron los siguientes comportamientos:<br/><br/>
+        # ===== BANNER PROFESIONAL CON ESTADO (USANDO KPIs UNIFICADOS) =====
+        if diagnostico_unificado:
+            # 🔧 USAR KPIs unificados si están disponibles
+            kpis = diagnostico_unificado.get('kpis')
+            if kpis:
+                eficiencia = kpis.eficiencia
+                area_afectada = kpis.area_afectada_ha
+                # Usar métodos de formateo estándar
+                eficiencia_str = kpis.formatear_eficiencia()
+                area_afectada_str = kpis.formatear_area_afectada()
+            else:
+                # Fallback a valores antiguos
+                eficiencia = diagnostico_unificado.get('eficiencia_lote', 0)
+                area_afectada = diagnostico_unificado.get('area_afectada_total', 0)
+                eficiencia_str = f"{eficiencia:.0f}%"
+                area_afectada_str = f"{area_afectada:.1f} ha"
             
-            <strong>NDVI (Salud Vegetal):</strong> Valor promedio de {ndvi_prom:.3f}. {ndvi_tend}<br/><br/>
+            # Determinar color profesional y estado
+            if eficiencia >= 80:
+                color_fondo = '#27AE60'  # Verde profesional
+                color_borde = '#1E8449'
+                estado = 'EXCELENTE'
+                mensaje = 'El cultivo presenta condiciones óptimas'
+                icono = '✓'
+            elif eficiencia >= 60:
+                color_fondo = '#F39C12'  # Amber profesional (no rojo agresivo)
+                color_borde = '#D68910'
+                estado = 'REQUIERE ATENCIÓN'
+                mensaje = 'Detectadas áreas que necesitan intervención'
+                icono = '⚠'
+            else:
+                color_fondo = '#E67E22'  # Soft red (no rojo brillante)
+                color_borde = '#CA6F1E'
+                estado = 'CRÍTICO - ACCIÓN INMEDIATA'
+                mensaje = 'Múltiples zonas requieren intervención urgente'
+                icono = '●'
             
-            <strong>NDMI (Condición Hídrica):</strong> Valor promedio de {ndmi_prom:.3f}. {ndmi_tend}<br/><br/>
+            # Estilo de párrafo sin overlap
+            estilo_banner = ParagraphStyle(
+                'BannerProfesional',
+                parent=self.estilos['TextoNormal'],
+                fontSize=11,
+                leading=15,  # Espaciado de línea para evitar overlap
+                textColor=colors.white,
+                alignment=TA_CENTER,
+                spaceAfter=8,
+                spaceBefore=8
+            )
             
-            <strong>SAVI (Cobertura del Suelo):</strong> Valor promedio de {savi_prom:.3f}. {savi_tend}<br/>
-            """
+            estilo_numero = ParagraphStyle(
+                'NumeroGrande',
+                parent=self.estilos['TextoNormal'],
+                fontSize=42,
+                leading=50,
+                textColor=colors.white,
+                alignment=TA_CENTER,
+                fontName='Helvetica-Bold',
+                spaceAfter=5,
+                spaceBefore=10
+            )
+            
+            # Contenido del banner
+            data_resumen = [
+                # Fila 1: Estado y mensaje
+                [Paragraph(
+                    f'<b>{icono}  ESTADO DEL CULTIVO: {estado}</b><br/>{mensaje}',
+                    estilo_banner
+                )],
+                # Fila 2: Eficiencia (número grande)
+                [Paragraph(
+                    f'{eficiencia:.0f}%',
+                    estilo_numero
+                )],
+                # Fila 3: Texto descriptivo con formato estándar (1 decimal)
+                [Paragraph(
+                    f'<font size="10">Eficiencia productiva actual<br/>'
+                    f'<i>{area_afectada_str} con recomendaciones</i></font>',
+                    estilo_banner
+                )],
+                # Fila 4: Redirección elegante
+                [Paragraph(
+                    '<font size="9"><i>Consulte la sección "Diagnóstico Detallado" '
+                    'al final del documento para el plan de acción completo</i></font>',
+                    estilo_banner
+                )]
+            ]
+            
+            tabla_resumen = Table(data_resumen, colWidths=[13*cm])
+            tabla_resumen.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(color_fondo)),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (0, 0), 18),
+                ('BOTTOMPADDING', (0, 0), (0, 0), 10),
+                ('TOPPADDING', (0, 1), (0, 1), 10),
+                ('BOTTOMPADDING', (0, 1), (0, 1), 8),
+                ('TOPPADDING', (0, 2), (0, 2), 5),
+                ('BOTTOMPADDING', (0, 2), (0, 2), 10),
+                ('TOPPADDING', (0, 3), (0, 3), 8),
+                ('BOTTOMPADDING', (0, 3), (0, 3), 15),
+                ('BOX', (0, 0), (-1, -1), 2.5, colors.HexColor(color_borde)),
+                ('ROUNDEDCORNERS', [12, 12, 12, 12]),
+                ('LEFTPADDING', (0, 0), (-1, -1), 20),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+            ]))
+            
+            # Centrar el banner con sombra suave (efecto visual)
+            ancho_util = self.ancho - 2 * self.margen
+            tabla_wrapper = Table([[tabla_resumen]], colWidths=[ancho_util])
+            tabla_wrapper.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            elements.append(tabla_wrapper)
+            elements.append(Spacer(1, 0.8*cm))
+            
+            # Info adicional compacta (opcional)
+            if area_afectada > 0:
+                info_adicional = Paragraph(
+                    f'<para alignment="center" backColor="#F8F9FA" '
+                    f'borderColor="#BDC3C7" borderWidth="1" borderRadius="6" '
+                    f'leftIndent="12" rightIndent="12" spaceBefore="8" spaceAfter="8">'
+                    f'<font size="9" color="#34495E">'
+                    f'<b>Resumen Rápido:</b> De las {parcela.area_hectareas:.1f} hectáreas totales, '
+                    f'{area_afectada:.1f} ha presentan oportunidades de mejora. '
+                    f'Vea el diagnóstico detallado para recomendaciones específicas por zona.'
+                    f'</font></para>',
+                    self.estilos['TextoNormal']
+                )
+                elements.append(info_adicional)
+            
+        else:
+            # Si no hay diagnóstico, mostrar mensaje limpio
+            elements.append(Paragraph(
+                '<para alignment="center" backColor="#ECF0F1" '
+                'leftIndent="40" rightIndent="40" spaceBefore="30" spaceAfter="30">'
+                '<font size="12" color="#7F8C8D">'
+                'Diagnóstico en proceso...<br/>'
+                'Los datos técnicos están disponibles en las secciones siguientes.'
+                '</font></para>',
+                self.estilos['TextoNormal']
+            ))
         
-        resumen = Paragraph(resumen_texto, self.estilos['TextoNormal'])
-        elements.append(resumen)
-        elements.append(Spacer(1, 0.5*cm))
-
-        # Declaración de validez del informe
-        validez = Paragraph(
-            """
-            <i>Este informe es válido como herramienta de evaluación y planificación agrícola, 
-            basado en datos satelitales y análisis automatizado proporcionado por el Motor de Análisis 
-            Automatizado AgroTech.</i>
-            """,
-            self.estilos['TextoNormal']
-        )
-        elements.append(validez)
-        elements.append(Spacer(1, 0.5*cm))
-
+        elements.append(Spacer(1, 1*cm))
+        
         return elements
 
     def _crear_seccion_precipitacion(self, datos: List[Dict]) -> List:
@@ -1380,18 +1449,6 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
 """
             elements.append(Spacer(1, 0.5*cm))
             elements.append(Paragraph(tendencia_texto, self.estilos['TextoNormal']))
-        
-        # Gráfico comparativo
-        if 'comparativo' in graficos:
-            elements.append(Spacer(1, 1*cm))
-            img = Image(graficos['comparativo'], width=14*cm, height=8*cm)
-            elements.append(img)
-            elements.append(Spacer(1, 0.3*cm))
-            pie = Paragraph(
-                "<strong>Figura 2:</strong> Comparación de promedios de índices durante el período.",
-                self.estilos['PieImagen']
-            )
-            elements.append(pie)
         
         return elements
     
@@ -1909,17 +1966,24 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         """
         Ejecuta el Cerebro de Diagnóstico Unificado usando datos del caché (IndiceMensual)
         
+        🔧 MEJORAS INTEGRADAS:
+        - Generación de máscara de cultivo desde geometría de parcela
+        - Sistema de KPIs unificados con validación matemática
+        - Formateo estándar de decimales (1 decimal para ha y %)
+        
         Args:
             parcela: Parcela a analizar
             indices: Lista de IndiceMensual disponibles
             
         Returns:
-            Dict con resultados del diagnóstico o None si falla
+            Dict con resultados del diagnóstico + KPIs unificados, o None si falla
         """
         try:
             import numpy as np
             from pathlib import Path
             from informes.motor_analisis.cerebro_diagnostico import ejecutar_diagnostico_unificado
+            from informes.motor_analisis.kpis_unificados import KPIsUnificados
+            from informes.motor_analisis.mascara_cultivo import generar_mascara_desde_geometria
             
             # Verificar que tengamos datos recientes
             if not indices:
@@ -1990,10 +2054,6 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 logger.error(f"Error obteniendo bbox: {str(e)}")
                 return None
             
-            # Crear directorio de salida
-            output_dir = Path(settings.MEDIA_ROOT) / 'diagnosticos' / f'parcela_{parcela.id}'
-            output_dir.mkdir(parents=True, exist_ok=True)
-            
             # Convertir bbox a geo_transform GDAL (formato de 6 elementos)
             width, height = size[1], size[0]  # (cols, rows)
             delta_lon = (bbox[2] - bbox[0]) / width
@@ -2007,7 +2067,24 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 -delta_lat    # Paso en Y (negativo porque va de norte a sur)
             )
             
-            # Ejecutar diagnóstico unificado
+            # GENERAR MÁSCARA DE CULTIVO desde geometría de parcela
+            mascara_cultivo = None
+            try:
+                mascara_cultivo = generar_mascara_desde_geometria(
+                    geometria=parcela.geometria,
+                    geo_transform=geo_transform,
+                    shape=size
+                )
+                logger.info(f"✅ Máscara de cultivo generada: {mascara_cultivo.shape}, {mascara_cultivo.sum()} píxeles válidos")
+            except Exception as e:
+                logger.warning(f"⚠️  No se pudo generar máscara de cultivo: {str(e)}. Continuando sin máscara.")
+                mascara_cultivo = None
+            
+            # Crear directorio de salida
+            output_dir = Path(settings.MEDIA_ROOT) / 'diagnosticos' / f'parcela_{parcela.id}'
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Ejecutar diagnóstico unificado CON máscara de cultivo
             logger.info(f"🧠 Ejecutando Cerebro de Diagnóstico Unificado...")
             diagnostico_obj = ejecutar_diagnostico_unificado(
                 datos_indices=arrays_indices,
@@ -2015,12 +2092,27 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 area_parcela_ha=parcela.area_hectareas or 10.0,
                 output_dir=str(output_dir),
                 tipo_informe='produccion',
-                resolucion_m=10.0
+                resolucion_m=10.0,
+                mascara_cultivo=mascara_cultivo  # 🔧 INTEGRACIÓN: Pasar máscara al cerebro
             )
             
             if not diagnostico_obj:
                 logger.warning("El diagnóstico no retornó resultados")
                 return None
+            
+            # 🔧 CREAR KPIs UNIFICADOS con validación matemática
+            try:
+                kpis = KPIsUnificados.desde_diagnostico(
+                    diagnostico=diagnostico_obj,
+                    area_total_ha=parcela.area_hectareas or 10.0
+                )
+                # Validar coherencia matemática
+                kpis.validar_coherencia()
+                logger.info(f"✅ KPIs unificados creados: {kpis.formatear_eficiencia()} eficiencia, {kpis.formatear_area_afectada()} afectadas")
+            except Exception as e:
+                logger.error(f"❌ Error creando KPIs unificados: {str(e)}")
+                # Continuar sin KPIs si falla (retrocompatibilidad)
+                kpis = None
             
             # Convertir objeto DiagnosticoUnificado a dict para uso en PDF
             resultado = {
@@ -2030,7 +2122,8 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 'resumen_ejecutivo': diagnostico_obj.resumen_ejecutivo,
                 'diagnostico_detallado': diagnostico_obj.diagnostico_detallado,
                 'desglose_severidad': diagnostico_obj.desglose_severidad,
-                'zona_prioritaria': None
+                'zona_prioritaria': None,
+                'kpis': kpis  # 🔧 AGREGAR: Sistema de KPIs unificados
             }
             
             # Agregar zona prioritaria si existe
@@ -2047,7 +2140,11 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                     'recomendaciones': zona.recomendaciones
                 }
             
-            logger.info(f"✅ Diagnóstico completado: {resultado['eficiencia_lote']:.1f}% eficiencia, {resultado['area_afectada_total']:.2f} ha afectadas")
+            # Logging con formato estándar
+            if kpis:
+                logger.info(f"✅ Diagnóstico completado: {kpis.formatear_eficiencia()} eficiencia, {kpis.formatear_area_afectada()} afectadas")
+            else:
+                logger.info(f"✅ Diagnóstico completado: {resultado['eficiencia_lote']:.1f}% eficiencia, {resultado['area_afectada_total']:.1f} ha afectadas")
             return resultado
             
         except Exception as e:
@@ -2056,6 +2153,238 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             logger.error(traceback.format_exc())
             return None
     
+    def _crear_seccion_guia_intervencion(self, diagnostico: Dict, parcela: Parcela) -> List:
+        """
+        🔍 DIAGNÓSTICO DETALLADO - Sección Final con UX Profesional Mejorado
+        
+        Características:
+        - Mapa y tabla de severidad siempre juntos (KeepTogether)
+        - Layout compacto y profesional
+        - Narrativa en lenguaje de campo (no técnico)
+        - Sin saltos de página innecesarios
+        - Colores y terminología profesional
+        """
+        elements = []
+        
+        # Título de sección profesional
+        titulo = Paragraph(
+            '<para alignment="center" backColor="#34495E" '
+            'leftIndent="15" rightIndent="15" spaceBefore="12" spaceAfter="12">'
+            '<font size="16" color="white"><b>DIAGNÓSTICO DETALLADO Y PLAN DE ACCIÓN</b></font>'
+            '</para>',
+            self.estilos['TituloSeccion']
+        )
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.8*cm))
+        
+        # Resumen ejecutivo del diagnóstico CON KPIs UNIFICADOS
+        kpis = diagnostico.get('kpis')
+        if kpis:
+            eficiencia = kpis.eficiencia
+            area_afectada = kpis.area_afectada_ha
+            porcentaje_afectado = kpis.porcentaje_afectado
+            area_total = kpis.area_total_ha
+        else:
+            # Fallback a valores antiguos
+            eficiencia = diagnostico.get('eficiencia_lote', 0)
+            area_afectada = diagnostico.get('area_afectada_total', 0)
+            area_total = parcela.area_hectareas
+            porcentaje_afectado = (area_afectada / area_total * 100) if area_total > 0 else 0
+        
+        # Estilo de párrafo para evitar overlap
+        estilo_resumen = ParagraphStyle(
+            'ResumenDiagnostico',
+            parent=self.estilos['TextoNormal'],
+            fontSize=10,
+            leading=14,
+            alignment=TA_JUSTIFY,
+            spaceAfter=6
+        )
+        
+        resumen_texto = Paragraph(
+            f'<b>Resumen del Análisis:</b> De las {area_total:.1f} hectáreas evaluadas, '
+            f'se detectaron {area_afectada:.1f} hectáreas ({porcentaje_afectado:.1f}%) '
+            f'con oportunidades de mejora. La eficiencia productiva actual del lote es del '
+            f'<b>{eficiencia:.0f}%</b>. A continuación se detallan las zonas específicas que '
+            f'requieren atención y las acciones recomendadas.',
+            estilo_resumen
+        )
+        elements.append(resumen_texto)
+        elements.append(Spacer(1, 0.6*cm))
+        
+        # ===== MAPA + TABLA DE SEVERIDAD JUNTOS (KeepTogether) =====
+        mapa_tabla_elements = []
+        
+        # Subtítulo para la visualización
+        subtitulo_mapa = Paragraph(
+            '<font size="12" color="#2C3E50"><b>Mapa de Zonas Detectadas</b></font>',
+            self.estilos['SubtituloSeccion']
+        )
+        mapa_tabla_elements.append(subtitulo_mapa)
+        mapa_tabla_elements.append(Spacer(1, 0.3*cm))
+        
+        # Mapa grande y claro
+        mapa_path = diagnostico.get('mapa_intervencion_limpio_path') or diagnostico.get('mapa_diagnostico_path')
+        if mapa_path and os.path.exists(mapa_path):
+            img = Image(mapa_path, width=17*cm, height=13*cm)
+            mapa_tabla_elements.append(img)
+            mapa_tabla_elements.append(Spacer(1, 0.5*cm))
+        
+        # Tabla de desglose de severidad
+        if diagnostico.get('desglose_severidad'):
+            from informes.helpers.diagnostico_pdf_helper import generar_tabla_desglose_severidad
+            
+            subtitulo_tabla = Paragraph(
+                '<font size="12" color="#2C3E50"><b>Desglose por Nivel de Prioridad</b></font>',
+                self.estilos['SubtituloSeccion']
+            )
+            mapa_tabla_elements.append(subtitulo_tabla)
+            mapa_tabla_elements.append(Spacer(1, 0.3*cm))
+            
+            try:
+                # Extraer evidencias técnicas del metadata
+                evidencias = diagnostico.get('metadata', {}).get('evidencias_tecnicas', None)
+                
+                tabla_desglose = generar_tabla_desglose_severidad(
+                    diagnostico['desglose_severidad'],
+                    self.estilos,
+                    evidencias  # NUEVO: Pasar evidencias técnicas
+                )
+                mapa_tabla_elements.append(tabla_desglose)
+            except Exception as e:
+                logger.warning(f"Error generando tabla de desglose: {e}")
+        
+        # Usar KeepTogether para que mapa y tabla nunca se separen
+        try:
+            elements.append(KeepTogether(mapa_tabla_elements))
+        except:
+            # Fallback: agregar elementos sin KeepTogether si falla
+            elements.extend(mapa_tabla_elements)
+        
+        elements.append(Spacer(1, 0.8*cm))
+        
+        # ===== ZONAS CRÍTICAS CON NARRATIVA DE CAMPO =====
+        if diagnostico.get('zonas_criticas'):
+            elements.append(Paragraph(
+                '<para alignment="left" backColor="#E8F8F5" '
+                'borderColor="#1ABC9C" borderWidth="2" borderPadding="10" borderRadius="6">'
+                '<font size="12" color="#16A085"><b>Zonas que Requieren Atención</b></font>'
+                '</para>',
+                self.estilos['SubtituloSeccion']
+            ))
+            elements.append(Spacer(1, 0.5*cm))
+            
+            for i, zona in enumerate(diagnostico['zonas_criticas'][:5], 1):  # Max 5 zonas
+                etiqueta = zona.get('etiqueta_comercial', 'Zona con problemas')
+                area_ha = zona.get('area_hectareas', 0)
+                lat, lon = zona.get('centroide_geo', (0, 0))
+                valores = zona.get('valores_indices', {})
+                
+                # Generar narrativa en lenguaje de campo
+                narrativa = self._generar_narrativa_campo(
+                    etiqueta, area_ha,
+                    valores.get('ndvi', 0),
+                    valores.get('ndmi', 0),
+                    valores.get('savi', 0)
+                )
+                
+                # Estilo para evitar overlap
+                estilo_zona = ParagraphStyle(
+                    f'Zona{i}',
+                    parent=self.estilos['TextoNormal'],
+                    fontSize=9,
+                    leading=12,
+                    spaceAfter=4
+                )
+                
+                # Cuadro de zona individual (compacto)
+                zona_data = [[Paragraph(
+                    f'<b>Zona {i}: {etiqueta}</b><br/>'
+                    f'{narrativa}<br/><br/>'
+                    f'<font size="8" color="#7F8C8D">'
+                    f'<b>Ubicación:</b> {lat:.6f}, {lon:.6f} | '
+                    f'<b>Área:</b> {area_ha:.1f} ha'  # 🔧 FORMATO: 1 decimal
+                    f'</font>',
+                    estilo_zona
+                )]]
+                
+                tabla_zona = Table(zona_data, colWidths=[15*cm])
+                tabla_zona.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FDFEFE')),
+                    ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#BDC3C7')),
+                    ('TOPPADDING', (0, 0), (-1, -1), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('ROUNDEDCORNERS', [6, 6, 6, 6]),
+                ]))
+                
+                elements.append(tabla_zona)
+                elements.append(Spacer(1, 0.4*cm))
+        
+        # ===== RECOMENDACIONES GENERALES (Opcional, compacto) =====
+        if diagnostico.get('recomendaciones_priorizadas'):
+            elements.append(Spacer(1, 0.5*cm))
+            elements.append(Paragraph(
+                '<para alignment="left" backColor="#FFF3CD" '
+                'borderColor="#FFC107" borderWidth="2" borderPadding="10" borderRadius="6">'
+                '<font size="11" color="#856404"><b>💡 Recomendaciones Generales</b></font>'
+                '</para>',
+                self.estilos['SubtituloSeccion']
+            ))
+            elements.append(Spacer(1, 0.3*cm))
+            
+            estilo_recs = ParagraphStyle(
+                'Recomendaciones',
+                parent=self.estilos['TextoNormal'],
+                fontSize=9,
+                leading=13,
+                alignment=TA_JUSTIFY
+            )
+            
+            recs_texto = '<br/>'.join([
+                f"• {rec}" for rec in diagnostico['recomendaciones_priorizadas'][:3]
+            ])
+            elements.append(Paragraph(recs_texto, estilo_recs))
+        
+        return elements
+    
+    def _generar_narrativa_campo(self, etiqueta: str, area_ha: float, ndvi: float, ndmi: float, savi: float) -> str:
+        """
+        Genera narrativa en lenguaje de campo (no técnico) para una zona crítica
+        
+        Args:
+            etiqueta: Diagnóstico técnico (ej: "Déficit Hídrico Recurrente")
+            area_ha: Área afectada en hectáreas
+            ndvi, ndmi, savi: Valores de índices
+            
+        Returns:
+            Texto descriptivo para el agricultor
+        """
+        narrativas = {
+            'Déficit Hídrico Recurrente': (
+                f"Esta zona de {area_ha:.1f} hectáreas muestra signos claros de falta de agua. "
+                f"Las plantas presentan bajo vigor (NDVI: {ndvi:.2f}) y muy baja humedad (NDMI: {ndmi:.2f}). "
+                f"Es probable que el riego no esté llegando de manera uniforme o que haya problemas con el sistema."
+            ),
+            'Baja Densidad / Suelo Degradado': (
+                f"En esta área de {area_ha:.1f} hectáreas, la cobertura vegetal es insuficiente (SAVI: {savi:.2f}). "
+                f"Puede deberse a fallas en la germinación, suelo compactado o pérdida de fertilidad. "
+                f"El vigor general es bajo (NDVI: {ndvi:.2f}), lo que indica que las plantas no están desarrollándose bien."
+            ),
+            'Posible Estrés Nutricional': (
+                f"Esta zona de {area_ha:.1f} hectáreas tiene agua disponible (NDMI: {ndmi:.2f}), "
+                f"pero las plantas muestran bajo desarrollo (NDVI: {ndvi:.2f}). "
+                f"Esto sugiere falta de nutrientes, especialmente nitrógeno. La cobertura es irregular (SAVI: {savi:.2f})."
+            )
+        }
+        
+        return narrativas.get(etiqueta, 
+            f"Zona de {area_ha:.1f} hectáreas con condiciones subóptimas que requieren evaluación en campo."
+        )
+    
+    # Mantener método antiguo para compatibilidad temporal (será removido)
     def _crear_seccion_diagnostico_unificado(self, diagnostico: Dict) -> List:
         """
         Crea la sección de diagnóstico unificado en el PDF
@@ -2083,9 +2412,13 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         # Desglose de severidad como tabla
         if diagnostico.get('desglose_severidad'):
             try:
+                # Extraer evidencias técnicas del metadata
+                evidencias = diagnostico.get('metadata', {}).get('evidencias_tecnicas', None)
+                
                 tabla_desglose = generar_tabla_desglose_severidad(
                     diagnostico['desglose_severidad'],
-                    self.estilos
+                    self.estilos,
+                    evidencias  # NUEVO: Pasar evidencias técnicas
                 )
                 elements.append(tabla_desglose)
                 elements.append(Spacer(1, 0.5*cm))
