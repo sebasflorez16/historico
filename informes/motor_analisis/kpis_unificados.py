@@ -160,13 +160,13 @@ class KPIsUnificados:
         num_leves = len(zonas_por_sev.get('leve', []))
         
         kpis = cls(
-            area_total_ha=round(area_total_ha, 1),
-            area_afectada_ha=round(area_afectada, 1),
+            area_total_ha=round(area_total_ha, 2),
+            area_afectada_ha=round(area_afectada, 2),
             porcentaje_afectado=round(porcentaje_afectado, 1),
             eficiencia=round(eficiencia, 1),
-            area_critica_ha=round(area_critica, 1),
-            area_moderada_ha=round(area_moderada, 1),
-            area_leve_ha=round(area_leve, 1),
+            area_critica_ha=round(area_critica, 2),
+            area_moderada_ha=round(area_moderada, 2),
+            area_leve_ha=round(area_leve, 2),
             porcentaje_critico=round(porcentaje_critico, 1),
             porcentaje_moderado=round(porcentaje_moderado, 1),
             porcentaje_leve=round(porcentaje_leve, 1),
@@ -177,13 +177,13 @@ class KPIsUnificados:
         )
         
         logger.info("📊 KPIs Unificados calculados:")
-        logger.info(f"   Área total: {kpis.area_total_ha:.1f} ha")
-        logger.info(f"   Área afectada: {kpis.area_afectada_ha:.1f} ha ({kpis.porcentaje_afectado:.1f}%)")
+        logger.info(f"   Área total: {kpis.area_total_ha:.2f} ha")
+        logger.info(f"   Área afectada: {kpis.area_afectada_ha:.2f} ha ({kpis.porcentaje_afectado:.1f}%)")
         logger.info(f"   Eficiencia: {kpis.eficiencia:.1f}%")
         logger.info(f"   Desglose:")
-        logger.info(f"     🔴 Crítica: {kpis.area_critica_ha:.1f} ha ({kpis.porcentaje_critico:.1f}%)")
-        logger.info(f"     🟠 Moderada: {kpis.area_moderada_ha:.1f} ha ({kpis.porcentaje_moderado:.1f}%)")
-        logger.info(f"     🟡 Leve: {kpis.area_leve_ha:.1f} ha ({kpis.porcentaje_leve:.1f}%)")
+        logger.info(f"     🔴 Crítica: {kpis.area_critica_ha:.2f} ha ({kpis.porcentaje_critico:.1f}%)")
+        logger.info(f"     🟠 Moderada: {kpis.area_moderada_ha:.2f} ha ({kpis.porcentaje_moderado:.1f}%)")
+        logger.info(f"     🟡 Leve: {kpis.area_leve_ha:.2f} ha ({kpis.porcentaje_leve:.1f}%)")
         
         return kpis
     
@@ -244,43 +244,43 @@ class KPIsUnificados:
     # ========================================================================
     
     def formatear_area_total(self) -> str:
-        """Retorna: 'X.X ha'"""
-        return f"{self.area_total_ha:.1f} ha"
+        """Retorna: 'XX.XX ha' con 2 decimales para máxima precisión"""
+        return f"{self.area_total_ha:.2f} ha"
     
     def formatear_area_afectada(self) -> str:
-        """Retorna: 'X.X ha'"""
-        return f"{self.area_afectada_ha:.1f} ha"
+        """Retorna: 'XX.XX ha' con 2 decimales para máxima precisión"""
+        return f"{self.area_afectada_ha:.2f} ha"
     
     def formatear_porcentaje_afectado(self) -> str:
-        """Retorna: 'X.X%'"""
+        """Retorna: 'XX.X%' con 1 decimal"""
         return f"{self.porcentaje_afectado:.1f}%"
     
     def formatear_eficiencia(self) -> str:
-        """Retorna: 'X.X%'"""
+        """Retorna: 'XX.X%' con 1 decimal"""
         return f"{self.eficiencia:.1f}%"
     
     def formatear_area_critica(self) -> str:
-        """Retorna: 'X.X ha'"""
-        return f"{self.area_critica_ha:.1f} ha"
+        """Retorna: 'XX.XX ha' con 2 decimales para máxima precisión"""
+        return f"{self.area_critica_ha:.2f} ha"
     
     def formatear_area_moderada(self) -> str:
-        """Retorna: 'X.X ha'"""
-        return f"{self.area_moderada_ha:.1f} ha"
+        """Retorna: 'XX.XX ha' con 2 decimales para máxima precisión"""
+        return f"{self.area_moderada_ha:.2f} ha"
     
     def formatear_area_leve(self) -> str:
-        """Retorna: 'X.X ha'"""
-        return f"{self.area_leve_ha:.1f} ha"
+        """Retorna: 'XX.XX ha' con 2 decimales para máxima precisión"""
+        return f"{self.area_leve_ha:.2f} ha"
     
     def formatear_porcentaje_critico(self) -> str:
-        """Retorna: 'X.X%'"""
+        """Retorna: 'XX.X%' con 1 decimal"""
         return f"{self.porcentaje_critico:.1f}%"
     
     def formatear_porcentaje_moderado(self) -> str:
-        """Retorna: 'X.X%'"""
+        """Retorna: 'XX.X%' con 1 decimal"""
         return f"{self.porcentaje_moderado:.1f}%"
     
     def formatear_porcentaje_leve(self) -> str:
-        """Retorna: 'X.X%'"""
+        """Retorna: 'XX.X%' con 1 decimal"""
         return f"{self.porcentaje_leve:.1f}%"
     
     # ========================================================================
@@ -289,11 +289,11 @@ class KPIsUnificados:
     
     def obtener_area_sana(self) -> float:
         """Retorna área sin afectaciones en hectáreas"""
-        return round(self.area_total_ha - self.area_afectada_ha, 1)
+        return round(self.area_total_ha - self.area_afectada_ha, 2)
     
     def formatear_area_sana(self) -> str:
-        """Retorna: 'X.X ha'"""
-        return f"{self.obtener_area_sana():.1f} ha"
+        """Retorna: 'XX.XX ha' con 2 decimales para máxima precisión"""
+        return f"{self.obtener_area_sana():.2f} ha"
     
     def obtener_estado_lote(self) -> str:
         """

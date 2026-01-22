@@ -1,13 +1,30 @@
 # AgroTech Histórico 🌾
 
-Sistema Django completo para análisis satelital agrícola con integración EOSDA API, generación automática de informes PDF y mapas interactivos.
+Sistema Django avanzado para análisis satelital agrícola con **Memoria Histórica** y **Análisis Temporal Pixel-por-Píxel**.
+
+## 🚀 NUEVO (Enero 2026): Motor de Análisis Temporal
+
+El sistema implementa tecnología de **Data Cubes 3D** para análisis temporal persistente:
+
+- **📦 Data Cubes 3D**: Arrays temporales `[Meses, Latitud, Longitud]` optimizados con `np.float32`
+- **🧠 Índice de Estrés Acumulado (IEA)**: Suma vectorizada de crisis por píxel
+- **🏥 Memoria de Crisis**: Detección de meses históricos con problemas críticos
+- **🎯 Cicatrices Permanentes**: Marcado de píxeles con estrés extremo (NDMI < -0.1)
+- **📊 Penalización Histórica**: Eficiencia ajustada por crisis pasadas
+- **⚡ Operaciones Vectorizadas**: Procesamiento instantáneo de millones de píxeles
+
+### REGLA DE ORO
+> **Si hubo crisis históricas, la eficiencia NUNCA puede ser 100%, aunque el lote esté verde hoy.**
+
+Ver documentación completa: [docs/RESUMEN_TECNICO_ARQUITECTURA_DIAGNOSTICO.md](docs/RESUMEN_TECNICO_ARQUITECTURA_DIAGNOSTICO.md)
 
 ## ⚠️ IMPORTANTE: Generación de Informes PDF
 
 **ÚNICO generador oficial:**
 - **Archivo:** `informes/generador_pdf.py`
 - **Clase:** `GeneradorPDFProfesional`
-- **Documentación:** Ver `REGLAS_GENERADOR_PDF.md` y `docs/FLUJO_GENERACION_INFORMES_PDF.md`
+- **Motor:** `informes/motor_analisis/cerebro_diagnostico.py`
+- **Documentación:** Ver `docs/FLUJO_GENERACION_INFORMES_PDF.md`
 
 ❌ **NO USAR:** `informes/services/generador_pdf_OBSOLETO_NO_USAR.py`
 
@@ -15,36 +32,44 @@ Sistema Django completo para análisis satelital agrícola con integración EOSD
 
 - **🛰️ Integración EOSDA**: Obtención automática de datos satelitales (NDVI, NDMI, SAVI)
 - **🗺️ PostGIS Nativo**: Campos geoespaciales optimizados para consultas ultra-rápidas
-- **📊 Análisis Histórico**: Procesamiento de tendencias y patrones temporales
-- **📄 Informes PDF**: Generación automática con gráficos y análisis IA local
-- **🗺️ Mapas Interactivos**: Visualización geoespacial con Leaflet y folium
-- **🤖 IA Local**: Análisis automático de salud vegetal y recomendaciones
+- **📊 Análisis Temporal 3D**: Procesamiento píxel-por-píxel con Data Cubes
+- **🧠 Motor de Diagnóstico**: Triangulación multi-índice con OpenCV
+- **🏥 Memoria de Crisis**: Sistema que recuerda problemas históricos
+- **📄 Informes PDF**: Generación automática con análisis IA local
+- **🗺️ Mapas Georeferenciados**: Coordenadas GPS + zonas de intervención
+- **🤖 IA Local**: Recomendaciones agronómicas basadas en umbrales científicos
 - **📱 Interfaz Responsiva**: Dashboard moderno con Bootstrap 5
-- **⚡ Rendimiento GIS**: PostgreSQL + PostGIS para datos geoespaciales masivos
+- **⚡ Optimizado para Railway**: float32, limpieza automática de archivos
 
-## � Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
-historical/
-├── informes/              # Aplicación principal Django
-│   ├── models.py          # Modelos con PostGIS
-│   ├── views.py           # Vistas y lógica de negocio
-│   ├── generador_pdf.py   # Generador de informes PDF
-│   ├── services/          # Servicios (EOSDA, Weather, Email)
-│   ├── analizadores/      # Analizadores de índices satelitales
-│   └── templates/         # Templates HTML
-├── tests/                 # 🧪 Scripts de prueba
-├── scripts/               # 🔧 Scripts de utilidad y mantenimiento
-├── docs/                  # 📚 Documentación completa
-│   ├── sprints/          # Documentación de sprints
-│   ├── sistema/          # Arquitectura del sistema
-│   ├── frontend/         # Guías de diseño UI/UX
-│   ├── correcciones/     # Guías de correcciones
-│   └── instalacion/      # Guías de instalación
-├── media/                 # Archivos generados (PDFs, imágenes)
-├── static/                # Archivos estáticos
-└── manage.py              # Django management
-
+historico/
+├── informes/                           # Aplicación principal Django
+│   ├── models.py                       # Modelos con PostGIS
+│   ├── views.py                        # Vistas y lógica de negocio
+│   ├── generador_pdf.py                # ✅ Generador oficial de PDFs
+│   ├── motor_analisis/                 # 🧠 Motor de diagnóstico
+│   │   ├── cerebro_diagnostico.py      # Análisis multi-índice + Data Cubes
+│   │   ├── kpis_unificados.py          # KPIs con formateo estándar
+│   │   └── mascara_cultivo.py          # Generación de máscaras PostGIS
+│   ├── services/                       # Servicios externos
+│   │   ├── eosda_api.py                # Integración EOSDA
+│   │   ├── openmeteo_weather.py        # Datos climáticos
+│   │   └── email_service.py            # Envío de emails
+│   ├── analizadores/                   # Analizadores de índices
+│   └── templates/                      # Templates HTML
+├── tests/                              # 🧪 Pruebas de integración
+│   ├── test_honestidad_sistema.py      # ✅ Test crítico pre-deploy
+│   └── ...
+├── docs/                               # 📚 Documentación completa
+│   ├── RESUMEN_TECNICO_ARQUITECTURA_DIAGNOSTICO.md  # 📖 Arquitectura
+│   ├── FLUJO_GENERACION_INFORMES_PDF.md
+│   └── ...
+├── media/                              # Archivos generados (auto-limpieza)
+├── static/                             # Archivos estáticos
+├── buscar_parcela_y_generar_informe.py # 🖥️  Entry point CLI
+└── manage.py                           # Django management
 ```
 
 ## 🚀 Instalación Rápida
@@ -167,23 +192,119 @@ python manage.py runserver
 
 ## 🎯 Uso del Sistema
 
-### Panel Principal
-Acceda a `http://localhost:8000` para ver el dashboard principal con:
-- Estadísticas generales del sistema
-- Parcelas activas en monitoreo
-- Estado de conectividad con EOSDA
-- Acceso a todas las funcionalidades
+### 🖥️ Interfaz Web
+Acceda a `http://localhost:8000` para:
+- **Dashboard**: Estadísticas y estado del sistema
+- **Parcelas**: Crear con polígonos PostGIS dinámicos
+- **Datos Históricos**: Obtener desde EOSDA (automático)
+- **Informes PDF**: Generación con análisis temporal
 
-### Gestión de Parcelas
-1. **Crear Parcela**: Dibujar polígono en mapa interactivo
-2. **Monitoreo**: Procesamiento automático de datos satelitales
-3. **Análisis**: Visualización de tendencias NDVI, NDMI, SAVI
+### 💻 Línea de Comandos (CLI)
 
-### Generación de Informes
-- Informes automáticos PDF con análisis de 6, 12 o 24 meses
-- Gráficos de tendencias temporales
-- Mapas de salud vegetal
-- Recomendaciones agronómicas IA
+```bash
+# Generar informe para la parcela con más datos
+python buscar_parcela_y_generar_informe.py
+
+# Generar informe para parcela específica
+python buscar_parcela_y_generar_informe.py 5
+
+# Listar parcelas disponibles
+python buscar_parcela_y_generar_informe.py --list
+```
+
+**Características CLI:**
+- ✅ Usa el mismo motor que la web (Data Cubes 3D)
+- ✅ Totalmente dinámico (sin hardcoded paths)
+- ✅ Limpieza automática de archivos temporales
+- ✅ Optimizado para Railway (np.float32)
+
+### 🧪 Test de Integridad (Pre-Deploy)
+
+```bash
+# Ejecutar test de honestidad del sistema
+python tests/test_honestidad_sistema.py
+```
+
+**Este test debe pasar antes de cada despliegue.**
+
+Valida:
+- ✅ Detección de crisis históricas
+- ✅ Cálculo de IEA (Índice de Estrés Acumulado)
+- ✅ Marcado de cicatrices permanentes
+- ✅ Penalización correcta de eficiencia
+
+**Si el test falla, el despliegue debe detenerse.**
+
+## 🚀 Despliegue a Railway
+
+### Pre-requisitos
+1. Cuenta en [Railway.app](https://railway.app)
+2. PostgreSQL con PostGIS habilitado
+3. Test de honestidad aprobado
+
+### Pasos
+
+```bash
+# 1. Ejecutar test de integridad
+python tests/test_honestidad_sistema.py
+
+# 2. Si pasa, hacer commit
+git add .
+git commit -m "feat: Motor de Análisis Temporal con Data Cubes 3D e IEA
+
+- Implementado sistema de Memoria de Crisis Históricas
+- Análisis píxel-por-píxel con operaciones vectorizadas NumPy
+- Índice de Estrés Acumulado (IEA) con detección de cicatrices
+- Penalización de eficiencia por crisis pasadas (REGLA: < 100%)
+- Optimización RAM: np.float32 en Data Cubes
+- Limpieza automática de archivos temporales
+- Entry points unificados (CLI + Web)
+- Test de honestidad como gate de despliegue
+
+BREAKING: Sistema ahora requiere análisis temporal completo.
+Eficiencia 100% solo si NO hubo crisis históricas."
+
+# 3. Push a Railway
+git push railway main
+
+# 4. Verificar logs
+railway logs
+```
+
+### Variables de Entorno (Railway)
+
+```env
+# Base de datos
+DATABASE_URL=postgresql://...  # Railway auto-provee
+
+# EOSDA API
+EOSDA_API_KEY=your_token_here
+
+# Django
+SECRET_KEY=your_secret_key
+DEBUG=False
+ALLOWED_HOSTS=your-app.up.railway.app
+
+# Optimizaciones
+DJANGO_SETTINGS_MODULE=agrotech_historico.settings_production
+```
+
+## 🔧 Optimizaciones para Producción
+
+### Memoria RAM
+- **Data Cubes**: `np.float32` (50% menos RAM que float64)
+- **Limpieza automática**: Archivos > 7 días eliminados
+- **Compresión**: Mapas PNG optimizados
+
+### Rendimiento
+- **Operaciones vectorizadas**: NumPy sin bucles Python
+- **PostGIS**: Consultas espaciales nativas
+- **Caché**: Índices mensuales pre-calculados
+
+### Seguridad
+- **Test pre-deploy**: Gate automático
+- **Validación matemática**: Coherencia eficiencia/área
+- **Logs**: Registro completo de operaciones
 
 ## 🔧 Configuración API EOSDA
 

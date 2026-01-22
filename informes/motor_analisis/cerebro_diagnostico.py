@@ -623,38 +623,29 @@ class CerebroDiagnosticoUnificado:
         """
         Calcula eficiencia general del lote (0-100%)
         
-        MEJORA 3 - SINCRONIZACIÓN MATEMÁTICA ESTRICTA (Enero 21, 2026):
-        - Si area_afectada > 0, la eficiencia NUNCA puede ser 100%
-        - Máximo permitido: 99.7% si hay área afectada
-        - Garantiza coherencia: eficiencia + porcentaje_afectado ≈ 100%
-        
-        Considera área en buen estado según NDVI y SAVI
+        CORRECCIÓN CRÍTICA (Enero 22, 2026):
+        - Fórmula correcta: Eficiencia = (1 - Area_Afectada / Area_Total) * 100
+        - Si área afectada = 0.0 ha → eficiencia = 100%
+        - Si área afectada > 0 → eficiencia < 100%
+        - Garantiza coherencia matemática total
         """
-        # Aplicar máscara de cultivo si existe
-        if self.mascara_cultivo is not None:
-            ndvi_cropado = np.where(self.mascara_cultivo, ndvi, -999)
-            savi_cropado = np.where(self.mascara_cultivo, savi, -999)
-            
-            # Definir "buen estado": NDVI > 0.5 AND SAVI > 0.4
-            mascara_buena = (ndvi_cropado > 0.5) & (savi_cropado > 0.4)
-            
-            pixeles_buenos = np.sum(mascara_buena)
-            pixeles_totales = np.sum(self.mascara_cultivo)
+        # NUEVA LÓGICA: Calcular eficiencia basada en área afectada real
+        if area_afectada <= 0.0:
+            # Sin problemas detectados = Eficiencia perfecta
+            eficiencia = 100.0
+            logger.info(f"   ✅ Eficiencia: 100.0% (sin áreas afectadas detectadas)")
         else:
-            # Definir "buen estado": NDVI > 0.5 AND SAVI > 0.4
-            mascara_buena = (ndvi > 0.5) & (savi > 0.4)
+            # Calcular porcentaje de área limpia
+            porcentaje_afectado = (area_afectada / self.area_parcela_ha) * 100.0
+            eficiencia = 100.0 - porcentaje_afectado
             
-            pixeles_buenos = np.sum(mascara_buena)
-            pixeles_totales = ndvi.size
+            # Asegurar que eficiencia no sea negativa
+            eficiencia = max(0.0, eficiencia)
+            
+            logger.info(f"   📊 Área afectada: {area_afectada:.2f} ha ({porcentaje_afectado:.1f}%)")
+            logger.info(f"   ✅ Eficiencia calculada: {eficiencia:.1f}%")
         
-        eficiencia = (pixeles_buenos / pixeles_totales) * 100.0
-        
-        # ✅ REGLA DE ORO (Mejora 3): Si hay área afectada, eficiencia NUNCA es 100%
-        if area_afectada > 0.0:
-            eficiencia = min(eficiencia, 99.7)  # Tope máximo con problemas detectados
-            logger.info(f"   ✅ Eficiencia ajustada a {eficiencia:.1f}% (área afectada detectada: {area_afectada:.2f} ha)")
-        
-        # Redondeo a 1 decimal para porcentajes (Mejora 3)
+        # Redondeo a 1 decimal para consistencia
         return round(eficiencia, 1)
     
     def _generar_mapa_diagnostico(

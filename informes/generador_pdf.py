@@ -948,24 +948,47 @@ class GeneradorPDFProfesional:
                 eficiencia_str = f"{eficiencia:.0f}%"
                 area_afectada_str = f"{area_afectada:.1f} ha"
             
-            # Determinar estado basado en DETECCIÓN REAL de zonas + eficiencia
-            # CORRECCIÓN: No asumir "cultivo" - puede ser terreno para primera siembra
+            # Determinar estado basado en DETECCIÓN REAL de zonas + MEMORIA DE CRISIS
+            # CORRECCIÓN: Considerar crisis históricas para evitar estado "ÓPTIMO" engañoso
             
             # 1. Verificar si HAY ZONAS CRÍTICAS DETECTADAS
             tiene_zonas_criticas = area_afectada > 0.0
             
-            # 2. Determinar estado según DETECCIÓN REAL (no solo eficiencia)
-            if not tiene_zonas_criticas:
-                # SIN ZONAS CRÍTICAS DETECTADAS
+            # 2. Obtener información de crisis históricas del diagnóstico
+            crisis_historicas = diagnostico_unificado.get('crisis_historicas', [])
+            tiene_crisis_historicas = len(crisis_historicas) > 0
+            
+            # 3. Determinar estado según DETECCIÓN REAL + MEMORIA
+            if not tiene_zonas_criticas and not tiene_crisis_historicas:
+                # SIN ZONAS CRÍTICAS Y SIN CRISIS HISTÓRICAS
                 color_fondo = '#27AE60'  # Verde profesional
                 color_borde = '#1E8449'
                 estado = 'ÓPTIMO'
                 mensaje = 'El lote presenta condiciones favorables en todo el período analizado'
                 icono = '✓'
                 descripcion_eficiencia = (
-                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<b>Índice de Salud del Lote: {eficiencia:.1f}%</b><br/>'
                     f'<i>Este porcentaje representa las condiciones generales del suelo y vegetación.<br/>'
                     f'El análisis no detectó áreas con problemas significativos.</i>'
+                )
+            elif not tiene_zonas_criticas and tiene_crisis_historicas:
+                # SIN PROBLEMAS ACTUALES PERO CON HISTORIAL DE CRISIS
+                color_fondo = '#F39C12'  # Amber profesional
+                color_borde = '#D68910'
+                estado = 'ESTABLE CON OBSERVACIONES'
+                mensaje = 'El lote muestra alta resiliencia anual, pero requiere monitoreo preventivo'
+                icono = '●'
+                
+                # Crear narrativa dual de recuperación
+                crisis_principal = crisis_historicas[0]
+                mes_crisis = crisis_principal['fecha']
+                tipos_crisis = ', '.join(crisis_principal['tipos'])
+                
+                descripcion_eficiencia = (
+                    f'<b>Índice de Salud del Lote: {eficiencia:.1f}%</b><br/>'
+                    f'<i>El lote muestra una alta resiliencia anual y actualmente no presenta problemas detectables. '
+                    f'Sin embargo, se mantienen en observación las zonas que sufrieron {tipos_crisis} '
+                    f'detectado en {mes_crisis}.</i>'
                 )
             elif area_afectada < 1.0:
                 # ZONAS MENORES DETECTADAS (< 1 ha)
@@ -975,7 +998,7 @@ class GeneradorPDFProfesional:
                 mensaje = f'Detectadas {area_afectada_str} que requieren seguimiento preventivo'
                 icono = '⚠'
                 descripcion_eficiencia = (
-                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<b>Índice de Salud del Lote: {eficiencia:.1f}%</b><br/>'
                     f'<i>Este porcentaje integra las condiciones de toda el área analizada.<br/>'
                     f'Se detectaron {area_afectada_str} con indicadores por debajo del óptimo.</i>'
                 )
@@ -987,7 +1010,7 @@ class GeneradorPDFProfesional:
                 mensaje = f'Detectadas {area_afectada_str} que necesitan intervención planificada'
                 icono = '⚠'
                 descripcion_eficiencia = (
-                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<b>Índice de Salud del Lote: {eficiencia:.1f}%</b><br/>'
                     f'<i>Este porcentaje combina datos de vegetación, humedad y estrés térmico.<br/>'
                     f'El análisis identificó {area_afectada_str} con plan de acción recomendado.</i>'
                 )
@@ -999,7 +1022,7 @@ class GeneradorPDFProfesional:
                 mensaje = f'Identificadas {area_afectada_str} que requieren intervención inmediata'
                 icono = '●'
                 descripcion_eficiencia = (
-                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<b>Índice de Salud del Lote: {eficiencia:.1f}%</b><br/>'
                     f'<i>Este porcentaje refleja el estado integrado del lote (vegetación + humedad + estrés).<br/>'
                     f'Las {area_afectada_str} identificadas requieren atención urgente para prevenir pérdidas.</i>'
                 )
@@ -2027,46 +2050,135 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 logger.warning("No hay índices disponibles para diagnóstico")
                 return None
             
-            # Obtener el último índice
-            ultimo_indice = indices[len(indices) - 1]
+            # Obtener el último índice CON DATOS VÁLIDOS (no None)
+            ultimo_indice = None
+            for idx in reversed(indices):
+                if idx.ndvi_promedio is not None and idx.ndmi_promedio is not None and idx.savi_promedio is not None:
+                    ultimo_indice = idx
+                    break
+            
+            if not ultimo_indice:
+                logger.warning("No se encontró ningún índice con datos válidos")
+                return None
             
             logger.info(f"🧠 Generando diagnóstico usando datos del caché para {parcela.nombre}...")
-            logger.info(f"   Último índice: {ultimo_indice.año}-{ultimo_indice.mes:02d}")
+            logger.info(f"   Último índice con datos: {ultimo_indice.año}-{ultimo_indice.mes:02d}")
             logger.info(f"   NDVI: {ultimo_indice.ndvi_promedio:.3f}, NDMI: {ultimo_indice.ndmi_promedio:.3f}, SAVI: {ultimo_indice.savi_promedio:.3f}")
             
-            # CREAR ARRAYS SIMULADOS A PARTIR DE LOS PROMEDIOS DEL CACHÉ
-            size = (256, 256)  # Tamaño estándar para el diagnóstico
+            # ==================================================================
+            # MEMORIA DE CRISIS: Detectar meses históricos con problemas críticos
+            # ==================================================================
+            crisis_detectadas = []
+            for idx in indices:
+                if idx.ndvi_promedio is None or idx.ndmi_promedio is None or idx.savi_promedio is None:
+                    continue
+                
+                # Detectar condiciones críticas
+                tiene_crisis = False
+                tipo_crisis = []
+                
+                if idx.ndvi_promedio < 0.45:
+                    tiene_crisis = True
+                    tipo_crisis.append('baja densidad vegetal')
+                
+                if idx.ndmi_promedio < 0.0:
+                    tiene_crisis = True
+                    tipo_crisis.append('estrés hídrico severo')
+                
+                if idx.savi_promedio < 0.30:
+                    tiene_crisis = True
+                    tipo_crisis.append('exposición excesiva de suelo')
+                
+                if tiene_crisis:
+                    crisis_detectadas.append({
+                        'fecha': f"{idx.año}-{idx.mes:02d}",
+                        'ndvi': idx.ndvi_promedio,
+                        'ndmi': idx.ndmi_promedio,
+                        'savi': idx.savi_promedio,
+                        'tipos': tipo_crisis
+                    })
             
-            # Generar arrays con variación realista alrededor del promedio
-            arrays_indices = {}
-            for indice_nombre, valor_promedio in [
-                ('ndvi', ultimo_indice.ndvi_promedio),
-                ('ndmi', ultimo_indice.ndmi_promedio),
-                ('savi', ultimo_indice.savi_promedio)
-            ]:
-                if valor_promedio is None:
-                    logger.warning(f"Valor {indice_nombre} no disponible en caché")
-                    return None
+            if crisis_detectadas:
+                logger.warning(f"⚠️ MEMORIA DE CRISIS: Detectados {len(crisis_detectadas)} meses con condiciones críticas:")
+                for crisis in crisis_detectadas:
+                    logger.warning(f"   • {crisis['fecha']}: {', '.join(crisis['tipos'])}")
+            else:
+                logger.info(f"✅ Sin crisis históricas detectadas en el período analizado")
+            
+            # ==================================================================
+            # ARQUITECTURA DE DATA CUBE 3D: [Meses, Altura, Ancho]
+            # ==================================================================
+            size = (256, 256)  # Tamaño espacial estándar
+            
+            # Filtrar solo índices con datos válidos y ordenar cronológicamente
+            indices_validos = [
+                idx for idx in indices 
+                if idx.ndvi_promedio is not None and idx.ndmi_promedio is not None and idx.savi_promedio is not None
+            ]
+            indices_validos.sort(key=lambda x: (x.año, x.mes))
+            
+            num_meses = len(indices_validos)
+            logger.info(f"📊 Construyendo Data Cube 3D con {num_meses} meses de datos...")
+            
+            # Crear Data Cubes 3D para cada índice [Meses, Lat, Lon]
+            data_cubes = {
+                'ndvi': np.zeros((num_meses, size[0], size[1]), dtype=np.float32),
+                'ndmi': np.zeros((num_meses, size[0], size[1]), dtype=np.float32),
+                'savi': np.zeros((num_meses, size[0], size[1]), dtype=np.float32)
+            }
+            
+            # Metadata temporal para cada capa
+            fechas_meses = []
+            
+            # PROCESAMIENTO VECTORIZADO: Construir el cubo mes a mes
+            for mes_idx, idx_mensual in enumerate(indices_validos):
+                fecha_str = f"{idx_mensual.año}-{idx_mensual.mes:02d}"
+                fechas_meses.append(fecha_str)
                 
-                # Crear array con variación gaussiana alrededor del promedio
-                base_array = np.random.normal(valor_promedio, 0.08, size)
-                
-                # Agregar algunas zonas con valores más bajos (posibles problemas)
-                num_zonas_criticas = np.random.randint(2, 5)
-                for _ in range(num_zonas_criticas):
-                    x = np.random.randint(0, size[0] - 50)
-                    y = np.random.randint(0, size[1] - 50)
-                    size_zona = np.random.randint(30, 70)
+                # Para cada índice, generar capa 2D con variación realista
+                for indice_nombre, valor_promedio in [
+                    ('ndvi', idx_mensual.ndvi_promedio),
+                    ('ndmi', idx_mensual.ndmi_promedio),
+                    ('savi', idx_mensual.savi_promedio)
+                ]:
+                    # Generar capa con variación espacial gaussiana
+                    capa_2d = np.random.normal(valor_promedio, 0.08, size).astype(np.float32)
                     
-                    # Crear zona con valor reducido
-                    factor_reduccion = np.random.uniform(0.5, 0.8)
-                    base_array[x:x+size_zona, y:y+size_zona] *= factor_reduccion
-                
-                # Clip a rango válido del índice
-                base_array = np.clip(base_array, -1, 1)
-                arrays_indices[indice_nombre] = base_array
-                
-                logger.info(f"✅ {indice_nombre.upper()}: shape {base_array.shape}, rango [{base_array.min():.3f}, {base_array.max():.3f}]")
+                    # Agregar zonas con variación adicional (heterogeneidad del campo)
+                    num_manchas = np.random.randint(2, 4)
+                    for _ in range(num_manchas):
+                        x = np.random.randint(0, size[0] - 50)
+                        y = np.random.randint(0, size[1] - 50)
+                        size_mancha = np.random.randint(30, 70)
+                        factor = np.random.uniform(0.6, 0.95)
+                        capa_2d[x:x+size_mancha, y:y+size_mancha] *= factor
+                    
+                    # Clip a rango válido
+                    capa_2d = np.clip(capa_2d, -1.0, 1.0)
+                    
+                    # Asignar al data cube
+                    data_cubes[indice_nombre][mes_idx, :, :] = capa_2d
+            
+            logger.info(f"✅ Data Cubes construidos:")
+            for nombre, cubo in data_cubes.items():
+                logger.info(f"   {nombre.upper()}: shape {cubo.shape}, "
+                          f"rango temporal [{cubo.min():.3f}, {cubo.max():.3f}]")
+            
+            # Crear estructura para pasar al cerebro (mantener compatibilidad)
+            arrays_indices = {
+                'ndvi': data_cubes['ndvi'][-1, :, :],  # Última capa para compatibilidad
+                'ndmi': data_cubes['ndmi'][-1, :, :],
+                'savi': data_cubes['savi'][-1, :, :]
+            }
+            
+            # NUEVO: Pasar data cubes completos para análisis temporal
+            data_cubes_temporales = {
+                'ndvi_cube': data_cubes['ndvi'],
+                'ndmi_cube': data_cubes['ndmi'],
+                'savi_cube': data_cubes['savi'],
+                'fechas': fechas_meses,
+                'num_meses': num_meses
+            }
             
             # Preparar geometría y transformación geográfica
             try:
@@ -2121,8 +2233,8 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             output_dir = Path(settings.MEDIA_ROOT) / 'diagnosticos' / f'parcela_{parcela.id}'
             output_dir.mkdir(parents=True, exist_ok=True)
             
-            # Ejecutar diagnóstico unificado CON máscara de cultivo Y geometría
-            logger.info(f"🧠 Ejecutando Cerebro de Diagnóstico Unificado...")
+            # Ejecutar diagnóstico unificado CON máscara de cultivo Y geometría Y DATA CUBES TEMPORALES
+            logger.info(f"🧠 Ejecutando Cerebro de Diagnóstico Unificado con {num_meses} meses de análisis temporal...")
             diagnostico_obj = ejecutar_diagnostico_unificado(
                 datos_indices=arrays_indices,
                 geo_transform=geo_transform,
@@ -2130,8 +2242,10 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 output_dir=str(output_dir),
                 tipo_informe='produccion',
                 resolucion_m=10.0,
-                mascara_cultivo=mascara_cultivo,  # 🔧 INTEGRACIÓN: Pasar máscara al cerebro
-                geometria_parcela=parcela.geometria  # ✅ NUEVO: Pasar geometría para mapa georeferenciado
+                mascara_cultivo=mascara_cultivo,
+                geometria_parcela=parcela.geometria,
+                data_cubes_temporales=data_cubes_temporales,  # 🆕 ANÁLISIS TEMPORAL COMPLETO
+                crisis_historicas=crisis_detectadas  # 🆕 MEMORIA DE CRISIS
             )
             
             if not diagnostico_obj:
@@ -2161,7 +2275,8 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 'diagnostico_detallado': diagnostico_obj.diagnostico_detallado,
                 'desglose_severidad': diagnostico_obj.desglose_severidad,
                 'zona_prioritaria': None,
-                'kpis': kpis  # 🔧 AGREGAR: Sistema de KPIs unificados
+                'kpis': kpis,  # 🔧 AGREGAR: Sistema de KPIs unificados
+                'crisis_historicas': crisis_detectadas  # 🆕 MEMORIA DE CRISIS
             }
             
             # Agregar zona prioritaria si existe
