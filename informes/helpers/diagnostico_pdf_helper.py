@@ -57,23 +57,34 @@ def generar_tabla_desglose_severidad(desglose: dict, estilos: dict = None, evide
         }
     
     if total == 0:
-        # Si no hay áreas afectadas, retornar tabla elegante
+        # Si no hay áreas afectadas, retornar tabla elegante y CLARA
         data = [
-            ['✓ Estado del Lote', 'Área (ha)', 'Evidencia'],
-            ['Sin zonas críticas detectadas', '0.00', 'N/A']
+            ['✓ Estado del Lote', 'Hectáreas Afectadas', 'Observaciones'],
+            [
+                'Sin zonas críticas detectadas\ndurante todo el período analizado',
+                '0.00 ha',
+                'No se requiere intervención.\nEl lote presenta condiciones\nfavorables para la actividad agrícola.'
+            ]
         ]
-        tabla = Table(data, colWidths=[200, 80, 120])
+        tabla = Table(data, colWidths=[180, 100, 180])
         tabla.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27AE60')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, 1), 10),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('ALIGN', (0, 1), (0, 1), 'LEFT'),
+            ('ALIGN', (1, 1), (1, 1), 'CENTER'),
+            ('ALIGN', (2, 1), (2, 1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#1E8449')),
             ('ROUNDEDCORNERS', [8, 8, 8, 8]),
             ('TOPPADDING', (0, 0), (-1, -1), 12),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
         ]))
         return tabla
     

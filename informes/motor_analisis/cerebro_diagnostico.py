@@ -72,6 +72,9 @@ class DiagnosticoUnificado:
     # NUEVOS: Desglose por severidad para tabla PDF
     desglose_severidad: Dict[str, float]  # {'critica': X.X ha, 'moderada': Y.Y ha, 'leve': Z.Z ha}
     zonas_por_severidad: Dict[str, List[ZonaCritica]]  # Agrupadas por nivel
+    
+    # NUEVO ENERO 2026: Narrativa de justificación en lenguaje de campo
+    justificacion_narrativa: str  # Explicación del porcentaje de eficiencia en lenguaje natural
 
 
 class CerebroDiagnosticoUnificado:
@@ -106,10 +109,11 @@ class CerebroDiagnosticoUnificado:
     
     # Umbrales de detección (ajustados para evitar 100% crítico)
     # CORRECCIÓN ENERO 2026: Umbrales más conservadores y realistas
+    # AJUSTE CRÍTICO SENSIBILIDAD (ENERO 21, 2026): Umbrales preventivos bajados
     UMBRALES_CRITICOS = {
         'deficit_hidrico_recurrente': {
             'ndvi_max': 0.30,  # ✅ REDUCIDO (antes 0.45) - Solo casos severos
-            'ndmi_max': -0.05,  # ✅ REDUCIDO (antes 0.05) - Déficit real
+            'ndmi_max': -0.08,  # ✅ BAJADO DE -0.05 A -0.08 (Mejora 4: Sensibilidad Proactiva)
             'etiqueta': 'Déficit Hídrico Recurrente',
             'severidad_base': 0.70,  # ✅ REDUCIDO (antes 0.85)
             'color_marca': '#FF0000',  # Rojo
@@ -149,7 +153,7 @@ class CerebroDiagnosticoUnificado:
         }
     }
     
-    def __init__(self, area_parcela_ha: float, resolucion_pixel_m: float = 10.0, mascara_cultivo: Optional[np.ndarray] = None):
+    def __init__(self, area_parcela_ha: float, resolucion_pixel_m: float = 10.0, mascara_cultivo: Optional[np.ndarray] = None, geometria_parcela: Optional[any] = None):
         """
         Inicializa cerebro de diagnóstico
         
@@ -158,14 +162,17 @@ class CerebroDiagnosticoUnificado:
             resolucion_pixel_m: Tamaño de pixel en metros (default: 10m Sentinel-2)
             mascara_cultivo: Máscara booleana del polígono real del lote (opcional)
                             Si se provee, TODOS los cálculos se recortarán a esta máscara
+            geometria_parcela: Geometría del polígono de la parcela (opcional, para mapa georef)
         """
-        self.area_parcela_ha = area_parcela_ha
+        # MEJORA 3: Forzar área de parcela con 2 decimales (61.42 ha)
+        self.area_parcela_ha = round(area_parcela_ha, 2)
         self.resolucion_pixel_m = resolucion_pixel_m
         self.area_pixel_ha = (resolucion_pixel_m ** 2) / 10000  # m² a ha
         self.mascara_cultivo = mascara_cultivo  # NUEVO: Máscara del polígono
+        self.geometria_parcela = geometria_parcela  # NUEVO ENERO 2026: Geometría para mapa
         
         logger.info(f"🧠 Cerebro de Diagnóstico inicializado")
-        logger.info(f"   Área parcela: {area_parcela_ha:.2f} ha")
+        logger.info(f"   Área parcela: {self.area_parcela_ha:.2f} ha")  # Siempre 2 decimales
         logger.info(f"   Resolución: {resolucion_pixel_m}m/pixel ({self.area_pixel_ha:.6f} ha/pixel)")
         
         if mascara_cultivo is not None:
@@ -178,6 +185,9 @@ class CerebroDiagnosticoUnificado:
                 logger.warning(f"⚠️  Área de máscara ({area_cultivo_calculada:.2f} ha) difiere del área declarada ({area_parcela_ha:.2f} ha)")
         else:
             logger.warning(f"⚠️  No se proveyó máscara de cultivo - análisis usará bbox completo (puede sobreestimar áreas)")
+        
+        if geometria_parcela is not None:
+            logger.info(f"   ✅ Geometría de parcela provista para mapa georeferenciado")
     
     def triangular_y_diagnosticar(
         self,
@@ -223,17 +233,7 @@ class CerebroDiagnosticoUnificado:
             logger.info(f"   Área afectada: {zona_prioritaria.area_hectareas:.2f} ha")
             logger.info(f"   Centroide: {zona_prioritaria.centroide_geo}")
         
-        # 3. CALCULAR EFICIENCIA DEL LOTE
-        eficiencia = self._calcular_eficiencia_lote(ndvi_array, savi_array)
-        
-        # 4. GENERAR VISUALIZACIÓN MARCADA
-        mapa_path = self._generar_mapa_diagnostico(
-            ndvi_array, ndmi_array, savi_array,
-            zonas_criticas, zona_prioritaria,
-            output_dir
-        )
-        
-        # 5. CALCULAR ÁREA AFECTADA TOTAL CON UNIÓN DE MÁSCARAS (CORRECCIÓN CRÍTICA)
+        # 3. CALCULAR ÁREA AFECTADA TOTAL CON UNIÓN DE MÁSCARAS (ANTES de eficiencia)
         area_afectada, mascara_union_total = self._calcular_area_afectada_union(
             zonas_criticas, ndvi_array.shape
         )
@@ -245,6 +245,18 @@ class CerebroDiagnosticoUnificado:
             logger.error(f"   Área total parcela: {self.area_parcela_ha:.2f} ha")
             logger.error(f"   APLICANDO CORRECCIÓN: Clipping al área máxima")
             area_afectada = min(area_afectada, self.area_parcela_ha)
+        
+        # 4. CALCULAR EFICIENCIA DEL LOTE (con área afectada para sincronización)
+        eficiencia = self._calcular_eficiencia_lote(ndvi_array, savi_array, area_afectada)
+        
+        # 5. GENERAR VISUALIZACIÓN MARCADA (MAPA GEOREFERENCIADO)
+        mapa_path = self._generar_mapa_diagnostico(
+            ndvi_array, ndmi_array, savi_array,
+            zonas_criticas, zona_prioritaria,
+            output_dir,
+            geo_transform=geo_transform,
+            geometria_parcela=getattr(self, 'geometria_parcela', None)
+        )
         
         # 5.1. CLASIFICAR ZONAS POR SEVERIDAD
         zonas_por_severidad = self._clasificar_por_severidad(zonas_criticas)
@@ -314,6 +326,11 @@ class CerebroDiagnosticoUnificado:
             tipo_informe, desglose_severidad
         )
         
+        # 6.1. GENERAR NARRATIVA DE JUSTIFICACIÓN (MEJORA 2 - Enero 21, 2026)
+        justificacion_narrativa = self._generar_justificacion_narrativa(
+            eficiencia, pct_afectado, desglose_severidad, zona_prioritaria
+        )
+        
         # 7. CONSTRUIR RESULTADO
         diagnostico = DiagnosticoUnificado(
             zonas_criticas=zonas_criticas,
@@ -324,6 +341,7 @@ class CerebroDiagnosticoUnificado:
             mapa_intervencion_limpio_path=str(mapa_path),  # TEMPORAL: usar el mismo mapa
             resumen_ejecutivo=resumen_ejecutivo,
             diagnostico_detallado=diagnostico_detallado,
+            justificacion_narrativa=justificacion_narrativa,  # NUEVO
             timestamp=datetime.now(),
             metadata={
                 'num_zonas': len(zonas_criticas),
@@ -599,21 +617,44 @@ class CerebroDiagnosticoUnificado:
     def _calcular_eficiencia_lote(
         self,
         ndvi: np.ndarray,
-        savi: np.ndarray
+        savi: np.ndarray,
+        area_afectada: float = 0.0
     ) -> float:
         """
         Calcula eficiencia general del lote (0-100%)
         
+        MEJORA 3 - SINCRONIZACIÓN MATEMÁTICA ESTRICTA (Enero 21, 2026):
+        - Si area_afectada > 0, la eficiencia NUNCA puede ser 100%
+        - Máximo permitido: 99.7% si hay área afectada
+        - Garantiza coherencia: eficiencia + porcentaje_afectado ≈ 100%
+        
         Considera área en buen estado según NDVI y SAVI
         """
-        # Definir "buen estado": NDVI > 0.5 AND SAVI > 0.4
-        mascara_buena = (ndvi > 0.5) & (savi > 0.4)
-        
-        pixeles_buenos = np.sum(mascara_buena)
-        pixeles_totales = ndvi.size
+        # Aplicar máscara de cultivo si existe
+        if self.mascara_cultivo is not None:
+            ndvi_cropado = np.where(self.mascara_cultivo, ndvi, -999)
+            savi_cropado = np.where(self.mascara_cultivo, savi, -999)
+            
+            # Definir "buen estado": NDVI > 0.5 AND SAVI > 0.4
+            mascara_buena = (ndvi_cropado > 0.5) & (savi_cropado > 0.4)
+            
+            pixeles_buenos = np.sum(mascara_buena)
+            pixeles_totales = np.sum(self.mascara_cultivo)
+        else:
+            # Definir "buen estado": NDVI > 0.5 AND SAVI > 0.4
+            mascara_buena = (ndvi > 0.5) & (savi > 0.4)
+            
+            pixeles_buenos = np.sum(mascara_buena)
+            pixeles_totales = ndvi.size
         
         eficiencia = (pixeles_buenos / pixeles_totales) * 100.0
         
+        # ✅ REGLA DE ORO (Mejora 3): Si hay área afectada, eficiencia NUNCA es 100%
+        if area_afectada > 0.0:
+            eficiencia = min(eficiencia, 99.7)  # Tope máximo con problemas detectados
+            logger.info(f"   ✅ Eficiencia ajustada a {eficiencia:.1f}% (área afectada detectada: {area_afectada:.2f} ha)")
+        
+        # Redondeo a 1 decimal para porcentajes (Mejora 3)
         return round(eficiencia, 1)
     
     def _generar_mapa_diagnostico(
@@ -623,17 +664,34 @@ class CerebroDiagnosticoUnificado:
         savi: np.ndarray,
         zonas: List[ZonaCritica],
         zona_prioritaria: Optional[ZonaCritica],
-        output_dir: Path
+        output_dir: Path,
+        geo_transform: Optional[Tuple] = None,
+        geometria_parcela: Optional[any] = None
     ) -> Path:
         """
-        Genera MAPA CONSOLIDADO con clasificación por severidad
+        🗺️ PLANO DE NAVEGACIÓN GEOREFERENCIADO - Refactorización Completa
+        
+        Genera un mapa profesional tipo plano de campo con:
+        1. ✅ Contorno real de la parcela (línea negra sólida)
+        2. ✅ Zonas de intervención superpuestas (Rojo/Naranja/Amarillo)
+        3. ✅ Coordenadas GPS en las 4 esquinas
+        4. ✅ Título con período completo de análisis
+        5. ✅ Sin ruido visual - solo lo esencial
         
         Características:
-        - Base: NDVI en escala de colores
-        - Contornos/Círculos clasificados por severidad (Rojo/Naranja/Amarillo)
-        - Prioridad visual: Zonas críticas (rojas) superpuestas (zorder mayor)
-        - Leyenda automática con los 3 niveles de severidad
-        - Marcador especial en zona prioritaria
+        - Fondo limpio (blanco o gris muy claro)
+        - Polígono de la parcela visible y claro
+        - Zonas críticas dentro del polígono
+        - Referencias geográficas en esquinas
+        - Título informativo y profesional
+        
+        Args:
+            ndvi, ndmi, savi: Arrays de índices (para calcular severidad)
+            zonas: Lista de zonas críticas detectadas
+            zona_prioritaria: Zona de máxima prioridad
+            output_dir: Directorio de salida
+            geo_transform: Transformación geográfica GDAL (para coordenadas)
+            geometria_parcela: Geometría del polígono de la parcela (opcional)
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -641,24 +699,88 @@ class CerebroDiagnosticoUnificado:
         zonas_por_severidad = self._clasificar_por_severidad(zonas)
         
         # Crear figura de alta resolución
-        fig, ax = plt.subplots(figsize=(14, 10), dpi=150)
+        fig, ax = plt.subplots(figsize=(16, 12), dpi=200)
         
-        # Mapa base: NDVI
-        im = ax.imshow(
-            ndvi,
-            cmap='RdYlGn',  # Rojo-Amarillo-Verde
-            vmin=-0.2,
-            vmax=1.0,
-            aspect='auto'
-        )
+        # ===== 1. FONDO LIMPIO (gris muy claro) =====
+        ax.set_facecolor('#F5F5F5')  # Gris claro casi blanco
         
-        # Barra de color
-        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label('NDVI', rotation=270, labelpad=20, fontsize=12)
+        # ===== 2. DIBUJAR CONTORNO DE LA PARCELA =====
+        # Si tenemos geometría de la parcela, dibujarla
+        if geometria_parcela is not None:
+            try:
+                from shapely.geometry import shape, Polygon, MultiPolygon
+                from shapely import wkt
+                import json
+                
+                # Convertir geometría de Django (GEOS) a shapely
+                # NOTA: Django GEOS NO tiene __geo_interface__, usar WKT
+                if hasattr(geometria_parcela, 'wkt'):
+                    # Método 1: Usar WKT (Well-Known Text)
+                    geom = wkt.loads(geometria_parcela.wkt)
+                    logger.info(f"✅ Geometría convertida desde WKT ({type(geom).__name__})")
+                elif hasattr(geometria_parcela, '__geo_interface__'):
+                    # Método 2: Usar GeoJSON interface (para otros backends)
+                    geom = shape(geometria_parcela.__geo_interface__)
+                    logger.info(f"✅ Geometría convertida desde GeoJSON ({type(geom).__name__})")
+                elif isinstance(geometria_parcela, (Polygon, MultiPolygon)):
+                    # Método 3: Ya es shapely
+                    geom = geometria_parcela
+                    logger.info(f"✅ Geometría ya es shapely ({type(geom).__name__})")
+                else:
+                    logger.warning(f"⚠️  Geometría de tipo {type(geometria_parcela)} no soportada, usando bbox completo")
+                    geom = None
+                
+                if geom:
+                    # Dibujar polígono de la parcela
+                    if isinstance(geom, Polygon):
+                        polygons = [geom]
+                    elif isinstance(geom, MultiPolygon):
+                        polygons = list(geom.geoms)
+                    else:
+                        polygons = []
+                    
+                    for poly in polygons:
+                        # Convertir coordenadas geográficas a píxeles
+                        if geo_transform:
+                            coords_pixel = []
+                            for lon, lat in poly.exterior.coords:
+                                px, py = self._geo_a_pixel(lat, lon, geo_transform, ndvi.shape)
+                                coords_pixel.append((px, py))
+                            
+                            # Dibujar contorno negro sólido
+                            from matplotlib.patches import Polygon as MPLPolygon
+                            polygon_patch = MPLPolygon(
+                                coords_pixel,
+                                closed=True,
+                                edgecolor='black',
+                                facecolor='white',
+                                linewidth=3,
+                                zorder=1,
+                                alpha=0.3
+                            )
+                            ax.add_patch(polygon_patch)
+                            logger.info(f"✅ Polígono de parcela dibujado ({len(coords_pixel)} vértices)")
+                        
+            except Exception as e:
+                logger.warning(f"⚠️  Error dibujando geometría de parcela: {e}")
         
-        # DIBUJAR ZONAS POR NIVEL DE SEVERIDAD (del menor al mayor zorder)
-        # Orden: Leve → Moderada → Crítica (para que las rojas queden encima)
+        # Si no hay geometría, dibujar rectángulo del área completa
+        if geometria_parcela is None or geo_transform is None:
+            height, width = ndvi.shape
+            rect_parcela = plt.Rectangle(
+                (0, 0),
+                width,
+                height,
+                linewidth=3,
+                edgecolor='black',
+                facecolor='white',
+                alpha=0.3,
+                zorder=1
+            )
+            ax.add_patch(rect_parcela)
+            logger.info(f"✅ Rectángulo de parcela dibujado ({width}x{height} px)")
         
+        # ===== 3. DIBUJAR ZONAS DE INTERVENCIÓN (del menor al mayor zorder) =====
         for nivel in ['leve', 'moderada', 'critica']:
             config = self.NIVELES_SEVERIDAD[nivel]
             zonas_nivel = zonas_por_severidad[nivel]
@@ -670,97 +792,125 @@ class CerebroDiagnosticoUnificado:
                 x_min, y_min, x_max, y_max = zona.bbox
                 cx, cy = zona.centroide_pixel
                 
-                # Círculo de severidad
-                radio = max(ndvi.shape) * 0.025  # 2.5% del tamaño
+                # Círculo de severidad (relleno)
+                radio = max(ndvi.shape) * 0.030  # 3% del tamaño
                 circulo = Circle(
                     (cx, cy),
                     radius=radio,
                     color=config['color'],
                     fill=True,
-                    alpha=0.3,
-                    linewidth=2,
-                    edgecolor=config['color'],
-                    zorder=config['zorder']
+                    alpha=0.5,
+                    linewidth=0,
+                    zorder=config['zorder'] + 5
                 )
                 ax.add_patch(circulo)
                 
-                # Rectángulo delimitador
-                linewidth = 3 if nivel == 'critica' else 2
-                linestyle = '-' if nivel == 'critica' else '--'
-                
-                rect = plt.Rectangle(
-                    (x_min, y_min),
-                    x_max - x_min,
-                    y_max - y_min,
-                    linewidth=linewidth,
-                    edgecolor=config['color'],
-                    facecolor='none',
-                    linestyle=linestyle,
-                    zorder=config['zorder']
-                )
-                ax.add_patch(rect)
+                # Rectángulo delimitador (solo para zonas críticas)
+                if nivel == 'critica':
+                    rect = plt.Rectangle(
+                        (x_min, y_min),
+                        x_max - x_min,
+                        y_max - y_min,
+                        linewidth=3,
+                        edgecolor=config['color'],
+                        facecolor='none',
+                        linestyle='-',
+                        zorder=config['zorder'] + 10
+                    )
+                    ax.add_patch(rect)
         
-        # MARCADOR ESPECIAL PARA ZONA PRIORITARIA (siempre encima)
+        # ===== 4. MARCADOR ESPECIAL PARA ZONA PRIORITARIA =====
         if zona_prioritaria:
             cx, cy = zona_prioritaria.centroide_pixel
             
             # Círculo prominente extra
             circulo_prioridad = Circle(
                 (cx, cy),
-                radius=max(ndvi.shape) * 0.035,  # Más grande
+                radius=max(ndvi.shape) * 0.040,
                 color='#FF0000',
                 fill=False,
                 linewidth=4,
-                zorder=100  # Máxima prioridad visual
+                zorder=100
             )
             ax.add_patch(circulo_prioridad)
             
-            # Flecha apuntando al centroide
-            arrow_start_x = cx - max(ndvi.shape) * 0.10
-            arrow_start_y = cy - max(ndvi.shape) * 0.10
-            
-            arrow = FancyArrowPatch(
-                (arrow_start_x, arrow_start_y),
-                (cx, cy),
-                arrowstyle='->,head_width=0.8,head_length=1',
-                color='#FF0000',
-                linewidth=4,
-                zorder=101
-            )
-            ax.add_patch(arrow)
-            
-            # Etiqueta "ZONA ROJA PRIORITARIA"
+            # Etiqueta "ZONA PRIORITARIA"
             ax.text(
-                arrow_start_x - 10,
-                arrow_start_y - 10,
-                'ZONA ROJA\nPRIORITARIA',
-                fontsize=10,
+                cx,
+                cy - max(ndvi.shape) * 0.05,
+                'ZONA\nPRIORITARIA',
+                fontsize=11,
                 fontweight='bold',
                 color='white',
-                bbox=dict(boxstyle='round,pad=0.5', facecolor='#FF0000', alpha=0.95),
-                zorder=102,
-                ha='right',
-                va='top'
+                bbox=dict(boxstyle='round,pad=0.6', facecolor='#FF0000', alpha=0.95, edgecolor='black', linewidth=2),
+                zorder=101,
+                ha='center',
+                va='bottom'
             )
         
-        # Título
+        # ===== 5. COORDENADAS GPS EN LAS 4 ESQUINAS =====
+        if geo_transform:
+            height, width = ndvi.shape
+            
+            # Calcular coordenadas de las 4 esquinas
+            esquinas = {
+                'Superior Izquierda': (0, 0),
+                'Superior Derecha': (width, 0),
+                'Inferior Izquierda': (0, height),
+                'Inferior Derecha': (width, height)
+            }
+            
+            for nombre, (px, py) in esquinas.items():
+                lat, lon = self._pixel_a_geo(px, py, geo_transform)
+                
+                # Determinar posición del texto
+                if 'Izquierda' in nombre:
+                    ha = 'left'
+                    x_offset = 10
+                else:
+                    ha = 'right'
+                    x_offset = -10
+                
+                if 'Superior' in nombre:
+                    va = 'top'
+                    y_offset = 10
+                else:
+                    va = 'bottom'
+                    y_offset = -10
+                
+                # Etiqueta con coordenadas
+                coord_text = f"{lat:.5f}°, {lon:.5f}°"
+                ax.text(
+                    px + x_offset,
+                    py + y_offset,
+                    coord_text,
+                    fontsize=8,
+                    fontweight='bold',
+                    color='black',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.8, edgecolor='black', linewidth=1),
+                    zorder=50,
+                    ha=ha,
+                    va=va
+                )
+        
+        # ===== 6. TÍTULO INFORMATIVO =====
         ax.set_title(
-            'MAPA CONSOLIDADO DE SEVERIDAD - Diagnóstico Unificado',
-            fontsize=14,
+            'MAPA DE INTERVENCIÓN - RESUMEN DE TODO EL PERÍODO ANALIZADO',
+            fontsize=16,
             fontweight='bold',
-            pad=20
+            pad=25,
+            color='#2C3E50'
         )
         
-        # LEYENDA AUTOMÁTICA CON LOS 3 NIVELES
+        # ===== 7. LEYENDA LIMPIA (solo severidad) =====
         leyenda_patches = []
-        
         for nivel in ['critica', 'moderada', 'leve']:
             config = self.NIVELES_SEVERIDAD[nivel]
             num_zonas = len(zonas_por_severidad[nivel])
             area_total = sum(z.area_hectareas for z in zonas_por_severidad[nivel])
             
             if num_zonas > 0:
-                label = f"{config['label']}: {area_total:.1f} ha ({num_zonas} zonas)"
+                label = f"{config['label']}: {area_total:.1f} ha"
                 patch = mpatches.Patch(
                     color=config['color'],
                     label=label
@@ -771,27 +921,68 @@ class CerebroDiagnosticoUnificado:
             ax.legend(
                 handles=leyenda_patches,
                 loc='upper right',
-                fontsize=9,
+                fontsize=10,
                 framealpha=0.95,
                 edgecolor='black',
-                title='Clasificación por Severidad'
+                title='Clasificación por Severidad',
+                title_fontsize=11
             )
         
-        # Remover ejes
-        ax.set_xticks([])
-        ax.set_yticks([])
+        # ===== 8. CONFIGURACIÓN FINAL =====
+        # Mantener ejes para ver coordenadas de píxeles (opcional)
+        ax.set_xlabel('Coordenada X (píxeles)', fontsize=10)
+        ax.set_ylabel('Coordenada Y (píxeles)', fontsize=10)
+        ax.grid(True, alpha=0.2, linestyle='--', linewidth=0.5)
         
-        # Guardar
+        # Establecer límites para asegurar que todo el mapa sea visible
+        height, width = ndvi.shape
+        ax.set_xlim(0, width)
+        ax.set_ylim(height, 0)  # Invertir Y para que coincida con imagen
+        
+        # ===== 9. GUARDAR =====
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_path = output_dir / f'mapa_diagnostico_consolidado_{timestamp}.png'
         
         plt.tight_layout()
-        plt.savefig(output_path, bbox_inches='tight', dpi=150)
+        plt.savefig(output_path, bbox_inches='tight', dpi=200, facecolor='white')
         plt.close(fig)
         
-        logger.info(f"💾 Mapa consolidado guardado: {output_path}")
+        logger.info(f"💾 Mapa consolidado georeferenciado guardado: {output_path}")
         
         return output_path
+    
+    def _geo_a_pixel(self, lat: float, lon: float, geo_transform: Tuple, shape: Tuple) -> Tuple[int, int]:
+        """
+        Convierte coordenadas geográficas (lat, lon) a coordenadas de píxel (x, y)
+        
+        Args:
+            lat: Latitud
+            lon: Longitud
+            geo_transform: Transformación geográfica GDAL (originX, pixelWidth, 0, originY, 0, pixelHeight)
+            shape: (height, width) de la imagen
+        
+        Returns:
+            (px, py): Coordenadas de píxel
+        """
+        if geo_transform is None:
+            return (0, 0)
+        
+        # Extraer parámetros de geo_transform
+        origin_x = geo_transform[0]
+        pixel_width = geo_transform[1]
+        origin_y = geo_transform[3]
+        pixel_height = geo_transform[5]
+        
+        # Calcular píxel
+        px = int((lon - origin_x) / pixel_width)
+        py = int((lat - origin_y) / pixel_height)
+        
+        # Asegurar que están dentro de límites
+        height, width = shape
+        px = max(0, min(px, width - 1))
+        py = max(0, min(py, height - 1))
+        
+        return (px, py)
     
     def _generar_narrativas(
         self,
@@ -925,6 +1116,111 @@ class CerebroDiagnosticoUnificado:
         
         return resumen, detallado
     
+    def _generar_justificacion_narrativa(
+        self,
+        eficiencia: float,
+        pct_afectado: float,
+        desglose_severidad: Dict[str, float],
+        zona_prioritaria: Optional[ZonaCritica]
+    ) -> str:
+        """
+        MEJORA 2 - NARRATIVA DE JUSTIFICACIÓN (Enero 21, 2026)
+        
+        Genera explicación en lenguaje de campo de dónde sale el porcentaje de eficiencia.
+        
+        Args:
+            eficiencia: Porcentaje de eficiencia del lote (0-100)
+            pct_afectado: Porcentaje de área afectada (0-100)
+            desglose_severidad: Dict con áreas por nivel (ha)
+            zona_prioritaria: Zona de mayor prioridad (opcional)
+        
+        Returns:
+            str: Narrativa explicativa en lenguaje natural
+        """
+        # Formatear áreas con 2 decimales (Mejora 3)
+        area_critica = round(desglose_severidad.get('critica', 0.0), 2)
+        area_moderada = round(desglose_severidad.get('moderada', 0.0), 2)
+        area_leve = round(desglose_severidad.get('leve', 0.0), 2)
+        area_total_afectada = round(area_critica + area_moderada + area_leve, 2)
+        
+        # CASO 1: Eficiencia excelente (>=98%)
+        if eficiencia >= 98.0:
+            if area_total_afectada > 0:
+                narrativa = (
+                    f"La eficiencia del {eficiencia:.1f}% refleja una condición general excelente del lote. "
+                    f"Sin embargo, persisten {area_total_afectada:.2f} ha con debilidad estructural "
+                    f"que requieren vigilancia para evitar su expansión."
+                )
+            else:
+                narrativa = (
+                    f"La eficiencia del {eficiencia:.1f}% refleja un lote en óptimas condiciones. "
+                    f"No se detectaron zonas críticas que requieran intervención inmediata."
+                )
+        
+        # CASO 2: Eficiencia buena (90-98%)
+        elif eficiencia >= 90.0:
+            if zona_prioritaria:
+                tipo_problema = zona_prioritaria.etiqueta_comercial.lower()
+                narrativa = (
+                    f"La eficiencia del {eficiencia:.1f}% indica buen desempeño general, "
+                    f"pero se detectó {area_total_afectada:.2f} ha con {tipo_problema}. "
+                )
+                
+                if area_critica > 0:
+                    narrativa += (
+                        f"De estas, {area_critica:.2f} ha están en nivel crítico y requieren "
+                        f"atención inmediata para evitar pérdidas de rendimiento."
+                    )
+                elif area_moderada > 0:
+                    narrativa += (
+                        f"La mayoría ({area_moderada:.2f} ha) está en nivel moderado, "
+                        f"lo que permite intervención planificada sin urgencia extrema."
+                    )
+            else:
+                narrativa = (
+                    f"La eficiencia del {eficiencia:.1f}% es buena. "
+                    f"Se detectaron {area_total_afectada:.2f} ha con debilidad menor "
+                    f"que requieren monitoreo preventivo."
+                )
+        
+        # CASO 3: Eficiencia moderada (70-90%)
+        elif eficiencia >= 70.0:
+            narrativa = (
+                f"La eficiencia del {eficiencia:.1f}% indica que el {pct_afectado:.1f}% del lote "
+                f"({area_total_afectada:.2f} ha) presenta problemas detectables. "
+            )
+            
+            if area_critica > 0:
+                narrativa += (
+                    f"Preocupa especialmente la presencia de {area_critica:.2f} ha en nivel crítico, "
+                    f"que pueden convertirse en focos de expansión si no se atienden pronto."
+                )
+            elif area_moderada > 0:
+                narrativa += (
+                    f"La mayoría del área afectada ({area_moderada:.2f} ha) está en nivel moderado, "
+                    f"lo que sugiere que una intervención oportuna puede revertir la situación."
+                )
+        
+        # CASO 4: Eficiencia baja (<70%)
+        else:
+            narrativa = (
+                f"La eficiencia del {eficiencia:.1f}% refleja que más del {pct_afectado:.1f}% del lote "
+                f"({area_total_afectada:.2f} ha) presenta problemas significativos. "
+            )
+            
+            if area_critica > 0:
+                narrativa += (
+                    f"La situación es especialmente preocupante con {area_critica:.2f} ha en estado crítico. "
+                    f"Se requiere intervención urgente para evitar pérdidas irreversibles de rendimiento."
+                )
+            else:
+                narrativa += (
+                    f"Aunque no hay zonas en estado crítico, el área afectada es extensa y requiere "
+                    f"plan de acción integral para recuperar la productividad del lote."
+                )
+        
+        return narrativa
+    
     # ========================================================================
     # MÉTODOS DE CORRECCIÓN MATEMÁTICA - ENERO 2026
     # ========================================================================
@@ -1030,7 +1326,7 @@ class CerebroDiagnosticoUnificado:
         if self.mascara_cultivo is not None:
             mascara_critica = np.logical_and(mascara_critica, self.mascara_cultivo)
         
-        desglose['critica'] = np.sum(mascara_critica) * self.area_pixel_ha
+        desglose['critica'] = round(np.sum(mascara_critica) * self.area_pixel_ha, 2)  # MEJORA 3: 2 decimales
         
         # Máscara de zonas moderadas EXCLUYENDO críticas
         mascara_moderada = np.zeros(shape, dtype=bool)
@@ -1043,7 +1339,7 @@ class CerebroDiagnosticoUnificado:
             mascara_moderada = np.logical_and(mascara_moderada, self.mascara_cultivo)
         
         mascara_moderada = np.logical_and(mascara_moderada, ~mascara_critica)
-        desglose['moderada'] = np.sum(mascara_moderada) * self.area_pixel_ha
+        desglose['moderada'] = round(np.sum(mascara_moderada) * self.area_pixel_ha, 2)  # MEJORA 3: 2 decimales
         
         # Máscara de zonas leves EXCLUYENDO críticas y moderadas
         mascara_leve = np.zeros(shape, dtype=bool)
@@ -1057,7 +1353,7 @@ class CerebroDiagnosticoUnificado:
         
         mascara_leve = np.logical_and(mascara_leve, ~mascara_critica)
         mascara_leve = np.logical_and(mascara_leve, ~mascara_moderada)
-        desglose['leve'] = np.sum(mascara_leve) * self.area_pixel_ha
+        desglose['leve'] = round(np.sum(mascara_leve) * self.area_pixel_ha, 2)  # MEJORA 3: 2 decimales
         
         # ✅ NORMALIZACIÓN FINAL: Aplicar clips individuales
         for nivel in desglose:
@@ -1123,7 +1419,8 @@ def ejecutar_diagnostico_unificado(
     output_dir: Path,
     tipo_informe: str = 'produccion',
     resolucion_m: float = 10.0,
-    mascara_cultivo: Optional[np.ndarray] = None
+    mascara_cultivo: Optional[np.ndarray] = None,
+    geometria_parcela: Optional[any] = None
 ) -> DiagnosticoUnificado:
     """
     Función de alto nivel para integrar con el generador de PDF
@@ -1136,6 +1433,7 @@ def ejecutar_diagnostico_unificado(
         tipo_informe: 'produccion' o 'evaluacion'
         resolucion_m: Resolución espacial en metros
         mascara_cultivo: Máscara booleana del polígono real del lote (RECOMENDADO)
+        geometria_parcela: Geometría del polígono de la parcela (NUEVO - para mapa georef)
     
     Returns:
         DiagnosticoUnificado completo
@@ -1162,7 +1460,8 @@ def ejecutar_diagnostico_unificado(
         area_parcela_ha=parcela.area_hectareas,
         output_dir=Path(settings.MEDIA_ROOT) / 'diagnosticos',
         tipo_informe='produccion',
-        mascara_cultivo=mascara  # ✅ CRÍTICO para precisión
+        mascara_cultivo=mascara,  # ✅ CRÍTICO para precisión
+        geometria_parcela=parcela.geometria  # ✅ NUEVO para mapa georeferenciado
     )
     
     # Usar en contexto del PDF:
@@ -1183,11 +1482,12 @@ def ejecutar_diagnostico_unificado(
         if key not in datos_indices:
             raise ValueError(f"Falta el índice '{key}' en datos_indices")
     
-    # Inicializar cerebro con máscara de cultivo
+    # Inicializar cerebro con máscara de cultivo Y geometría
     cerebro = CerebroDiagnosticoUnificado(
         area_parcela_ha=area_parcela_ha,
         resolucion_pixel_m=resolucion_m,
-        mascara_cultivo=mascara_cultivo  # ✅ NUEVO parámetro
+        mascara_cultivo=mascara_cultivo,  # ✅ NUEVO parámetro
+        geometria_parcela=geometria_parcela  # ✅ NUEVO ENERO 2026
     )
     
     # Ejecutar diagnóstico

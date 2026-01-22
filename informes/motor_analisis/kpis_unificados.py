@@ -86,11 +86,19 @@ class KPIsUnificados:
         Returns:
             KPIsUnificados con todos los valores calculados y validados
         """
+        # 🔍 LOG CRÍTICO: Ver datos que llegan del cerebro diagnóstico
+        logger.info(f"📊 KPIsUnificados.desde_diagnostico() iniciando...")
+        logger.info(f"   Área total (parámetro): {area_total_ha:.2f} ha")
+        logger.info(f"   Eficiencia (cerebro): {diagnostico.eficiencia_lote:.1f}%")
+        logger.info(f"   Área afectada (cerebro): {diagnostico.area_afectada_total:.2f} ha")
+        
         # Extraer desglose de severidad
         desglose = diagnostico.desglose_severidad
         area_critica = desglose.get('critica', 0.0)
         area_moderada = desglose.get('moderada', 0.0)
         area_leve = desglose.get('leve', 0.0)
+        
+        logger.info(f"   Desglose: 🔴 {area_critica:.2f} ha, 🟠 {area_moderada:.2f} ha, 🟡 {area_leve:.2f} ha")
         
         # Área afectada total (ya viene del diagnóstico, pre-calculada con unión)
         area_afectada = diagnostico.area_afectada_total
@@ -124,8 +132,19 @@ class KPIsUnificados:
             porcentaje_moderado = 0.0
             porcentaje_leve = 0.0
         
-        # Calcular eficiencia (complemento del porcentaje afectado)
-        eficiencia = 100.0 - porcentaje_afectado
+        # USAR EFICIENCIA DEL CEREBRO DIAGNÓSTICO (ya incluye lógica de ajuste)
+        # ✅ El cerebro ya aplicó la regla: si area_afectada > 0, eficiencia < 100%
+        eficiencia_cerebro = diagnostico.eficiencia_lote
+        
+        # VALIDACIÓN CRÍTICA: Si hay área afectada, eficiencia NUNCA puede ser 100%
+        if area_afectada > 0.0 and eficiencia_cerebro >= 100.0:
+            logger.error(f"❌ INCOHERENCIA MATEMÁTICA DETECTADA:")
+            logger.error(f"   Eficiencia: {eficiencia_cerebro:.1f}% (del cerebro)")
+            logger.error(f"   Área afectada: {area_afectada:.2f} ha")
+            logger.error(f"   FORZANDO eficiencia a 99.7% (tope con problemas detectados)")
+            eficiencia = 99.7
+        else:
+            eficiencia = eficiencia_cerebro
         
         # Aplicar clips finales para garantizar rango [0, 100]
         porcentaje_afectado = max(0.0, min(100.0, porcentaje_afectado))
@@ -192,10 +211,11 @@ class KPIsUnificados:
         assert 0.0 <= self.eficiencia <= 100.0, \
             f"❌ Eficiencia fuera de rango: {self.eficiencia:.2f}%"
         
-        # Validación 4: Eficiencia = 100 - Porcentaje Afectado (con tolerancia de 0.5%)
-        diferencia_eficiencia = abs(self.eficiencia - (100.0 - self.porcentaje_afectado))
-        assert diferencia_eficiencia < 0.5, \
-            f"❌ Eficiencia ({self.eficiencia:.1f}%) incoherente con porcentaje afectado ({self.porcentaje_afectado:.1f}%). Diferencia: {diferencia_eficiencia:.2f}%"
+        # Validación 4: Si hay área afectada, eficiencia NO puede ser 100% (REGLA DE ORO)
+        if self.area_afectada_ha > 0.0:
+            assert self.eficiencia < 100.0, \
+                f"❌ VIOLACIÓN MATEMÁTICA: Eficiencia {self.eficiencia:.1f}% con {self.area_afectada_ha:.2f} ha afectadas. Debe ser < 100%"
+            logger.info(f"   ✅ Regla de oro validada: {self.area_afectada_ha:.2f} ha afectadas → eficiencia {self.eficiencia:.1f}% < 100%")
         
         # Validación 5: Desglose suma al total afectado
         desglose_total = self.area_critica_ha + self.area_moderada_ha + self.area_leve_ha

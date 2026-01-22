@@ -948,25 +948,61 @@ class GeneradorPDFProfesional:
                 eficiencia_str = f"{eficiencia:.0f}%"
                 area_afectada_str = f"{area_afectada:.1f} ha"
             
-            # Determinar color profesional y estado
-            if eficiencia >= 80:
+            # Determinar estado basado en DETECCIÓN REAL de zonas + eficiencia
+            # CORRECCIÓN: No asumir "cultivo" - puede ser terreno para primera siembra
+            
+            # 1. Verificar si HAY ZONAS CRÍTICAS DETECTADAS
+            tiene_zonas_criticas = area_afectada > 0.0
+            
+            # 2. Determinar estado según DETECCIÓN REAL (no solo eficiencia)
+            if not tiene_zonas_criticas:
+                # SIN ZONAS CRÍTICAS DETECTADAS
                 color_fondo = '#27AE60'  # Verde profesional
                 color_borde = '#1E8449'
-                estado = 'EXCELENTE'
-                mensaje = 'El cultivo presenta condiciones óptimas'
+                estado = 'ÓPTIMO'
+                mensaje = 'El lote presenta condiciones favorables en todo el período analizado'
                 icono = '✓'
-            elif eficiencia >= 60:
-                color_fondo = '#F39C12'  # Amber profesional (no rojo agresivo)
+                descripcion_eficiencia = (
+                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<i>Este porcentaje representa las condiciones generales del suelo y vegetación.<br/>'
+                    f'El análisis no detectó áreas con problemas significativos.</i>'
+                )
+            elif area_afectada < 1.0:
+                # ZONAS MENORES DETECTADAS (< 1 ha)
+                color_fondo = '#F39C12'  # Amber profesional
                 color_borde = '#D68910'
-                estado = 'REQUIERE ATENCIÓN'
-                mensaje = 'Detectadas áreas que necesitan intervención'
+                estado = 'REQUIERE MONITOREO'
+                mensaje = f'Detectadas {area_afectada_str} que requieren seguimiento preventivo'
                 icono = '⚠'
-            else:
-                color_fondo = '#E67E22'  # Soft red (no rojo brillante)
+                descripcion_eficiencia = (
+                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<i>Este porcentaje integra las condiciones de toda el área analizada.<br/>'
+                    f'Se detectaron {area_afectada_str} con indicadores por debajo del óptimo.</i>'
+                )
+            elif eficiencia >= 60:
+                # ZONAS MODERADAS DETECTADAS
+                color_fondo = '#E67E22'  # Naranja
                 color_borde = '#CA6F1E'
-                estado = 'CRÍTICO - ACCIÓN INMEDIATA'
-                mensaje = 'Múltiples zonas requieren intervención urgente'
+                estado = 'REQUIERE ATENCIÓN'
+                mensaje = f'Detectadas {area_afectada_str} que necesitan intervención planificada'
+                icono = '⚠'
+                descripcion_eficiencia = (
+                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<i>Este porcentaje combina datos de vegetación, humedad y estrés térmico.<br/>'
+                    f'El análisis identificó {area_afectada_str} con plan de acción recomendado.</i>'
+                )
+            else:
+                # ZONAS CRÍTICAS EXTENSAS
+                color_fondo = '#C0392B'  # Rojo moderado
+                color_borde = '#A93226'
+                estado = 'ACCIÓN PRIORITARIA REQUERIDA'
+                mensaje = f'Identificadas {area_afectada_str} que requieren intervención inmediata'
                 icono = '●'
+                descripcion_eficiencia = (
+                    f'<b>Índice de Salud del Lote: {eficiencia:.0f}%</b><br/>'
+                    f'<i>Este porcentaje refleja el estado integrado del lote (vegetación + humedad + estrés).<br/>'
+                    f'Las {area_afectada_str} identificadas requieren atención urgente para prevenir pérdidas.</i>'
+                )
             
             # Estilo de párrafo sin overlap
             estilo_banner = ParagraphStyle(
@@ -994,9 +1030,9 @@ class GeneradorPDFProfesional:
             
             # Contenido del banner
             data_resumen = [
-                # Fila 1: Estado y mensaje
+                # Fila 1: Estado y mensaje (sin asumir "cultivo")
                 [Paragraph(
-                    f'<b>{icono}  ESTADO DEL CULTIVO: {estado}</b><br/>{mensaje}',
+                    f'<b>{icono}  ESTADO DEL LOTE: {estado}</b><br/>{mensaje}',
                     estilo_banner
                 )],
                 # Fila 2: Eficiencia (número grande)
@@ -1004,16 +1040,17 @@ class GeneradorPDFProfesional:
                     f'{eficiencia:.0f}%',
                     estilo_numero
                 )],
-                # Fila 3: Texto descriptivo con formato estándar (1 decimal)
+                # Fila 3: Texto descriptivo con EXPLICACIÓN del porcentaje
                 [Paragraph(
-                    f'<font size="10">Eficiencia productiva actual<br/>'
-                    f'<i>{area_afectada_str} con recomendaciones</i></font>',
+                    f'<font size="10">{descripcion_eficiencia}</font>',
                     estilo_banner
                 )],
-                # Fila 4: Redirección elegante
+                # Fila 4: Contexto y redirección según estado
                 [Paragraph(
                     '<font size="9"><i>Consulte la sección "Diagnóstico Detallado" '
-                    'al final del documento para el plan de acción completo</i></font>',
+                    'al final del documento para ver el plan de acción completo y mapas de zonas afectadas.</i></font>' if tiene_zonas_criticas
+                    else '<font size="9"><i>El análisis satelital multitemporal no detectó áreas con problemas significativos.<br/>'
+                    'Este lote presenta condiciones adecuadas para actividad agrícola o primera siembra.</i></font>',
                     estilo_banner
                 )]
             ]
@@ -2084,7 +2121,7 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             output_dir = Path(settings.MEDIA_ROOT) / 'diagnosticos' / f'parcela_{parcela.id}'
             output_dir.mkdir(parents=True, exist_ok=True)
             
-            # Ejecutar diagnóstico unificado CON máscara de cultivo
+            # Ejecutar diagnóstico unificado CON máscara de cultivo Y geometría
             logger.info(f"🧠 Ejecutando Cerebro de Diagnóstico Unificado...")
             diagnostico_obj = ejecutar_diagnostico_unificado(
                 datos_indices=arrays_indices,
@@ -2093,7 +2130,8 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 output_dir=str(output_dir),
                 tipo_informe='produccion',
                 resolucion_m=10.0,
-                mascara_cultivo=mascara_cultivo  # 🔧 INTEGRACIÓN: Pasar máscara al cerebro
+                mascara_cultivo=mascara_cultivo,  # 🔧 INTEGRACIÓN: Pasar máscara al cerebro
+                geometria_parcela=parcela.geometria  # ✅ NUEVO: Pasar geometría para mapa georeferenciado
             )
             
             if not diagnostico_obj:
@@ -2425,31 +2463,42 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             except Exception as e:
                 logger.warning(f"No se pudo generar tabla de desglose: {str(e)}")
         
-        # Mapa consolidado de severidad
-        if diagnostico.get('mapa_diagnostico_path') and os.path.exists(diagnostico['mapa_diagnostico_path']):
+        # Mapa georeferenciado de intervención (prioriza nuevo mapa si existe)
+        mapa_final_path = diagnostico.get('mapa_intervencion_limpio_path') or diagnostico.get('mapa_diagnostico_path')
+        
+        if mapa_final_path and os.path.exists(mapa_final_path):
             try:
+                # Determinar si es el nuevo mapa georeferenciado
+                es_mapa_georeferenciado = 'mapa_intervencion_limpio_path' in diagnostico and diagnostico.get('mapa_intervencion_limpio_path')
+                
+                titulo_mapa = 'Mapa Georeferenciado de Intervención' if es_mapa_georeferenciado else 'Mapa Consolidado de Severidad'
+                descripcion_mapa = (
+                    'Mapa con contorno real de la parcela, coordenadas GPS y zonas de intervención clasificadas por severidad.' 
+                    if es_mapa_georeferenciado else
+                    'Mapa consolidado mostrando zonas clasificadas por severidad. Las zonas rojas requieren intervención inmediata.'
+                )
+                
                 elements.append(Paragraph(
-                    '<para alignment="left"><b>Mapa Consolidado de Severidad</b></para>',
+                    f'<para alignment="left"><b>{titulo_mapa}</b></para>',
                     self.estilos['SubtituloSeccion']
                 ))
                 elements.append(Spacer(1, 0.3*cm))
                 
-                img = Image(diagnostico['mapa_diagnostico_path'], width=16*cm, height=11.5*cm)
+                img = Image(mapa_final_path, width=16*cm, height=11.5*cm)
                 elements.append(img)
                 elements.append(Spacer(1, 0.3*cm))
                 
                 elements.append(Paragraph(
                     '<para alignment="center">'
                     '<i><font size="8" color="#7F8C8D">'
-                    'Figura: Mapa consolidado mostrando zonas clasificadas por severidad. '
-                    'Las zonas rojas requieren intervención inmediata.'
+                    f'Figura: {descripcion_mapa}'
                     '</font></i>'
                     '</para>',
                     self.estilos['TextoNormal']
                 ))
                 elements.append(Spacer(1, 0.5*cm))
             except Exception as e:
-                logger.warning(f"No se pudo incluir mapa diagnóstico: {str(e)}")
+                logger.warning(f"No se pudo incluir mapa de intervención: {str(e)}")
         
         # Información de zona prioritaria
         if diagnostico.get('zona_prioritaria'):
