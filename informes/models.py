@@ -719,3 +719,152 @@ class ConfiguracionAPI(models.Model):
     
     def __str__(self):
         return f"API {self.nombre_api}"
+
+
+class UmbralesCultivo(models.Model):
+    """
+    Umbrales científicamente validados por tipo de cultivo y fase fenológica
+    
+    Permite configurar dinámicamente los parámetros de detección del cerebro
+    sin hardcodear valores en el código.
+    
+    NUEVO (Enero 23, 2026): Elimina valores hardcoded del sistema
+    """
+    tipo_cultivo = models.CharField(
+        max_length=100,
+        help_text="Tipo de cultivo (Arroz, Maíz, Soya, etc.)"
+    )
+    fase_fenologica = models.CharField(
+        max_length=50,
+        default='general',
+        help_text="Fase del cultivo (vegetativa, reproductiva, general)"
+    )
+    
+    # Umbrales NDVI (Vigor Vegetal)
+    ndvi_critico_max = models.FloatField(
+        default=0.30,
+        help_text="NDVI máximo para detectar baja densidad vegetal crítica"
+    )
+    ndvi_moderado_max = models.FloatField(
+        default=0.45,
+        help_text="NDVI máximo para detectar baja densidad vegetal moderada"
+    )
+    ndvi_optimo_min = models.FloatField(
+        default=0.70,
+        help_text="NDVI mínimo para considerar cultivo en estado óptimo"
+    )
+    
+    # Umbrales NDMI (Humedad)
+    ndmi_estres_severo_max = models.FloatField(
+        default=-0.08,
+        help_text="NDMI máximo para detectar estrés hídrico severo"
+    )
+    ndmi_estres_moderado_max = models.FloatField(
+        default=0.05,
+        help_text="NDMI máximo para detectar déficit hídrico moderado"
+    )
+    ndmi_optimo_min = models.FloatField(
+        default=0.20,
+        help_text="NDMI mínimo para considerar humedad óptima"
+    )
+    
+    # Umbrales SAVI (Suelo/Cobertura)
+    savi_exposicion_severa_max = models.FloatField(
+        default=0.25,
+        help_text="SAVI máximo para detectar exposición de suelo severa"
+    )
+    savi_exposicion_moderada_max = models.FloatField(
+        default=0.35,
+        help_text="SAVI máximo para detectar exposición de suelo moderada"
+    )
+    savi_optimo_min = models.FloatField(
+        default=0.50,
+        help_text="SAVI mínimo para considerar cobertura óptima"
+    )
+    
+    # Factores de penalización histórica
+    factor_penalizacion_crisis = models.FloatField(
+        default=80.0,
+        help_text="% de penalización por proporción de tiempo en crisis (0-100)"
+    )
+    penalizacion_maxima = models.FloatField(
+        default=50.0,
+        help_text="Penalización máxima permitida en % (límite de seguridad)"
+    )
+    
+    # Configuración de área mínima
+    area_minima_absoluta_ha = models.FloatField(
+        default=0.05,
+        help_text="Área mínima absoluta para detectar clusters (hectáreas)"
+    )
+    area_minima_porcentaje_lote = models.FloatField(
+        default=0.5,
+        help_text="Área mínima como % del lote (0.5 = 0.5%)"
+    )
+    
+    # Validación científica
+    fuente_bibliografia = models.TextField(
+        blank=True,
+        help_text="Referencias bibliográficas que validan estos umbrales"
+    )
+    validado_por = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Agrónomo o institución que validó estos valores"
+    )
+    fecha_validacion = models.DateField(
+        auto_now_add=True,
+        help_text="Fecha de validación de los umbrales"
+    )
+    
+    class Meta:
+        verbose_name = "Umbrales de Cultivo"
+        verbose_name_plural = "Umbrales de Cultivos"
+        unique_together = ['tipo_cultivo', 'fase_fenologica']
+        ordering = ['tipo_cultivo', 'fase_fenologica']
+    
+    def __str__(self):
+        return f"{self.tipo_cultivo} - {self.fase_fenologica}"
+    
+    @classmethod
+    def obtener_umbrales(cls, tipo_cultivo: str, fase: str = 'general'):
+        """
+        Obtiene umbrales para un cultivo específico con fallback inteligente
+        
+        Args:
+            tipo_cultivo: Tipo de cultivo
+            fase: Fase fenológica (default: 'general')
+        
+        Returns:
+            Instancia de UmbralesCultivo o umbrales genéricos si no existe
+        """
+        try:
+            return cls.objects.get(tipo_cultivo=tipo_cultivo, fase_fenologica=fase)
+        except cls.DoesNotExist:
+            # Intentar obtener umbrales genéricos del cultivo
+            try:
+                return cls.objects.get(tipo_cultivo=tipo_cultivo, fase_fenologica='general')
+            except cls.DoesNotExist:
+                # Fallback: umbrales genéricos universales
+                try:
+                    return cls.objects.get(tipo_cultivo='generico', fase_fenologica='general')
+                except cls.DoesNotExist:
+                    # Último recurso: crear umbrales genéricos conservadores en memoria
+                    from types import SimpleNamespace
+                    return SimpleNamespace(
+                        tipo_cultivo='generico',
+                        fase_fenologica='general',
+                        ndvi_critico_max=0.30,
+                        ndvi_moderado_max=0.45,
+                        ndvi_optimo_min=0.70,
+                        ndmi_estres_severo_max=-0.08,
+                        ndmi_estres_moderado_max=0.05,
+                        ndmi_optimo_min=0.20,
+                        savi_exposicion_severa_max=0.25,
+                        savi_exposicion_moderada_max=0.35,
+                        savi_optimo_min=0.50,
+                        factor_penalizacion_crisis=80.0,
+                        penalizacion_maxima=50.0,
+                        area_minima_absoluta_ha=0.05,
+                        area_minima_porcentaje_lote=0.5
+                    )

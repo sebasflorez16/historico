@@ -33,3 +33,6 @@ __pycache__/
 # Otros
 *.bak
 *.swp
+
+# Planes estratégicos (documentación interna sensible)
+/PLANES_ESTRATEGICOS/

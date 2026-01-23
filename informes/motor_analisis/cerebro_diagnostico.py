@@ -107,58 +107,35 @@ class CerebroDiagnosticoUnificado:
         }
     }
     
-    # Umbrales de detección (ajustados para evitar 100% crítico)
-    # CORRECCIÓN ENERO 2026: Umbrales más conservadores y realistas
-    # AJUSTE CRÍTICO SENSIBILIDAD (ENERO 21, 2026): Umbrales preventivos bajados
-    UMBRALES_CRITICOS = {
-        'deficit_hidrico_recurrente': {
-            'ndvi_max': 0.30,  # ✅ REDUCIDO (antes 0.45) - Solo casos severos
-            'ndmi_max': -0.08,  # ✅ BAJADO DE -0.05 A -0.08 (Mejora 4: Sensibilidad Proactiva)
-            'etiqueta': 'Déficit Hídrico Recurrente',
-            'severidad_base': 0.70,  # ✅ REDUCIDO (antes 0.85)
-            'color_marca': '#FF0000',  # Rojo
-            'recomendaciones': [
-                'Inspección inmediata del sistema de riego en la zona marcada',
-                'Verificar disponibilidad de agua y uniformidad de distribución',
-                'Considerar riego de emergencia para evitar pérdidas de rendimiento',
-                'Monitorear evolución diaria hasta normalización'
-            ]
-        },
-        'baja_densidad_suelo_degradado': {
-            'ndvi_max': 0.25,  # ✅ REDUCIDO (antes 0.45) - Cobertura muy baja
-            'savi_max': 0.25,  # ✅ REDUCIDO (antes 0.35) - Suelo muy expuesto
-            'etiqueta': 'Baja Densidad / Suelo Degradado',
-            'severidad_base': 0.60,  # ✅ REDUCIDO (antes 0.75)
-            'color_marca': '#FF6600',  # Naranja
-            'recomendaciones': [
-                'Análisis de suelo para evaluar fertilidad y estructura',
-                'Verificar densidad de siembra y germinación en campo',
-                'Considerar enmiendas orgánicas para mejorar condición del suelo',
-                'Evaluar sistemas de labranza y manejo de residuos'
-            ]
-        },
-        'estres_nutricional': {
-            'ndvi_max': 0.40,  # ✅ REDUCIDO (antes 0.50) - Vigor moderadamente bajo
-            'ndmi_min': 0.10,  # ✅ AJUSTADO - Humedad adecuada pero bajo vigor
-            'savi_max': 0.35,  # ✅ REDUCIDO (antes 0.45)
-            'etiqueta': 'Posible Estrés Nutricional',
-            'severidad_base': 0.50,  # ✅ REDUCIDO (antes 0.65)
-            'color_marca': '#FFAA00',  # Amarillo-naranja
-            'recomendaciones': [
-                'Análisis foliar para determinar deficiencias específicas',
-                'Verificar disponibilidad de nitrógeno, fósforo y potasio',
-                'Considerar fertilización correctiva dirigida',
-                'Evaluar pH del suelo y disponibilidad de micronutrientes'
-            ]
-        }
-    }
+    # ============================================================================
+    # ELIMINADO ENERO 23, 2026: Umbrales hardcodeados movidos a base de datos
+    # ============================================================================
+    # Todos los umbrales ahora se cargan dinámicamente desde UmbralesCultivo
+    # según tipo de cultivo y fase fenológica.
+    # 
+    # Los umbrales ahora se construyen en _detectar_zonas_criticas() usando:
+    #   self.umbrales.ndvi_critico_max
+    #   self.umbrales.ndmi_estres_severo_max
+    #   self.umbrales.savi_exposicion_severa_max
+    # etc.
+    # ============================================================================
     
-    def __init__(self, area_parcela_ha: float, resolucion_pixel_m: float = 10.0, mascara_cultivo: Optional[np.ndarray] = None, geometria_parcela: Optional[any] = None):
+    def __init__(
+        self, 
+        area_parcela_ha: float,
+        tipo_cultivo: str = 'generico',
+        fase_fenologica: str = 'general',
+        resolucion_pixel_m: float = 10.0,
+        mascara_cultivo: Optional[np.ndarray] = None,
+        geometria_parcela: Optional[any] = None
+    ):
         """
-        Inicializa cerebro de diagnóstico
+        Inicializa cerebro de diagnóstico CON configuración dinámica
         
         Args:
             area_parcela_ha: Área total de la parcela en hectáreas
+            tipo_cultivo: Tipo de cultivo para cargar umbrales específicos (NUEVO)
+            fase_fenologica: Fase del cultivo (vegetativa, reproductiva, general) (NUEVO)
             resolucion_pixel_m: Tamaño de pixel en metros (default: 10m Sentinel-2)
             mascara_cultivo: Máscara booleana del polígono real del lote (opcional)
                             Si se provee, TODOS los cálculos se recortarán a esta máscara
@@ -166,14 +143,22 @@ class CerebroDiagnosticoUnificado:
         """
         # MEJORA 3: Forzar área de parcela con 2 decimales (61.42 ha)
         self.area_parcela_ha = round(area_parcela_ha, 2)
+        self.tipo_cultivo = tipo_cultivo
+        self.fase_fenologica = fase_fenologica
         self.resolucion_pixel_m = resolucion_pixel_m
         self.area_pixel_ha = (resolucion_pixel_m ** 2) / 10000  # m² a ha
         self.mascara_cultivo = mascara_cultivo  # NUEVO: Máscara del polígono
         self.geometria_parcela = geometria_parcela  # NUEVO ENERO 2026: Geometría para mapa
         
-        logger.info(f"🧠 Cerebro de Diagnóstico inicializado")
+        # NUEVO ENERO 23, 2026: Cargar umbrales dinámicos desde BD (NO hardcoded)
+        self._cargar_umbrales_dinamicos()
+        
+        logger.info(f"🧠 Cerebro de Diagnóstico inicializado (100% DINÁMICO)")
+        logger.info(f"   Cultivo: {self.tipo_cultivo} - Fase: {self.fase_fenologica}")
         logger.info(f"   Área parcela: {self.area_parcela_ha:.2f} ha")  # Siempre 2 decimales
         logger.info(f"   Resolución: {resolucion_pixel_m}m/pixel ({self.area_pixel_ha:.6f} ha/pixel)")
+        logger.info(f"   Umbrales NDVI: crítico<{self.umbrales.ndvi_critico_max}, moderado<{self.umbrales.ndvi_moderado_max}, óptimo>{self.umbrales.ndvi_optimo_min}")
+        logger.info(f"   Factor penalización: {self.umbrales.factor_penalizacion_crisis}%")
         
         if mascara_cultivo is not None:
             pixeles_cultivo = np.sum(mascara_cultivo)
@@ -189,6 +174,42 @@ class CerebroDiagnosticoUnificado:
         if geometria_parcela is not None:
             logger.info(f"   ✅ Geometría de parcela provista para mapa georeferenciado")
     
+    def _cargar_umbrales_dinamicos(self):
+        """
+        Carga umbrales desde base de datos según tipo de cultivo
+        
+        ELIMINA valores hardcodeados del cerebro.
+        Sistema 100% "pensante" basado en configuración científica.
+        """
+        from informes.models import UmbralesCultivo
+        
+        try:
+            self.umbrales = UmbralesCultivo.obtener_umbrales(
+                tipo_cultivo=self.tipo_cultivo,
+                fase=self.fase_fenologica
+            )
+            logger.info(f"✅ Umbrales cargados desde BD: {self.tipo_cultivo}/{self.fase_fenologica}")
+        except Exception as e:
+            logger.error(f"❌ Error cargando umbrales: {e}")
+            logger.warning("⚠️  Usando fallback in-memory")
+            # El método obtener_umbrales() ya tiene fallback automático
+            from types import SimpleNamespace
+            self.umbrales = SimpleNamespace(
+                ndvi_critico_max=0.30,
+                ndvi_moderado_max=0.45,
+                ndvi_optimo_min=0.70,
+                ndmi_estres_severo_max=-0.08,
+                ndmi_estres_moderado_max=0.05,
+                ndmi_optimo_min=0.20,
+                savi_exposicion_severa_max=0.25,
+                savi_exposicion_moderada_max=0.35,
+                savi_optimo_min=0.50,
+                factor_penalizacion_crisis=80.0,
+                penalizacion_maxima=50.0,
+                area_minima_absoluta_ha=0.05,
+                area_minima_porcentaje_lote=0.5
+            )
+    
     def triangular_y_diagnosticar(
         self,
         ndvi_array: np.ndarray,
@@ -196,7 +217,9 @@ class CerebroDiagnosticoUnificado:
         savi_array: np.ndarray,
         geo_transform: Tuple,
         output_dir: Path,
-        tipo_informe: str = 'produccion'
+        tipo_informe: str = 'produccion',
+        crisis_historicas: Optional[list] = None,
+        data_cubes_temporales: Optional[Dict] = None
     ) -> DiagnosticoUnificado:
         """
         Ejecuta triangulación completa y genera diagnóstico unificado
@@ -208,6 +231,8 @@ class CerebroDiagnosticoUnificado:
             geo_transform: Transformación geográfica (GDAL GeoTransform)
             output_dir: Directorio para guardar visualizaciones
             tipo_informe: 'produccion' o 'evaluacion' (cambia lenguaje)
+            crisis_historicas: Lista de crisis detectadas en análisis temporal (NUEVO)
+            data_cubes_temporales: Data Cubes 3D para extraer dimensión temporal real (NUEVO)
         
         Returns:
             DiagnosticoUnificado con zonas críticas, visualizaciones y narrativas
@@ -246,8 +271,14 @@ class CerebroDiagnosticoUnificado:
             logger.error(f"   APLICANDO CORRECCIÓN: Clipping al área máxima")
             area_afectada = min(area_afectada, self.area_parcela_ha)
         
-        # 4. CALCULAR EFICIENCIA DEL LOTE (con área afectada para sincronización)
-        eficiencia = self._calcular_eficiencia_lote(ndvi_array, savi_array, area_afectada)
+        # 4. CALCULAR EFICIENCIA DEL LOTE (con área afectada y penalización histórica DINÁMICA)
+        eficiencia = self._calcular_eficiencia_lote(
+            ndvi_array, 
+            savi_array, 
+            area_afectada,
+            crisis_historicas=crisis_historicas,  # Penalización por crisis pasadas
+            data_cubes_temporales=data_cubes_temporales  # Para extraer meses reales
+        )
         
         # 5. GENERAR VISUALIZACIÓN MARCADA (MAPA GEOREFERENCIADO)
         mapa_path = self._generar_mapa_diagnostico(
@@ -372,14 +403,28 @@ class CerebroDiagnosticoUnificado:
         """
         Detecta zonas críticas mediante triangulación de índices
         
+        NUEVO ENERO 23, 2026: 100% DINÁMICO - NO usa valores hardcodeados
+        
+        Construye patrones de detección en tiempo de ejecución basados en
+        umbrales cargados desde base de datos según tipo de cultivo.
+        
         Usa máscaras booleanas y análisis de contornos para identificar
         clusters espaciales que cumplen condiciones críticas.
         """
         zonas = []
         
-        for tipo, config in self.UMBRALES_CRITICOS.items():
-            # Crear máscara según condiciones
-            mascara = self._crear_mascara_condicion(ndvi, ndmi, savi, config)
+        # ============================================================================
+        # NUEVO: Construcción dinámica de patrones de detección
+        # ============================================================================
+        # En lugar de iterar sobre dict hardcodeado, construimos patrones en runtime
+        # basados en los umbrales del cultivo específico
+        # ============================================================================
+        
+        patrones_deteccion = self._construir_patrones_deteccion_dinamicos()
+        
+        for patron in patrones_deteccion:
+            # Crear máscara según condiciones del patrón
+            mascara = self._crear_mascara_condicion_dinamica(ndvi, ndmi, savi, patron)
             
             if not mascara.any():
                 continue  # No hay píxeles que cumplan esta condición
@@ -390,56 +435,131 @@ class CerebroDiagnosticoUnificado:
             for cluster_mask, bbox in clusters:
                 zona = self._analizar_cluster(
                     cluster_mask, bbox, ndvi, ndmi, savi,
-                    geo_transform, tipo, config
+                    geo_transform, patron
                 )
                 if zona:
                     zonas.append(zona)
         
         return sorted(zonas, key=lambda z: z.severidad * z.area_hectareas, reverse=True)
     
-    def _crear_mascara_condicion(
+    def _construir_patrones_deteccion_dinamicos(self) -> List[Dict]:
+        """
+        Construye patrones de detección dinámicamente basados en umbrales
+        
+        ELIMINA diccionario hardcodeado UMBRALES_CRITICOS.
+        Ahora todo se calcula según configuración del cultivo.
+        """
+        u = self.umbrales  # Shorthand
+        
+        return [
+            {
+                'tipo': 'deficit_hidrico_recurrente',
+                'ndvi_max': u.ndvi_critico_max,
+                'ndmi_max': u.ndmi_estres_severo_max,
+                'etiqueta': 'Déficit Hídrico Recurrente',
+                'severidad_base': 0.70,
+                'color_marca': '#FF0000',
+                'recomendaciones': [
+                    'Inspección inmediata del sistema de riego en la zona marcada',
+                    'Verificar disponibilidad de agua y uniformidad de distribución',
+                    'Considerar riego de emergencia para evitar pérdidas de rendimiento',
+                    'Monitorear evolución diaria hasta normalización'
+                ]
+            },
+            {
+                'tipo': 'baja_densidad_suelo_degradado',
+                'ndvi_max': u.ndvi_critico_max * 0.83,  # Ligeramente más bajo
+                'savi_max': u.savi_exposicion_severa_max,
+                'etiqueta': 'Baja Densidad / Suelo Degradado',
+                'severidad_base': 0.60,
+                'color_marca': '#FF6600',
+                'recomendaciones': [
+                    'Análisis de suelo para evaluar fertilidad y estructura',
+                    'Verificar densidad de siembra y germinación en campo',
+                    'Considerar enmiendas orgánicas para mejorar condición del suelo',
+                    'Evaluar sistemas de labranza y manejo de residuos'
+                ]
+            },
+            {
+                'tipo': 'estres_nutricional',
+                'ndvi_max': u.ndvi_moderado_max,
+                'ndmi_min': u.ndmi_estres_moderado_max * 2,  # Humedad OK pero bajo vigor
+                'savi_max': u.savi_exposicion_moderada_max,
+                'etiqueta': 'Posible Estrés Nutricional',
+                'severidad_base': 0.50,
+                'color_marca': '#FFAA00',
+                'recomendaciones': [
+                    'Análisis foliar para determinar deficiencias específicas',
+                    'Verificar disponibilidad de nitrógeno, fósforo y potasio',
+                    'Considerar fertilización correctiva dirigida',
+                    'Evaluar pH del suelo y disponibilidad de micronutrientes'
+                ]
+            }
+        ]
+    
+    def _crear_mascara_condicion_dinamica(
         self,
         ndvi: np.ndarray,
         ndmi: np.ndarray,
         savi: np.ndarray,
-        config: Dict
+        patron: Dict
     ) -> np.ndarray:
-        """Crea máscara booleana según condiciones del patrón"""
+        """
+        Crea máscara booleana según condiciones del patrón dinámico
+        
+        REEMPLAZO de _crear_mascara_condicion (mismo funcionamiento, nuevo nombre)
+        """
         mascara = np.ones(ndvi.shape, dtype=bool)
         
         # NDVI
-        if 'ndvi_max' in config:
-            mascara &= (ndvi <= config['ndvi_max']) & (ndvi >= -1.0)
-        if 'ndvi_min' in config:
-            mascara &= (ndvi >= config['ndvi_min'])
+        if 'ndvi_max' in patron:
+            mascara &= (ndvi <= patron['ndvi_max']) & (ndvi >= -1.0)
+        if 'ndvi_min' in patron:
+            mascara &= (ndvi >= patron['ndvi_min'])
         
         # NDMI
-        if 'ndmi_max' in config:
-            mascara &= (ndmi <= config['ndmi_max']) & (ndmi >= -1.0)
-        if 'ndmi_min' in config:
-            mascara &= (ndmi >= config['ndmi_min'])
+        if 'ndmi_max' in patron:
+            mascara &= (ndmi <= patron['ndmi_max']) & (ndmi >= -1.0)
+        if 'ndmi_min' in patron:
+            mascara &= (ndmi >= patron['ndmi_min'])
         
         # SAVI
-        if 'savi_max' in config:
-            mascara &= (savi <= config['savi_max']) & (savi >= -1.0)
-        if 'savi_min' in config:
-            mascara &= (savi >= config['savi_min'])
+        if 'savi_max' in patron:
+            mascara &= (savi <= patron['savi_max']) & (savi >= -1.0)
+        if 'savi_min' in patron:
+            mascara &= (savi >= patron['savi_min'])
         
         return mascara
+
     
     def _encontrar_clusters(
         self,
         mascara: np.ndarray,
-        min_area_pixeles: int = 5
+        min_area_pixeles: Optional[int] = None
     ) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
         """
         Encuentra clusters (manchas) contiguos usando OpenCV
         
         CORRECCIÓN CRÍTICA: Si existe máscara de cultivo, recorta ANTES de buscar contornos
         
+        CORRECCIÓN DINAMISMO (Enero 23, 2026):
+        - Área mínima ahora es PROPORCIONAL al tamaño del lote
+        - No más 5 píxeles fijos (irrelevante para lotes grandes, excesivo para pequeños)
+        - Fórmula: min_area = max(0.05 ha, 0.5% del lote)
+        
         Returns:
             Lista de (mascara_cluster, bbox) para cada cluster detectado
         """
+        # ✅ CALCULAR ÁREA MÍNIMA DINÁMICAMENTE (desde DB, no hardcoded)
+        if min_area_pixeles is None:
+            # Usa configuración del cultivo
+            area_absoluta = self.umbrales.area_minima_absoluta_ha
+            area_porcentual = self.area_parcela_ha * (self.umbrales.area_minima_porcentaje_lote / 100.0)
+            min_area_ha = max(area_absoluta, area_porcentual)
+            min_area_pixeles = int(min_area_ha / self.area_pixel_ha)
+            min_area_pixeles = max(5, min_area_pixeles)  # Mínimo absoluto: 5 píxeles
+            logger.debug(f"   📏 Área mínima de cluster: {min_area_ha:.3f} ha ({min_area_pixeles} píxeles)")
+        
         # ✅ APLICAR RECORTE POR MÁSCARA DE CULTIVO ANTES DE BUSCAR CONTORNOS
         if self.mascara_cultivo is not None:
             mascara_recortada = np.logical_and(mascara, self.mascara_cultivo)
@@ -459,7 +579,7 @@ class CerebroDiagnosticoUnificado:
         
         clusters = []
         for contour in contours:
-            # Filtrar clusters muy pequeños
+            # Filtrar clusters muy pequeños (ahora dinámico)
             area = cv2.contourArea(contour)
             if area < min_area_pixeles:
                 continue
@@ -485,10 +605,13 @@ class CerebroDiagnosticoUnificado:
         ndmi: np.ndarray,
         savi: np.ndarray,
         geo_transform: Tuple,
-        tipo: str,
-        config: Dict
+        patron: Dict  # ✅ CAMBIO: ahora recibe patron dinámico, no (tipo, config)
     ) -> Optional[ZonaCritica]:
-        """Analiza un cluster individual y extrae información"""
+        """
+        Analiza un cluster individual y extrae información
+        
+        ACTUALIZADO ENERO 23, 2026: Recibe patrón dinámico
+        """
         # Calcular área
         num_pixeles = np.sum(cluster_mask)
         area_ha = num_pixeles * self.area_pixel_ha
@@ -514,15 +637,18 @@ class CerebroDiagnosticoUnificado:
         # Calcular confianza (basado en homogeneidad de la zona)
         confianza = self._calcular_confianza(ndvi[cluster_mask], ndmi[cluster_mask])
         
-        # Calcular severidad dinámica
-        severidad = config['severidad_base']
-        # Ajustar por área (zonas más grandes son más severas)
-        if area_ha > 1.0:
-            severidad = min(1.0, severidad + 0.1)
+        # ✅ NUEVO: Calcular severidad DINÁMICAMENTE basada en distancia a valores óptimos
+        severidad = self._calcular_severidad_dinamica(
+            valores_indices['ndvi'],
+            valores_indices['ndmi'], 
+            valores_indices['savi'],
+            area_ha,
+            patron['severidad_base']
+        )
         
         return ZonaCritica(
-            tipo_diagnostico=tipo,
-            etiqueta_comercial=config['etiqueta'],
+            tipo_diagnostico=patron['tipo'],
+            etiqueta_comercial=patron['etiqueta'],
             severidad=severidad,
             area_hectareas=area_ha,
             area_pixeles=num_pixeles,
@@ -531,8 +657,52 @@ class CerebroDiagnosticoUnificado:
             bbox=bbox,
             valores_indices=valores_indices,
             confianza=confianza,
-            recomendaciones=config['recomendaciones']
+            recomendaciones=patron['recomendaciones']
         )
+    
+    def _calcular_severidad_dinamica(
+        self,
+        ndvi: float,
+        ndmi: float,
+        savi: float,
+        area_ha: float,
+        severidad_base: float
+    ) -> float:
+        """
+        Calcula severidad basándose en qué tan lejos están los valores de lo óptimo
+        
+        NUEVO ENERO 23, 2026: Severidad calculada dinámicamente, NO hardcoded
+        
+        Lógica:
+        - Cuanto más lejos del rango óptimo, mayor severidad
+        - Áreas grandes incrementan la severidad (mayor impacto)
+        - Usa umbrales del cultivo específico
+        """
+        u = self.umbrales
+        
+        # Calcular distancia normalizada a valores óptimos
+        distancia_ndvi = max(0, u.ndvi_optimo_min - ndvi) / u.ndvi_optimo_min
+        distancia_ndmi = max(0, u.ndmi_optimo_min - ndmi) / (u.ndmi_optimo_min + 0.3)  # +0.3 para evitar /0
+        distancia_savi = max(0, u.savi_optimo_min - savi) / u.savi_optimo_min
+        
+        # Promedio ponderado (NDVI tiene más peso)
+        distancia_promedio = (
+            distancia_ndvi * 0.5 +
+            distancia_ndmi * 0.3 +
+            distancia_savi * 0.2
+        )
+        
+        # Combinar con severidad base del patrón
+        severidad = severidad_base * 0.6 + distancia_promedio * 0.4
+        
+        # Ajustar por área (zonas más grandes son más severas)
+        if area_ha > 1.0:
+            severidad = min(1.0, severidad + 0.1)
+        if area_ha > 5.0:
+            severidad = min(1.0, severidad + 0.05)
+        
+        return min(1.0, max(0.0, severidad))
+
     
     def _pixel_a_geo(
         self,
@@ -618,35 +788,119 @@ class CerebroDiagnosticoUnificado:
         self,
         ndvi: np.ndarray,
         savi: np.ndarray,
-        area_afectada: float = 0.0
+        area_afectada: float = 0.0,
+        crisis_historicas: Optional[list] = None,
+        data_cubes_temporales: Optional[Dict] = None
     ) -> float:
         """
-        Calcula eficiencia general del lote (0-100%)
+        Calcula eficiencia general del lote (0-100%) con penalización histórica DINÁMICA
         
         CORRECCIÓN CRÍTICA (Enero 22, 2026):
         - Fórmula correcta: Eficiencia = (1 - Area_Afectada / Area_Total) * 100
         - Si área afectada = 0.0 ha → eficiencia = 100%
         - Si área afectada > 0 → eficiencia < 100%
         - Garantiza coherencia matemática total
+        
+        CORRECCIÓN DINAMISMO TOTAL (Enero 23, 2026 - 20:30):
+        - ❌ ELIMINADO: Asumir 15 meses hardcoded
+        - ✅ NUEVO: Extraer dimensión temporal REAL del Data Cube
+        - Penalización = (meses_crisis / meses_reales_analizados) * FACTOR_IMPACTO
+        - FACTOR_IMPACTO proporcional a pérdida de rendimiento agronómico
+        - Si 30% del tiempo en crisis → penalización ~30% (impacto directo)
+        
+        Args:
+            ndvi: Array NDVI
+            savi: Array SAVI  
+            area_afectada: Hectáreas con problemas actuales
+            crisis_historicas: Lista de crisis detectadas en análisis temporal
+            data_cubes_temporales: Data Cubes 3D para extraer dimensión temporal real
+        
+        Returns:
+            Eficiencia del lote (0-100%)
         """
-        # NUEVA LÓGICA: Calcular eficiencia basada en área afectada real
+        # PASO 1: Calcular eficiencia base por área afectada actual
         if area_afectada <= 0.0:
-            # Sin problemas detectados = Eficiencia perfecta
-            eficiencia = 100.0
-            logger.info(f"   ✅ Eficiencia: 100.0% (sin áreas afectadas detectadas)")
+            # Sin problemas detectados actualmente
+            eficiencia_base = 100.0
+            logger.info(f"   ✅ Eficiencia base: 100.0% (sin áreas afectadas detectadas)")
         else:
             # Calcular porcentaje de área limpia
             porcentaje_afectado = (area_afectada / self.area_parcela_ha) * 100.0
-            eficiencia = 100.0 - porcentaje_afectado
+            eficiencia_base = 100.0 - porcentaje_afectado
             
             # Asegurar que eficiencia no sea negativa
-            eficiencia = max(0.0, eficiencia)
+            eficiencia_base = max(0.0, eficiencia_base)
             
             logger.info(f"   📊 Área afectada: {area_afectada:.2f} ha ({porcentaje_afectado:.1f}%)")
-            logger.info(f"   ✅ Eficiencia calculada: {eficiencia:.1f}%")
+            logger.info(f"   ✅ Eficiencia base: {eficiencia_base:.1f}%")
+        
+        # PASO 2: Aplicar penalización histórica DINÁMICA si hay crisis detectadas
+        eficiencia_final = eficiencia_base
+        
+        if crisis_historicas and len(crisis_historicas) > 0:
+            num_crisis = len(crisis_historicas)
+            
+            # ✅ EXTRAER DIMENSIÓN TEMPORAL REAL del Data Cube (NO asumir 15)
+            total_meses_reales = None
+            
+            if data_cubes_temporales:
+                # Intentar obtener de diferentes formas
+                if 'num_meses' in data_cubes_temporales:
+                    total_meses_reales = data_cubes_temporales['num_meses']
+                    logger.info(f"   📅 Meses analizados (metadata): {total_meses_reales}")
+                elif 'ndvi_cube' in data_cubes_temporales:
+                    # Extraer del shape del cubo NDVI [meses, alto, ancho]
+                    total_meses_reales = data_cubes_temporales['ndvi_cube'].shape[0]
+                    logger.info(f"   📅 Meses analizados (Data Cube NDVI shape): {total_meses_reales}")
+                elif 'fechas' in data_cubes_temporales:
+                    # Contar fechas en el cubo
+                    total_meses_reales = len(data_cubes_temporales['fechas'])
+                    logger.info(f"   📅 Meses analizados (fechas): {total_meses_reales}")
+            
+            # Fallback: inferir de crisis detectadas si no hay data cube
+            if total_meses_reales is None:
+                # Si hay crisis, asumir que se analizó al menos ese rango
+                # Más un margen de meses normales
+                total_meses_reales = max(12, num_crisis * 2)  # Estimación conservadora
+                logger.warning(f"   ⚠️  No se pudo extraer dimensión temporal real, estimando: {total_meses_reales} meses")
+            
+            # Validación: asegurar lógica
+            if total_meses_reales < num_crisis:
+                logger.error(f"   ❌ Error lógico: {num_crisis} crisis en {total_meses_reales} meses. Corrigiendo...")
+                total_meses_reales = num_crisis
+            
+            # Calcular proporción REAL de tiempo en crisis (0.0 a 1.0)
+            proporcion_crisis = num_crisis / total_meses_reales
+            
+            # ✅ PENALIZACIÓN DINÁMICA desde BD (NO hardcoded)
+            # Factor de penalización viene de umbrales del cultivo
+            # Si el cultivo estuvo mal el 30% del tiempo, penaliza según tolerancia del cultivo
+            factor_penalizacion = self.umbrales.factor_penalizacion_crisis
+            
+            penalizacion_pct = proporcion_crisis * factor_penalizacion
+            
+            # Limitar penalización máxima (configurada en BD por cultivo)
+            penalizacion_maxima = self.umbrales.penalizacion_maxima
+            penalizacion_pct = min(penalizacion_pct, penalizacion_maxima)
+            
+            # Aplicar penalización
+            eficiencia_final = eficiencia_base - penalizacion_pct
+            
+            # Asegurar que no sea negativa
+            eficiencia_final = max(0.0, eficiencia_final)
+            
+            # REGLA DE ORO: Si hay crisis históricas, NUNCA 100%
+            # Tope dinámico: 100 - (penalizacion_maxima * 0.16) → si max=50%, tope=92%
+            tope_con_historia = 100.0 - (penalizacion_maxima * 0.16)
+            if crisis_historicas and eficiencia_final >= 100.0:
+                eficiencia_final = min(tope_con_historia, eficiencia_final)
+            
+            logger.info(f"   📊 Proporción de tiempo en crisis: {proporcion_crisis*100:.1f}% ({num_crisis}/{total_meses_reales} meses)")
+            logger.info(f"   📉 Penalización histórica: -{penalizacion_pct:.1f}% (factor: {factor_penalizacion}%)")
+            logger.info(f"   ✅ Eficiencia final (con memoria): {eficiencia_final:.1f}%")
         
         # Redondeo a 1 decimal para consistencia
-        return round(eficiencia, 1)
+        return round(eficiencia_final, 1)
     
     def _generar_mapa_diagnostico(
         self,
@@ -1408,23 +1662,35 @@ def ejecutar_diagnostico_unificado(
     geo_transform: Tuple,
     area_parcela_ha: float,
     output_dir: Path,
+    tipo_cultivo: str = 'generico',  # ✅ NUEVO ENERO 23, 2026
+    fase_fenologica: str = 'general',  # ✅ NUEVO ENERO 23, 2026
     tipo_informe: str = 'produccion',
     resolucion_m: float = 10.0,
     mascara_cultivo: Optional[np.ndarray] = None,
-    geometria_parcela: Optional[any] = None
+    geometria_parcela: Optional[any] = None,
+    data_cubes_temporales: Optional[Dict] = None,
+    crisis_historicas: Optional[list] = None
 ) -> DiagnosticoUnificado:
     """
     Función de alto nivel para integrar con el generador de PDF
+    
+    ACTUALIZADO ENERO 23, 2026: Sistema 100% dinámico
+    - Umbrales se cargan desde BD según tipo_cultivo y fase_fenologica
+    - NO más valores hardcodeados en el cerebro
     
     Args:
         datos_indices: Dict con keys 'ndvi', 'ndmi', 'savi' y arrays NumPy
         geo_transform: Transformación geográfica GDAL
         area_parcela_ha: Área de la parcela en hectáreas
         output_dir: Directorio para guardar outputs
+        tipo_cultivo: Tipo de cultivo ('Arroz', 'Maíz', 'Café', 'generico')
+        fase_fenologica: Fase del cultivo ('vegetativa', 'reproductiva', 'general')
         tipo_informe: 'produccion' o 'evaluacion'
         resolucion_m: Resolución espacial en metros
         mascara_cultivo: Máscara booleana del polígono real del lote (RECOMENDADO)
         geometria_parcela: Geometría del polígono de la parcela (NUEVO - para mapa georef)
+        data_cubes_temporales: Data Cubes 3D para análisis temporal (NUEVO)
+        crisis_historicas: Lista de crisis detectadas históricamente (NUEVO)
     
     Returns:
         DiagnosticoUnificado completo
@@ -1473,22 +1739,26 @@ def ejecutar_diagnostico_unificado(
         if key not in datos_indices:
             raise ValueError(f"Falta el índice '{key}' en datos_indices")
     
-    # Inicializar cerebro con máscara de cultivo Y geometría
+    # Inicializar cerebro con máscara de cultivo Y geometría + UMBRALES DINÁMICOS
     cerebro = CerebroDiagnosticoUnificado(
         area_parcela_ha=area_parcela_ha,
+        tipo_cultivo=tipo_cultivo,  # ✅ NUEVO ENERO 23, 2026
+        fase_fenologica=fase_fenologica,  # ✅ NUEVO ENERO 23, 2026
         resolucion_pixel_m=resolucion_m,
         mascara_cultivo=mascara_cultivo,  # ✅ NUEVO parámetro
         geometria_parcela=geometria_parcela  # ✅ NUEVO ENERO 2026
     )
     
-    # Ejecutar diagnóstico
+    # Ejecutar diagnóstico con crisis históricas Y data cubes temporales
     diagnostico = cerebro.triangular_y_diagnosticar(
         ndvi_array=datos_indices['ndvi'],
         ndmi_array=datos_indices['ndmi'],
         savi_array=datos_indices['savi'],
         geo_transform=geo_transform,
         output_dir=Path(output_dir),
-        tipo_informe=tipo_informe
+        tipo_informe=tipo_informe,
+        crisis_historicas=crisis_historicas,  # Pasar memoria de crisis
+        data_cubes_temporales=data_cubes_temporales  # Pasar info temporal real
     )
     
     logger.info("✅ Diagnóstico unificado completado exitosamente")
