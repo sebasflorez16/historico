@@ -143,6 +143,38 @@ class Parcela(gis_models.Model):
         help_text="Umbral de nubosidad máximo usado en la última descarga (%)"
     )
     
+    # ========= VERIFICACIÓN LEGAL (OPCIONAL) =========
+    # Campos para verificación de restricciones legales ambientales
+    incluir_verificacion_legal = models.BooleanField(
+        default=False,
+        verbose_name='Incluir Verificación Legal',
+        help_text='Verificar restricciones legales (retiros hídricos, áreas protegidas) en informes'
+    )
+    verificacion_legal_fecha = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha Última Verificación Legal',
+        help_text='Última vez que se verificaron restricciones legales'
+    )
+    verificacion_legal_resultado = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name='Resultado Verificación Legal',
+        help_text='JSON con resultado completo de la última verificación legal'
+    )
+    cumple_normativa = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name='Cumple Normativa Ambiental',
+        help_text='Indica si cumple con todas las restricciones legales (última verificación)'
+    )
+    area_cultivable_legal_ha = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name='Área Cultivable Legal (ha)',
+        help_text='Área cultivable después de descontar retiros legales'
+    )
+    
     class Meta:
         verbose_name = "Parcela"
         verbose_name_plural = "Parcelas"
