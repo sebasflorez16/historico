@@ -1,0 +1,10 @@
+{
+  "retiros_default": {
+    "rio_principal": {
+      "retiro_m": 100
+    },
+    "quebrada": {
+      "retiro_m": 30
+    }
+  }
+}
