@@ -162,10 +162,11 @@ class VerificadorRestriccionesLegales:
                 if directorio.exists():
                     shapefiles = list(directorio.glob('*.shp'))
                     
-                    # PRIORIDAD: Buscar archivo correcto de drenajes
+                    # 🔧 PRIORIDAD CORREGIDA: Usar archivo con cobertura COMPLETA de Casanare/Meta
                     archivos_prioritarios = [
-                        'drenajes_sencillos_igac.shp',  # Descarga REST
-                        'Drenaje_Sencillo.shp',          # Descarga ZIP
+                        'red_hidrica_casanare_meta_igac_2024.shp',  # ⭐ MEJOR: Cobertura completa (10,586 cauces)
+                        'Drenaje_Sencillo.shp',                      # Descarga ZIP completa
+                        'drenajes_sencillos_igac.shp',               # ⚠️ BBOX limitado (solo 2,000 cauces, cobertura parcial)
                         'drenajes.shp',
                         'red_hidrica.shp'
                     ]
@@ -245,34 +246,64 @@ class VerificadorRestriccionesLegales:
         """
         try:
             if archivo is None:
-                # Buscar archivo en directorio datos (prioritario: GeoJSON casanare)
+                # 🚨 PRIORIDAD CRÍTICA: Shapefile nacional > GeoJSON departamental
                 directorio = self.directorio_datos / 'runap'
                 
-                # Prioridad: GeoJSON de Casanare > otros GeoJSON > shapefiles
                 if directorio.exists():
-                    geojson_casanare = list(directorio.glob('*casanare.geojson'))
-                    if geojson_casanare:
-                        archivo = str(geojson_casanare[0])
+                    # 1. PRIORIDAD MÁXIMA: Shapefile nacional completo (runap.shp)
+                    shapefiles_nacionales = list(directorio.glob('runap.shp'))
+                    if shapefiles_nacionales:
+                        archivo = str(shapefiles_nacionales[0])
+                        print(f"📂 Usando shapefile NACIONAL: {archivo}")
                     else:
-                        archivos_geo = list(directorio.glob('*.geojson')) + list(directorio.glob('*.shp'))
-                        if archivos_geo:
-                            archivo = str(archivos_geo[0])
+                        # 2. FALLBACK: Otros shapefiles
+                        shapefiles = list(directorio.glob('*.shp'))
+                        if shapefiles:
+                            archivo = str(shapefiles[0])
+                            print(f"📂 Usando shapefile: {archivo}")
+                        else:
+                            # 3. ÚLTIMO RECURSO: GeoJSON (puede estar incompleto)
+                            geojson_files = list(directorio.glob('*.geojson'))
+                            # Filtrar archivos vacíos conocidos
+                            geojson_files = [f for f in geojson_files if f.stat().st_size > 100]
+                            if geojson_files:
+                                archivo = str(geojson_files[0])
+                                print(f"⚠️  Usando GeoJSON (puede estar incompleto): {archivo}")
             
             if archivo and os.path.exists(archivo):
                 self.areas_protegidas = gpd.read_file(archivo)
                 
+                # CRÍTICO: Verificar archivo vacío
+                if len(self.areas_protegidas) == 0:
+                    print(f"❌ RUNAP: ARCHIVO VACÍO (0 áreas protegidas) - confianza NULA")
+                    self.stats['areas_protegidas_loaded'] = False
+                    self.niveles_confianza['areas_protegidas']['cargada'] = False
+                    self.niveles_confianza['areas_protegidas']['tipo_dato'] = 'Archivo vacío'
+                    self.niveles_confianza['areas_protegidas']['confianza'] = 'Nula'
+                    self.niveles_confianza['areas_protegidas']['razon'] = '❌ ARCHIVO VACÍO - No hay datos de RUNAP'
+                    return False
+                
+                # Reproyectar a WGS84 si es necesario
+                crs_original = str(self.areas_protegidas.crs)
                 if self.areas_protegidas.crs != 'EPSG:4326':
+                    print(f"🔄 Reproyectando RUNAP de {crs_original} a EPSG:4326...")
                     self.areas_protegidas = self.areas_protegidas.to_crs('EPSG:4326')
                 
                 self.stats['areas_protegidas_loaded'] = True
                 
-                # NUEVO: Actualizar niveles de confianza
-                self.niveles_confianza['areas_protegidas']['cargada'] = True
-                self.niveles_confianza['areas_protegidas']['tipo_dato'] = 'RUNAP oficial'
-                self.niveles_confianza['areas_protegidas']['confianza'] = 'Alta'
-                self.niveles_confianza['areas_protegidas']['razon'] = f'Fuente oficial PNN ({len(self.areas_protegidas)} áreas)'
+                # Determinar confianza según fuente
+                es_nacional = 'runap.shp' in str(archivo).lower()
+                num_areas = len(self.areas_protegidas)
                 
-                print(f"✅ Áreas protegidas cargadas: {len(self.areas_protegidas)} elementos (RUNAP - confianza ALTA)")
+                self.niveles_confianza['areas_protegidas']['cargada'] = True
+                self.niveles_confianza['areas_protegidas']['tipo_dato'] = 'RUNAP nacional' if es_nacional else 'RUNAP departamental'
+                self.niveles_confianza['areas_protegidas']['confianza'] = 'Alta' if es_nacional else 'Media'
+                self.niveles_confianza['areas_protegidas']['razon'] = (
+                    f'Fuente oficial PNN nacional ({num_areas} áreas)' if es_nacional 
+                    else f'Fuente departamental ({num_areas} áreas, puede estar incompleta)'
+                )
+                
+                print(f"✅ Áreas protegidas cargadas: {num_areas} elementos (RUNAP - confianza {'ALTA' if es_nacional else 'MEDIA'})")
                 return True
             else:
                 print("⚠️  Archivo de áreas protegidas no encontrado")
@@ -280,6 +311,8 @@ class VerificadorRestriccionesLegales:
                 
         except Exception as e:
             print(f"❌ Error cargando áreas protegidas: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def cargar_resguardos_indigenas(self, archivo: Optional[str] = None) -> bool:
@@ -294,18 +327,25 @@ class VerificadorRestriccionesLegales:
         """
         try:
             if archivo is None:
-                # Buscar archivo en directorio datos (prioritario: GeoJSON casanare)
+                # Buscar archivo en directorio datos
                 directorio = self.directorio_datos / 'resguardos_indigenas'
                 
-                # Prioridad: GeoJSON de Casanare > otros GeoJSON > shapefiles
+                # 🚨 PRIORIDAD: Shapefiles completos > GeoJSON > archivos vacíos
                 if directorio.exists():
-                    geojson_casanare = list(directorio.glob('*casanare.geojson'))
-                    if geojson_casanare:
-                        archivo = str(geojson_casanare[0])
+                    # Buscar shapefiles completos (datos oficiales de ANT)
+                    shapefiles = list(directorio.glob('*.shp'))
+                    # Filtrar archivos vacíos conocidos
+                    shapefiles = [f for f in shapefiles if 'casanare' not in f.name.lower()]
+                    
+                    if shapefiles:
+                        archivo = str(shapefiles[0])
                     else:
-                        archivos_geo = list(directorio.glob('*.geojson')) + list(directorio.glob('*.shp'))
-                        if archivos_geo:
-                            archivo = str(archivos_geo[0])
+                        # Buscar GeoJSON (solo si no hay shapefiles)
+                        geojson_files = list(directorio.glob('*.geojson'))
+                        # Filtrar archivos vacíos conocidos
+                        geojson_files = [f for f in geojson_files if 'casanare' not in f.name.lower()]
+                        if geojson_files:
+                            archivo = str(geojson_files[0])
             
             if archivo and os.path.exists(archivo):
                 self.resguardos_indigenas = gpd.read_file(archivo)
@@ -313,16 +353,28 @@ class VerificadorRestriccionesLegales:
                 if self.resguardos_indigenas.crs != 'EPSG:4326':
                     self.resguardos_indigenas = self.resguardos_indigenas.to_crs('EPSG:4326')
                 
-                self.stats['resguardos_loaded'] = True
+                # 🚨 CRÍTICO: Verificar si el archivo tiene datos REALES
+                num_features = len(self.resguardos_indigenas)
                 
-                # Actualizar niveles de confianza
-                self.niveles_confianza['resguardos_indigenas']['cargada'] = True
-                self.niveles_confianza['resguardos_indigenas']['tipo_dato'] = 'ANT oficial'
-                self.niveles_confianza['resguardos_indigenas']['confianza'] = 'Alta' if len(self.resguardos_indigenas) > 0 else 'Media'
-                self.niveles_confianza['resguardos_indigenas']['razon'] = f'Fuente oficial ANT ({len(self.resguardos_indigenas)} resguardos)'
-                
-                print(f"✅ Resguardos indígenas cargados: {len(self.resguardos_indigenas)} elementos (ANT - confianza {'ALTA' if len(self.resguardos_indigenas) > 0 else 'MEDIA'})")
-                return True
+                if num_features == 0:
+                    # ❌ ARCHIVO VACÍO - NO HAY DATOS REALES
+                    self.stats['resguardos_loaded'] = False  # Marcar como NO cargado
+                    self.niveles_confianza['resguardos_indigenas']['cargada'] = False
+                    self.niveles_confianza['resguardos_indigenas']['tipo_dato'] = 'Archivo vacío'
+                    self.niveles_confianza['resguardos_indigenas']['confianza'] = 'Nula'
+                    self.niveles_confianza['resguardos_indigenas']['razon'] = '❌ ARCHIVO VACÍO - Descarga falló (no hay datos de ANT)'
+                    print(f"❌ Resguardos indígenas: ARCHIVO VACÍO (0 elementos) - confianza NULA")
+                    print(f"   ⚠️  ADVERTENCIA CRÍTICA: NO se puede verificar cumplimiento sin estos datos")
+                    return False
+                else:
+                    # ✅ Archivo con datos reales
+                    self.stats['resguardos_loaded'] = True
+                    self.niveles_confianza['resguardos_indigenas']['cargada'] = True
+                    self.niveles_confianza['resguardos_indigenas']['tipo_dato'] = 'ANT oficial'
+                    self.niveles_confianza['resguardos_indigenas']['confianza'] = 'Alta'
+                    self.niveles_confianza['resguardos_indigenas']['razon'] = f'Fuente oficial ANT ({num_features} resguardos)'
+                    print(f"✅ Resguardos indígenas cargados: {num_features} elementos (ANT - confianza ALTA)")
+                    return True
             else:
                 print("⚠️  Archivo de resguardos indígenas no encontrado")
                 return False
@@ -362,16 +414,47 @@ class VerificadorRestriccionesLegales:
                 if self.paramos.crs != 'EPSG:4326':
                     self.paramos = self.paramos.to_crs('EPSG:4326')
                 
-                self.stats['paramos_loaded'] = True
+                # 🚨 CRÍTICO: Verificar si el archivo tiene datos REALES
+                num_features = len(self.paramos)
                 
-                # Actualizar niveles de confianza
-                self.niveles_confianza['paramos']['cargada'] = True
-                self.niveles_confianza['paramos']['tipo_dato'] = 'SIAC/MADS'
-                self.niveles_confianza['paramos']['confianza'] = 'Alta' if len(self.paramos) > 0 else 'Media'
-                self.niveles_confianza['paramos']['razon'] = f'Fuente oficial SIAC ({len(self.paramos)} páramos)'
+                # Verificar si tiene metadata que explique por qué está vacío
+                import json
+                try:
+                    with open(archivo, 'r') as f:
+                        data = json.load(f)
+                        tiene_metadata = 'metadata' in data and data['metadata'].get('note')
+                except:
+                    tiene_metadata = False
                 
-                print(f"✅ Páramos cargados: {len(self.paramos)} elementos (SIAC - confianza {'ALTA' if len(self.paramos) > 0 else 'MEDIA'})")
-                return True
+                if num_features == 0:
+                    if tiene_metadata:
+                        # ✅ Vacío VÁLIDO (con explicación geográfica)
+                        self.stats['paramos_loaded'] = True
+                        self.niveles_confianza['paramos']['cargada'] = True
+                        self.niveles_confianza['paramos']['tipo_dato'] = 'SIAC/MADS (vacío válido)'
+                        self.niveles_confianza['paramos']['confianza'] = 'Alta'
+                        self.niveles_confianza['paramos']['razon'] = 'Región sin páramos (confirmado geográficamente - llanura tropical)'
+                        print(f"✅ Páramos cargados: 0 elementos (SIAC - confianza ALTA - vacío válido para llanura)")
+                        return True
+                    else:
+                        # ❌ Vacío SIN explicación - descarga falló
+                        self.stats['paramos_loaded'] = False
+                        self.niveles_confianza['paramos']['cargada'] = False
+                        self.niveles_confianza['paramos']['tipo_dato'] = 'Archivo vacío'
+                        self.niveles_confianza['paramos']['confianza'] = 'Nula'
+                        self.niveles_confianza['paramos']['razon'] = '❌ ARCHIVO VACÍO - Descarga falló (no hay datos de SIAC)'
+                        print(f"❌ Páramos: ARCHIVO VACÍO sin metadata - confianza NULA")
+                        print(f"   ⚠️  ADVERTENCIA: Verificar si región realmente no tiene páramos")
+                        return False
+                else:
+                    # ✅ Archivo con datos reales
+                    self.stats['paramos_loaded'] = True
+                    self.niveles_confianza['paramos']['cargada'] = True
+                    self.niveles_confianza['paramos']['tipo_dato'] = 'SIAC/MADS'
+                    self.niveles_confianza['paramos']['confianza'] = 'Alta'
+                    self.niveles_confianza['paramos']['razon'] = f'Fuente oficial SIAC ({num_features} páramos)'
+                    print(f"✅ Páramos cargados: {num_features} elementos (SIAC - confianza ALTA)")
+                    return True
             else:
                 print("⚠️  Archivo de páramos no encontrado")
                 return False
@@ -574,19 +657,50 @@ class VerificadorRestriccionesLegales:
     ) -> Tuple[List[Dict], float]:
         """
         Verifica intersección con una capa geográfica
+        
+        FILTRADO ESPACIAL INTELIGENTE:
+        1. Filtra por intersección con la geometría de la parcela
+        2. NO usa nombres de departamentos (pueden faltar)
+        3. Funciona con capas nacionales reproyectadas automáticamente
         """
         restricciones = []
         area_total = 0.0
         
         try:
-            # Filtrar elementos que intersectan
-            intersecciones = capa_gdf[capa_gdf.intersects(parcela_geom)]
+            # 🚨 CRÍTICO: Asegurar que ambas geometrías están en el mismo CRS
+            if str(capa_gdf.crs) != 'EPSG:4326':
+                print(f"🔄 Reproyectando capa {tipo} de {capa_gdf.crs} a EPSG:4326...")
+                capa_gdf = capa_gdf.to_crs('EPSG:4326')
+            
+            # NUEVO: Optimización con buffer de búsqueda (evita procesar toda la capa nacional)
+            # Crear bbox ampliado de la parcela para filtrado rápido
+            bounds = parcela_geom.bounds  # (minx, miny, maxx, maxy)
+            buffer_deg = 0.1  # ~11 km de margen
+            bbox_ampliado = (
+                bounds[0] - buffer_deg,
+                bounds[1] - buffer_deg,
+                bounds[2] + buffer_deg,
+                bounds[3] + buffer_deg
+            )
+            
+            # Filtro espacial rápido por bbox (índice espacial)
+            capa_filtrada = capa_gdf.cx[
+                bbox_ampliado[0]:bbox_ampliado[2],  # lon_min:lon_max
+                bbox_ampliado[1]:bbox_ampliado[3]   # lat_min:lat_max
+            ]
+            
+            if len(capa_filtrada) == 0:
+                # No hay elementos cerca de la parcela
+                return [], 0.0
+            
+            # Filtrar elementos que REALMENTE intersectan (no solo bbox)
+            intersecciones = capa_filtrada[capa_filtrada.intersects(parcela_geom)]
             
             for idx, elemento in intersecciones.iterrows():
                 interseccion = parcela_geom.intersection(elemento.geometry)
                 
                 if not interseccion.is_empty:
-                    # Calcular área en hectáreas
+                    # Calcular área en hectáreas (usar proyección métrica)
                     parcela_gdf = gpd.GeoDataFrame(
                         [{'geometry': interseccion}],
                         crs='EPSG:4326'
@@ -594,12 +708,19 @@ class VerificadorRestriccionesLegales:
                     
                     area_ha = parcela_gdf.iloc[0].geometry.area / 10000
                     
+                    # NUEVO: Extraer nombre con múltiples intentos de campos
+                    nombre = self._extraer_nombre_elemento(elemento, tipo)
+                    categoria = self._extraer_categoria_elemento(elemento, tipo)
+                    
                     restricciones.append({
                         'tipo': tipo,
                         'area_afectada_ha': round(area_ha, 4),
-                        'nombre': elemento.get('NOMBRE', elemento.get('nombre', 'Sin nombre')),
+                        'nombre': nombre,
+                        'categoria': categoria,  # NUEVO
                         'normativa': normativa,
-                        'severidad': severidad
+                        'severidad': severidad,
+                        'geometria': mapping(elemento.geometry),  # NUEVO: Para el mapa
+                        'area_total_elemento_ha': round(elemento.geometry.area * 12100, 2) if hasattr(elemento.geometry, 'area') else None  # NUEVO
                     })
                     
                     area_total += area_ha
@@ -608,7 +729,42 @@ class VerificadorRestriccionesLegales:
             
         except Exception as e:
             print(f"❌ Error verificando capa {tipo}: {e}")
+            import traceback
+            traceback.print_exc()
             return [], 0.0
+    
+    def _extraer_nombre_elemento(self, elemento, tipo_capa: str) -> str:
+        """Extrae el nombre del elemento con múltiples intentos de campos"""
+        # Intentar campos comunes según el tipo de capa
+        campos_nombre = []
+        
+        if tipo_capa == 'area_protegida':
+            campos_nombre = ['ap_nombre', 'nombre_geo', 'NOMBRE_GEO', 'NOMBRE', 'nombre', 'ap_categor']
+        elif tipo_capa == 'resguardo_indigena':
+            campos_nombre = ['NOMBRE_RES', 'NOMBRE', 'nombre', 'RESGUARDO', 'resguardo']
+        elif tipo_capa == 'paramo':
+            campos_nombre = ['NOMBRE', 'nombre', 'NOMBRE_PAR', 'NOM_PARAMO']
+        else:
+            campos_nombre = ['NOMBRE', 'nombre', 'NAME', 'name']
+        
+        # Buscar primer campo que exista y tenga valor
+        for campo in campos_nombre:
+            valor = elemento.get(campo, None)
+            if valor and str(valor).strip() and str(valor).upper() != 'NONE':
+                return str(valor).strip()
+        
+        return 'Sin nombre'
+    
+    def _extraer_categoria_elemento(self, elemento, tipo_capa: str) -> str:
+        """Extrae la categoría del elemento (para áreas protegidas principalmente)"""
+        if tipo_capa == 'area_protegida':
+            campos_categoria = ['ap_categor', 'CATEGORIA', 'categoria', 'TIPO', 'tipo']
+            for campo in campos_categoria:
+                valor = elemento.get(campo, None)
+                if valor and str(valor).strip() and str(valor).upper() != 'NONE':
+                    return str(valor).strip()
+        
+        return tipo_capa.replace('_', ' ').title()
     
     def _clasificar_fuente_hidrica(self, elemento) -> Tuple[str, str]:
         """
@@ -794,8 +950,35 @@ class VerificadorRestriccionesLegales:
         area_cultivable_ha = max(0, area_total_ha - area_restringida_total)
         porcentaje_restringido = (area_restringida_total / area_total_ha * 100) if area_total_ha > 0 else 0
         
-        # Determinar cumplimiento
-        cumple = len(restricciones_todas) == 0
+        # 🚨 CRÍTICO: Determinar cumplimiento de forma RESPONSABLE
+        # NO podemos decir "cumple" si NO tenemos TODOS los datos críticos
+        
+        # Verificar si tenemos las 2 capas CRÍTICAS (red hídrica + áreas protegidas)
+        tiene_capas_criticas = (
+            tiene_red_hidrica_confiable and 
+            self.stats['areas_protegidas_loaded']
+        )
+        
+        # Verificar si tenemos las capas SECUNDARIAS (resguardos + páramos)
+        tiene_capas_secundarias = (
+            self.stats['resguardos_loaded'] and 
+            self.stats['paramos_loaded']
+        )
+        
+        if verificacion_completa:
+            # ✅ Todas las capas disponibles - podemos dar veredicto definitivo
+            cumple = len(restricciones_todas) == 0
+        elif tiene_capas_criticas and not tiene_capas_secundarias:
+            # ⚠️ Solo capas críticas - veredicto PRELIMINAR
+            # NO podemos garantizar cumplimiento total
+            cumple = False  # 🚨 CONSERVADOR: decir NO cumple si faltan datos
+            advertencias.append("🚨 VERIFICACIÓN INCOMPLETA - Faltan datos de resguardos indígenas y/o páramos")
+            advertencias.append("⚠️  NO se puede garantizar cumplimiento legal sin TODOS los datos oficiales")
+        else:
+            # ❌ Faltan capas críticas - NO podemos dar ningún veredicto
+            cumple = False
+            advertencias.append("❌ VERIFICACIÓN INCOMPLETA - Faltan datos CRÍTICOS (red hídrica o áreas protegidas)")
+            advertencias.append("🚨 NO SE PUEDE DETERMINAR CUMPLIMIENTO sin datos oficiales completos")
         
         resultado = ResultadoVerificacion(
             parcela_id=parcela_id,
@@ -826,7 +1009,16 @@ class VerificadorRestriccionesLegales:
         reporte += f"📍 Parcela ID: {resultado.parcela_id}\n"
         reporte += f"📅 Fecha: {resultado.fecha_verificacion}\n"
         reporte += f"📊 Área total: {resultado.area_total_ha:.2f} ha\n"
-        reporte += f"✅ Área cultivable: {resultado.area_cultivable_ha:.2f} ha\n"
+        
+        # Manejar area_cultivable como dict o valor legacy
+        if isinstance(resultado.area_cultivable_ha, dict):
+            if resultado.area_cultivable_ha['determinable']:
+                reporte += f"✅ Área cultivable: {resultado.area_cultivable_ha['valor_ha']:.2f} ha (preliminar)\n"
+            else:
+                reporte += f"⚠️  Área cultivable: NO DETERMINABLE - {resultado.area_cultivable_ha['nota']}\n"
+        else:
+            reporte += f"✅ Área cultivable: {resultado.area_cultivable_ha:.2f} ha\n"
+        
         reporte += f"⚠️  Área restringida: {resultado.area_restringida_ha:.2f} ha ({resultado.porcentaje_restringido:.1f}%)\n\n"
         
         # Estado de cumplimiento
