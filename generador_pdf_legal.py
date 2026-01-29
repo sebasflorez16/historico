@@ -600,6 +600,101 @@ class GeneradorPDFLegal:
         
         return elementos
     
+    def _crear_conclusion_ejecutiva(self, resultado: ResultadoVerificacion, parcela: Parcela, departamento: str = "Casanare") -> List:
+        """
+        ✨ NUEVO V3: Crea conclusión ejecutiva comercial (orientada a evaluación de crédito agrícola)
+        
+        Síntesis de 1 párrafo con badge de viabilidad y análisis comercial.
+        """
+        elementos = []
+        
+        titulo = Paragraph("📊 CONCLUSIÓN EJECUTIVA", self.styles['SubtituloPersonalizado'])
+        elementos.append(titulo)
+        elementos.append(Spacer(1, 0.3*cm))
+        
+        # Determinar badge de viabilidad y color
+        num_restricciones = len(resultado.restricciones_encontradas)
+        porcentaje_disponible = 100 - resultado.porcentaje_restringido
+        
+        # Verificar si hay datos no concluyentes
+        tiene_datos_no_concluyentes = False
+        if hasattr(resultado, 'niveles_confianza'):
+            for capa, info in resultado.niveles_confianza.items():
+                if info.get('confianza') in ['Baja', 'Nula', 'Crítica']:
+                    tiene_datos_no_concluyentes = True
+                    break
+        
+        # Determinar badge y color según escenario
+        if num_restricciones == 0 and not tiene_datos_no_concluyentes:
+            badge = "✅ VIABLE PARA CRÉDITO AGRÍCOLA"
+            color_badge = colors.HexColor('#2e7d32')
+            sintesis = (
+                f"El predio <b>{parcela.nombre}</b> ({parcela.area_hectareas:.2f} ha) en {departamento} "
+                f"presenta <b>condiciones geoespaciales favorables</b> para evaluación crediticia. "
+                f"El análisis identificó <b>0 restricciones ambientales</b> según cartografía oficial vigente. "
+                f"Se recomienda proceder con verificación en campo y concepto de autoridad ambiental competente "
+                f"como siguiente paso para formalización de operación."
+            )
+        elif num_restricciones == 0 and tiene_datos_no_concluyentes:
+            badge = "⚠️ REQUIERE VALIDACIÓN ADICIONAL"
+            color_badge = colors.HexColor('#ff9800')
+            sintesis = (
+                f"El predio <b>{parcela.nombre}</b> ({parcela.area_hectareas:.2f} ha) en {departamento} "
+                f"presenta <b>0 restricciones identificadas</b>, sin embargo, existen <b>limitaciones importantes</b> "
+                f"en la calidad/cobertura de datos geográficos. Este resultado <b>NO puede confirmar cumplimiento normativo total</b>. "
+                f"Es <b>obligatorio</b> complementar con inspección en campo y concepto técnico de CAR antes de aprobar crédito."
+            )
+        elif num_restricciones > 0 and porcentaje_disponible >= 70:
+            badge = "⚠️ VIABLE CONDICIONADO (Restricciones Parciales)"
+            color_badge = colors.HexColor('#ff9800')
+            sintesis = (
+                f"El predio <b>{parcela.nombre}</b> ({parcela.area_hectareas:.2f} ha) en {departamento} "
+                f"presenta <b>{num_restricciones} restricción(es) ambiental(es)</b> que afectan "
+                f"{resultado.area_restringida_ha:.2f} ha ({resultado.porcentaje_restringido:.1f}%). "
+                f"El área técnicamente disponible es <b>{porcentaje_disponible:.1f}%</b>. "
+                f"Se recomienda análisis de riesgo crediticio considerando limitaciones de uso antes de formalizar."
+            )
+        else:
+            badge = "❌ NO RECOMENDADO PARA CRÉDITO (Restricciones Múltiples)"
+            color_badge = colors.HexColor('#d32f2f')
+            sintesis = (
+                f"El predio <b>{parcela.nombre}</b> ({parcela.area_hectareas:.2f} ha) en {departamento} "
+                f"presenta <b>{num_restricciones} restricciones ambientales significativas</b> que afectan "
+                f"{resultado.porcentaje_restringido:.1f}% del área. Solo {porcentaje_disponible:.1f}% es técnicamente disponible. "
+                f"Se recomienda <b>evaluar viabilidad económica</b> antes de aprobar crédito debido a limitaciones severas de uso del suelo."
+            )
+        
+        # Badge de viabilidad
+        badge_table = Table([[badge]], colWidths=[16*cm])
+        badge_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), color_badge),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ]))
+        elementos.append(badge_table)
+        elementos.append(Spacer(1, 0.5*cm))
+        
+        # Síntesis comercial
+        parrafo_sintesis = Paragraph(sintesis, self.styles['TextoNormal'])
+        elementos.append(parrafo_sintesis)
+        elementos.append(Spacer(1, 0.5*cm))
+        
+        # Nota de responsabilidad
+        nota = Paragraph(
+            "<b>Nota importante:</b> Esta conclusión ejecutiva se basa en análisis geoespacial preliminar. "
+            "NO constituye aprobación de crédito ni concepto legal definitivo. Uso exclusivo para evaluación crediticia preliminar.",
+            self.styles['TextoNormal']
+        )
+        elementos.append(nota)
+        elementos.append(Spacer(1, 0.5*cm))
+        elementos.append(PageBreak())
+        
+        return elementos
+    
     def _crear_seccion_proximidad(self, distancias: Dict, departamento: str = "Casanare") -> List:
         """
         Crea sección de análisis de proximidad a zonas críticas
@@ -1250,6 +1345,7 @@ class GeneradorPDFLegal:
         nota = Paragraph(
             f"<b>Nota:</b> Todos los datos han sido filtrados específicamente para {departamento}. "
             "Los niveles de confianza 'Alta' indican fuentes oficiales nacionales completas y actualizadas. "
+           
             "Un resultado de '0 elementos' puede ser correcto según la geografía regional.",
             self.styles['TextoNormal']
         )
@@ -1259,128 +1355,175 @@ class GeneradorPDFLegal:
         
         return elementos
     
-    def _crear_seccion_advertencias(self, resultado: ResultadoVerificacion) -> List:
-        """Crea sección de advertencias"""
+    def _crear_seccion_limitaciones_tecnicas(self, departamento: str = "Casanare") -> List:
+        """
+        Crea sección de limitaciones técnicas y alcance metodológico
+        
+        Esta sección es crítica para:
+        - Defender el informe ante auditorías técnicas
+        - Establecer expectativas realistas sobre precisión
+        - Documentar limitaciones de los datos fuente
+        - Proteger contra uso indebido de la información
+        
+        Args:
+            departamento: Nombre del departamento para contexto geográfico
+        
+        Returns:
+            Lista de elementos Platypus con la sección completa
+        """
         elementos = []
         
-        if not resultado.advertencias:
-            return elementos
-        
-        titulo = Paragraph("⚠️ ADVERTENCIAS", self.styles['SubtituloPersonalizado'])
+        # Título de la sección
+        elementos.append(PageBreak())
+        titulo = Paragraph(
+            "🔬 LIMITACIONES TÉCNICAS Y ALCANCE METODOLÓGICO",
+            self.styles['Titulo']
+        )
         elementos.append(titulo)
-        elementos.append(Spacer(1, 0.3*cm))
-        
-        for adv in resultado.advertencias:
-            texto = Paragraph(f"• {adv}", self.styles['Advertencia'])
-            elementos.append(texto)
-            elementos.append(Spacer(1, 0.2*cm))
-        
         elementos.append(Spacer(1, 0.5*cm))
         
-        return elementos
-    
-    def _crear_seccion_recomendaciones(self, resultado: ResultadoVerificacion, parcela: Parcela, departamento: str = "Casanare") -> List:
-        """Crea sección de recomendaciones legales"""
-        elementos = []
-        
-        titulo = Paragraph("💡 RECOMENDACIONES LEGALES", self.styles['SubtituloPersonalizado'])
-        elementos.append(titulo)
+        # Subtítulo: Alcance del análisis
+        subtitulo_alcance = Paragraph(
+            "<b>1. Alcance del Análisis Geoespacial</b>",
+            self.styles['SubTitulo']
+        )
+        elementos.append(subtitulo_alcance)
         elementos.append(Spacer(1, 0.3*cm))
         
-        # Generar recomendaciones basadas en los resultados
-        if resultado.cumple_normativa:
-            # 🚨 VERIFICAR si hay datos NO CONCLUYENTES
-            tiene_datos_no_concluyentes = False
-            capas_problematicas = []
-            if hasattr(resultado, 'niveles_confianza'):
-                for capa, info in resultado.niveles_confianza.items():
-                    if info.get('confianza') in ['Baja', 'Nula', 'Crítica']:
-                        tiene_datos_no_concluyentes = True
-                        capas_problematicas.append(capa.replace('_', ' ').title())
-            
-            if tiene_datos_no_concluyentes:
-                # ⚠️ CUMPLE PERO CON DATOS LIMITADOS - ADVERTIR
-                texto = Paragraph(
-                    f"⚠️ <b>Análisis geoespacial para {departamento} - CON LIMITACIONES</b><br/><br/>"
-                    f"<b>Estado del análisis:</b><br/>"
-                    f"Con base en la información geográfica disponible, no se identificaron restricciones ambientales directas. "
-                    f"Sin embargo, <b>este análisis tiene limitaciones importantes</b> en las siguientes capas: "
-                    f"{', '.join(capas_problematicas)}.<br/><br/>"
-                    f"<b>⚠️ IMPORTANTE:</b> La ausencia de restricciones identificadas <b>NO equivale a confirmación de cumplimiento normativo</b> "
-                    f"debido a las limitaciones en los datos fuente.<br/><br/>"
-                    f"<b>Acciones OBLIGATORIAS antes de proceder:</b><br/>"
-                    f"• <b>PRIORIDAD CRÍTICA:</b> Validar este análisis con la Corporación Autónoma Regional (CAR) competente<br/>"
-                    f"• Realizar inspección en campo por profesional competente (especialmente red hídrica)<br/>"
-                    f"• Verificar existencia de cartografía de mayor detalle para la zona específica<br/>"
-                    f"• Solicitar concepto técnico ambiental antes de iniciar cualquier proyecto<br/>"
-                    f"• Obtener todas las licencias y permisos ambientales requeridos por ley<br/>"
-                    f"• Respetar los retiros mínimos de fuentes hídricas (30m mínimo - Decreto 1541/1978)<br/>"
-                    f"• Verificar en campo la presencia de cauces no cartografiados<br/><br/>"
-                    f"<b>Nota legal:</b> Este informe NO autoriza ninguna actividad. Es un análisis técnico preliminar "
-                    f"que requiere validación por autoridad competente.",
-                    self.styles['Advertencia']
-                )
-            else:
-                # ✅ CUMPLE CON DATOS CONFIABLES - pero siempre recomendar validación
-                texto = Paragraph(
-                    f"✅ <b>Resultado del análisis geoespacial para {departamento}:</b><br/>"
-                    f"Con base en la información geográfica disponible y validada, no se identificaron restricciones ambientales directas.<br/><br/>"
-                    "<b>Recomendaciones profesionales:</b><br/>"
-                    "• <b>Validar</b> este análisis con la autoridad ambiental competente (CAR) antes de proceder<br/>"
-                    "• Mantener las condiciones actuales del terreno<br/>"
-                    "• Implementar buenas prácticas agrícolas sostenibles<br/>"
-                    "• Realizar monitoreo periódico de cambios en la normativa ambiental<br/>"
-                    "• Obtener las licencias y permisos requeridos antes de iniciar proyectos<br/>"
-                    f"• Respetar los retiros mínimos de fuentes hídricas (30m mínimo - Decreto 1541/1978)<br/>"
-                    f"• Verificar en campo la presencia de cauces no cartografiados<br/><br/>"
-                    f"<b>Nota:</b> Este análisis se basa en cartografía oficial al {resultado.fecha_verificacion.split('T')[0]}. "
-                    f"Los resultados pueden cambiar con actualizaciones de los datos geográficos.",
-                    self.styles['TextoNormal']
-                )
-        else:
-            texto = Paragraph(
-                f"⚠️ <b>La parcela en {departamento} presenta RESTRICCIONES LEGALES.</b><br/><br/>"
-                "Se recomienda:<br/>"
-                "• Consultar con un abogado especializado en derecho ambiental<br/>"
-                "• Contactar a las autoridades ambientales competentes<br/>"
-                "• Evaluar la posibilidad de ajustar el proyecto para evitar áreas restringidas<br/>"
-                "• Solicitar permisos especiales si son aplicables<br/>"
-                "• Considerar alternativas de uso del suelo compatibles con las restricciones",
-                self.styles['Advertencia']
-            )
-        
-        elementos.append(texto)
-        elementos.append(Spacer(1, 0.5*cm))
-        
-        # Nota legal REFORZADA con alcances claros
-        nota_legal = Paragraph(
-            "<b>ALCANCE Y LIMITACIONES DEL ANÁLISIS:</b><br/><br/>"
-            "<b>Naturaleza del documento:</b><br/>"
-            f"Este informe presenta un análisis geoespacial preliminar basado en información "
-            f"geográfica oficial disponible al momento de su generación ({resultado.fecha_verificacion.split('T')[0]}). "
-            "<b>NO constituye:</b><br/>"
-            "• Certificación de cumplimiento ambiental<br/>"
-            "• Licencia o permiso ambiental<br/>"
-            "• Concepto técnico vinculante de autoridad competente<br/>"
-            "• Sustituto de estudios ambientales requeridos por ley<br/><br/>"
-            "<b>Validez y limitaciones:</b><br/>"
-            "Los resultados están sujetos a:<br/>"
-            "• Precisión y escala de las fuentes cartográficas utilizadas<br/>"
-            "• Fecha de actualización de los datos geográficos oficiales<br/>"
-            "• Verificación en campo por profesionales competentes<br/>"
-            "• Cobertura real de los shapefiles en la zona de estudio<br/><br/>"
-            "<b>Recomendación legal:</b><br/>"
-            "Antes de tomar decisiones legales, de inversión o de uso del suelo basadas en este análisis, "
-            "se recomienda consultar directamente con:<br/>"
-            "• La Corporación Autónoma Regional (CAR) competente<br/>"
-            "• Ministerio de Ambiente y Desarrollo Sostenible<br/>"
-            "• Asesor legal especializado en derecho ambiental<br/><br/>"
-            "<b>Responsabilidad:</b> Este documento es de carácter informativo y técnico. "
-            "La responsabilidad por decisiones tomadas con base en esta información recae "
-            "exclusivamente en el usuario final.",
+        alcance_texto = Paragraph(
+            "Este análisis se basa en la intersección geométrica de la parcela con capas "
+            "geográficas oficiales (shapefiles) descargadas de entidades gubernamentales. "
+            "Los resultados son indicativos y están sujetos a:<br/><br/>"
+            "• <b>Escala cartográfica:</b> Las capas varían entre 1:100.000 y 1:25.000. "
+            "Bordes de polígonos pueden tener errores de ±50 a ±250 metros según la fuente.<br/>"
+            "• <b>Fecha de actualización:</b> Los datos geográficos corresponden a fechas "
+            "entre 2018 y 2024 según la capa. Cambios recientes en el terreno pueden no estar reflejados.<br/>"
+            "• <b>Cobertura geográfica:</b> Algunas capas tienen cobertura parcial en "
+            f"{departamento}. La ausencia de intersección no garantiza inexistencia del elemento.<br/>"
+            "• <b>Precisión GPS:</b> Se asume que las coordenadas de la parcela tienen un margen "
+            "de error máximo de ±10 metros (típico de GPS comercial).<br/><br/>"
+            "<b>Implicación práctica:</b> Las distancias calculadas son aproximadas y deben "
+            "validarse con levantamiento topográfico en campo.",
             self.styles['TextoNormal']
         )
-        elementos.append(nota_legal)
+        elementos.append(alcance_texto)
+        elementos.append(Spacer(1, 0.5*cm))
+        
+        # Subtítulo: Limitaciones de las fuentes
+        subtitulo_fuentes = Paragraph(
+            "<b>2. Limitaciones de las Fuentes de Datos</b>",
+            self.styles['SubTitulo']
+        )
+        elementos.append(subtitulo_fuentes)
+        elementos.append(Spacer(1, 0.3*cm))
+        
+        # Crear tabla de limitaciones por capa
+        limitaciones_data = [
+            ['Capa', 'Limitación Técnica'],
+            ['Red Hídrica\n(IDEAM)', 
+             '• Ríos/quebradas menores pueden no estar cartografiados\n'
+             '• Cauces estacionales o intermitentes pueden estar ausentes\n'
+             '• Cambios de curso por eventos naturales no actualizados'],
+            ['Áreas Protegidas\n(RUNAP)', 
+             '• Solo incluye áreas del Sistema Nacional de Áreas Protegidas\n'
+             '• Reservas privadas o regionales pueden no estar registradas\n'
+             '• Zonas en trámite de declaratoria no aparecen'],
+            ['Resguardos Indígenas\n(MinInterior)', 
+             '• Solo incluye resguardos legalmente constituidos\n'
+             '• Territorios ancestrales sin formalizar no están representados\n'
+             '• Ampliaciones en trámite pueden no estar reflejadas'],
+            ['Páramos\n(Minambiente)', 
+             '• Delimitación oficial en proceso en algunas regiones\n'
+             '• Zonas amortiguadoras no tienen representación cartográfica\n'
+             '• Ecosistemas similares fuera de delimitación no se detectan']
+        ]
+        
+        tabla_limitaciones = Table(
+            limitaciones_data,
+            colWidths=[4*cm, 12*cm],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 1), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+            ])
+        )
+        elementos.append(tabla_limitaciones)
+        elementos.append(Spacer(1, 0.5*cm))
+        
+        # Subtítulo: Metodología de verificación
+        subtitulo_metodo = Paragraph(
+            "<b>3. Metodología de Verificación</b>",
+            self.styles['SubTitulo']
+        )
+        elementos.append(subtitulo_metodo)
+        elementos.append(Spacer(1, 0.3*cm))
+        
+        metodologia_texto = Paragraph(
+            "El análisis se realiza mediante los siguientes pasos técnicos:<br/><br/>"
+            "1. <b>Conversión de coordenadas:</b> La geometría de la parcela (WGS84) se reproyecta "
+            "a coordenadas planas (UTM Zona 18N) para cálculos métricos precisos.<br/>"
+            "2. <b>Filtrado departamental:</b> Las capas nacionales se filtran por el "
+            f"bounding box de {departamento} para optimizar rendimiento y relevancia.<br/>"
+            "3. <b>Detección de intersecciones:</b> Se usa el método de intersección geométrica "
+            "(Shapely) para verificar si la parcela cruza o contiene elementos de cada capa.<br/>"
+            "4. <b>Cálculo de distancias:</b> Para elementos cercanos, se calcula la distancia "
+            "mínima en metros entre bordes de polígonos (no entre centroides).<br/>"
+            "5. <b>Determinación de dirección:</b> Se compara el centroide de la parcela con el "
+            "centroide del elemento más cercano para indicar orientación (N, S, E, O).<br/><br/>"
+            "<b>Nota técnica:</b> El análisis NO incluye verificación de títulos de propiedad, "
+            "servidumbres, afectaciones catastrales, ni aspectos jurídicos de tenencia de la tierra.",
+            self.styles['TextoNormal']
+        )
+        elementos.append(metodologia_texto)
+        elementos.append(Spacer(1, 0.5*cm))
+        
+        # Subtítulo: Advertencias de uso
+        subtitulo_advertencias = Paragraph(
+            "<b>4. Advertencias de Uso Responsable</b>",
+            self.styles['SubTitulo']
+        )
+        elementos.append(subtitulo_advertencias)
+        elementos.append(Spacer(1, 0.3*cm))
+        
+        advertencias_texto = Paragraph(
+            "⚠️ <b>ESTE INFORME NO DEBE SER USADO COMO:</b><br/><br/>"
+            "• Prueba definitiva para procesos judiciales o administrativos<br/>"
+            "• Sustituto de estudios ambientales requeridos por autoridad competente<br/>"
+            "• Concepto técnico vinculante de la Corporación Autónoma Regional<br/>"
+            "• Certificación de ausencia de restricciones no contempladas en las 4 capas analizadas<br/>"
+            "• Base única para decisiones de inversión o financiamiento agrícola<br/><br/>"
+            "✅ <b>ESTE INFORME SÍ ES ÚTIL PARA:</b><br/><br/>"
+            "• Identificación preliminar de alertas tempranas sobre restricciones ambientales<br/>"
+            "• Priorización de parcelas candidatas para análisis detallado en campo<br/>"
+            "• Contextualización geográfica de la parcela respecto a zonas sensibles<br/>"
+            "• Insumo técnico para orientar consultas con autoridades ambientales<br/>"
+            "• Due diligence inicial en evaluación de riesgos ambientales<br/><br/>"
+            "<b>Vigencia de la información:</b> Los resultados de este análisis son válidos "
+            "únicamente para la fecha de generación indicada en portada. Se recomienda actualizar "
+            "el análisis cada 6 meses o ante cambios normativos relevantes.",
+            self.styles['TextoNormal']
+        )
+        elementos.append(advertencias_texto)
+        elementos.append(Spacer(1, 0.5*cm))
+        
+        # Nota final de contacto
+        contacto_texto = Paragraph(
+            "📧 <b>Para consultas técnicas sobre este análisis:</b><br/>"
+            "Contacte al equipo de AgroTech Colombia mediante los canales indicados en portada. "
+            "No se responden consultas sobre interpretación legal de restricciones ambientales "
+            "(consulte directamente con abogado especializado en derecho ambiental).",
+            self.styles['TextoNormal']
+        )
+        elementos.append(contacto_texto)
         elementos.append(Spacer(1, 0.5*cm))
         
         return elementos
@@ -1427,41 +1570,72 @@ class GeneradorPDFLegal:
         # Lista de elementos del PDF
         elementos = []
         
-        # 1. Portada
+        # =====================================================================
+        # ORDEN PSICOLÓGICO DE VENTA (Brief Comercial V3.0)
+        # =====================================================================
+        # 1. Portada → 2. Conclusión Ejecutiva → 3. Metadatos de Capas →
+        # 4. Análisis de Proximidad → 5. Mapa Visual → 6. Tabla de Restricciones →
+        # 7. Niveles de Confianza → 8. Recomendaciones → 9. Limitaciones Técnicas
+        # =====================================================================
+        
+        # 1. PORTADA (Primer Impacto)
         print("📋 Generando portada...")
         elementos.extend(self._crear_portada(parcela, resultado, departamento))
         
-        # 2. Análisis de proximidad (NUEVO)
+        # 2. CONCLUSIÓN EJECUTIVA (Badge de Viabilidad - Decisión Rápida)
+        print("🎯 Generando conclusión ejecutiva con badge de viabilidad...")
+        elementos.extend(self._crear_conclusion_ejecutiva(resultado, parcela, departamento))
+        
+        # 3. METADATOS DE CAPAS (Credibilidad Técnica - Fuentes Oficiales)
+        print("📚 Generando tabla de metadatos de capas...")
+        elementos.extend(self._crear_tabla_metadatos_capas(departamento))
+        
+        # 4. ANÁLISIS DE PROXIMIDAD (Contexto Geográfico)
         print("📍 Generando análisis de proximidad...")
         elementos.extend(self._crear_seccion_proximidad(distancias, departamento))
         
-        # 3. Mapa de la parcela (con datos filtrados y flechas de proximidad)
+        # 5. MAPA VISUAL (Comprensión Espacial - con flechas y rosa de vientos)
         print(f"🗺️  Generando mapa mejorado con flechas y rosa de vientos...")
         elementos.extend(self._crear_seccion_mapa(parcela, verificador, departamento, distancias))
         
-        # 4. Tabla de restricciones
+        # 6. TABLA DE RESTRICCIONES (Detalle de Hallazgos)
         print("📊 Generando tabla de restricciones...")
         elementos.extend(self._crear_tabla_restricciones(resultado))
         
-        # 5. Niveles de confianza (MEJORADO - sin N/A)
+        # 7. NIVELES DE CONFIANZA (Transparencia de Datos)
         print("📈 Generando tabla de confianza mejorada...")
         elementos.extend(self._crear_seccion_confianza(resultado, departamento))
         
-        # 6. Advertencias
+        # 8. ADVERTENCIAS (si existen - alertas críticas)
         if resultado.advertencias:
             print("⚠️  Generando advertencias...")
             elementos.extend(self._crear_seccion_advertencias(resultado))
         
-        # 7. Recomendaciones
+        # 9. RECOMENDACIONES (Acción Concreta)
         print("💡 Generando recomendaciones...")
         elementos.extend(self._crear_seccion_recomendaciones(resultado, parcela, departamento))
+        
+        # 10. LIMITACIONES TÉCNICAS (Disclaimers Legales - al final)
+        print("🔬 Generando sección de limitaciones técnicas...")
+        elementos.extend(self._crear_seccion_limitaciones_tecnicas(departamento))
         
         # Construir PDF
         print("🔨 Construyendo documento PDF...")
         doc.build(elementos)
         
-        print(f"\n✅ PDF generado exitosamente: {output_path}")
+        print(f"\n✅ PDF MEJORADO generado exitosamente: {output_path}")
         print(f"   Tamaño: {os.path.getsize(output_path) / 1024:.2f} KB")
+        print(f"\n📋 ESTRUCTURA DEL INFORME:")
+        print(f"   1. Portada (primer impacto)")
+        print(f"   2. Conclusión Ejecutiva (badge de viabilidad)")
+        print(f"   3. Metadatos de Capas (credibilidad técnica)")
+        print(f"   4. Análisis de Proximidad (contexto geográfico)")
+        print(f"   5. Mapa Visual (comprensión espacial)")
+        print(f"   6. Tabla de Restricciones (detalle de hallazgos)")
+        print(f"   7. Niveles de Confianza (transparencia de datos)")
+        print(f"   8. Advertencias (alertas críticas)")
+        print(f"   9. Recomendaciones (acción concreta)")
+        print(f"   10. Limitaciones Técnicas (disclaimers legales)")
         print(f"{'='*80}\n")
         
         return output_path
@@ -1472,11 +1646,14 @@ def main():
     print("\n" + "="*80)
     print("🏛️  GENERACIÓN DE PDF MEJORADO - VERIFICACIÓN LEGAL CASANARE")
     print("="*80)
-    print("\n🔧 CORRECCIONES IMPLEMENTADAS:")
+    print("\n🔧 MEJORAS COMERCIALES IMPLEMENTADAS (FASE A):")
+    print("   ✅ Conclusión ejecutiva con badge de viabilidad")
+    print("   ✅ Tabla de metadatos de capas (fuentes oficiales)")
+    print("   ✅ Reordenamiento psicológico del flujo del informe")
+    print("   ✅ Sección de limitaciones técnicas y alcance metodológico")
     print("   ✅ Tabla de confianza sin N/A - fuentes oficiales completas")
     print("   ✅ Filtrado de datos específico para Casanare")
     print("   ✅ Análisis de proximidad a zonas críticas")
-    print("   ✅ Información de contexto geográfico")
     print("   ✅ Mapas con datos filtrados por región\n")
     
     departamento = "Casanare"
@@ -1531,17 +1708,27 @@ def main():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_path = os.path.join(
         output_dir,
-        f'verificacion_legal_{departamento.lower()}_parcela_{parcela.id}_MEJORADO_{timestamp}.pdf'
+        f'verificacion_legal_{departamento.lower()}_parcela_{parcela.id}_FASE_A_{timestamp}.pdf'
     )
     
     generador = GeneradorPDFLegal()
     pdf_path = generador.generar_pdf(parcela, resultado, verificador, output_path, departamento)
     
-    print(f"\n🎉 PROCESO COMPLETADO EXITOSAMENTE")
+    print(f"\n🎉 PROCESO COMPLETADO EXITOSAMENTE (FASE A)")
     print(f"   PDF generado: {pdf_path}")
-    print(f"\n💡 El PDF incluye:")
+    print(f"\n💡 El PDF MEJORADO incluye:")
+    print(f"   ✅ Conclusión ejecutiva con badge de viabilidad (NUEVO)")
+    print(f"   ✅ Tabla de metadatos de capas oficiales (NUEVO)")
+    print(f"   ✅ Limitaciones técnicas y alcance metodológico (NUEVO)")
+    print(f"   ✅ Flujo reordenado psicológicamente para venta (NUEVO)")
     print(f"   ✅ Portada con info de {departamento}")
     print(f"   ✅ Análisis de proximidad (distancias a zonas críticas)")
+    print(f"   ✅ Mapa con datos filtrados para {departamento}")
+    print(f"   ✅ Tabla de confianza SIN N/A")
+    print(f"   ✅ Niveles de confianza con fuentes oficiales")
+    print(f"   ✅ Recomendaciones contextualizadas")
+    print(f"\n📋 Próximo paso (FASE B): Mapas avanzados con contexto regional")
+    print(f"\n" + "="*80)
     print(f"   ✅ Mapa con datos filtrados para {departamento}")
     print(f"   ✅ Tabla de confianza SIN N/A")
     print(f"   ✅ Niveles de confianza con fuentes oficiales")
