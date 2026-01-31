@@ -2534,11 +2534,13 @@ def generar_informe_legal_pdf(request, parcela_id):
             from generador_pdf_legal import GeneradorPDFLegal
             from verificador_legal import VerificadorRestriccionesLegales
             
-            # Obtener departamento de la parcela (si existe)
+            # Obtener departamento de la parcela (si existe, sino usar Casanare por defecto)
             departamento = getattr(parcela, 'departamento', 'Casanare')
             
-            # Instanciar verificador y generador
-            verificador = VerificadorRestriccionesLegales(departamento=departamento)
+            # Instanciar verificador (sin argumento departamento)
+            verificador = VerificadorRestriccionesLegales()
+            
+            # Instanciar generador
             generador = GeneradorPDFLegal()
             
             # Generar PDF
