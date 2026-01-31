@@ -49,7 +49,12 @@ import seaborn as sns
 import geopandas as gpd
 from shapely.geometry import shape, Point
 from shapely import wkt
-import numpy as np
+
+# Importar plantilla profesional de mapas
+from mapas_profesionales import (
+    generar_mapa_ubicacion_municipal_profesional,
+    agregar_bloque_fuentes_legales
+)
 
 # Django
 import django
@@ -1145,36 +1150,66 @@ class GeneradorPDFLegal:
                fontsize=9, ha='right', va='center', color='gray', zorder=102)
     
     def _crear_seccion_mapa(self, parcela: Parcela, verificador: VerificadorRestriccionesLegales, departamento: str = "Casanare", distancias: Dict = None) -> List:
-        """Crea la sección del mapa de la parcela"""
+        """
+        Crea la sección del mapa profesional de ubicación municipal
+        
+        MEJORADO V3:
+        - Usa plantilla profesional de mapas_profesionales.py
+        - Límite municipal destacado (verde oliva intenso)
+        - Red hídrica jerarquizada (principales vs secundarios)
+        - Etiquetas inteligentes de ríos principales
+        - Norte, escala y leyenda profesional
+        - Bloque de fuentes legales oficial
+        """
         elementos = []
         
         # Título de sección
-        titulo = Paragraph("🗺️ MAPA DE LA PARCELA", self.styles['SubtituloPersonalizado'])
+        titulo = Paragraph("🗺️ MAPA 1: UBICACIÓN DE LA PARCELA A NIVEL MUNICIPAL", self.styles['SubtituloPersonalizado'])
         elementos.append(titulo)
         elementos.append(Spacer(1, 0.3*cm))
         
-        # Descripción
+        # Descripción técnica
         texto = Paragraph(
-            f"El siguiente mapa muestra la ubicación de la parcela y las capas geográficas verificadas, "
-            f"<b>filtradas específicamente para {departamento}</b> (áreas protegidas, resguardos indígenas, red hídrica y páramos). "
-            f"La parcela está delimitada con <b>línea roja discontinua</b>, las flechas indican dirección y distancia a zonas críticas cercanas, "
-            f"y la rosa de los vientos en la esquina inferior izquierda muestra la orientación del mapa.",
+            f"El siguiente mapa muestra la <b>ubicación geográfica de la parcela dentro del municipio</b>, "
+            f"destacando el <b>límite municipal, la red hídrica jerarquizada</b> (ríos principales en azul intenso, "
+            f"secundarios en azul claro) y la <b>parcela de interés</b> (marcador rojo). "
+            f"Los datos geográficos provienen de fuentes oficiales del IGAC, IDEAM y DANE, "
+            f"con proyección WGS84 (EPSG:4326) para compatibilidad legal.",
             self.styles['TextoNormal']
         )
         elementos.append(texto)
         elementos.append(Spacer(1, 0.5*cm))
         
-        # Generar y agregar mapa
+        # Generar mapa profesional
         try:
-            img_buffer = self._generar_mapa_parcela(parcela, verificador, departamento, distancias)
-            img = Image(img_buffer, width=16*cm, height=12*cm)
-            elementos.append(img)
+            print(f"📍 Generando mapa profesional para {parcela.nombre}...")
+            img_buffer = generar_mapa_ubicacion_municipal_profesional(parcela)
+            
+            if img_buffer:
+                img = Image(img_buffer, width=16*cm, height=14*cm)
+                elementos.append(img)
+                print(f"✅ Mapa profesional generado correctamente")
+            else:
+                raise Exception("El generador retornó buffer vacío")
+                
         except Exception as e:
+            print(f"❌ Error al generar mapa profesional: {str(e)}")
             texto_error = Paragraph(
-                f"⚠️ No se pudo generar el mapa: {str(e)}",
+                f"⚠️ No se pudo generar el mapa profesional: {str(e)}",
                 self.styles['Advertencia']
             )
             elementos.append(texto_error)
+        
+        elementos.append(Spacer(1, 0.3*cm))
+        
+        # Agregar bloque de fuentes legales
+        try:
+            tabla_fuentes = agregar_bloque_fuentes_legales()
+            elementos.append(tabla_fuentes)
+            elementos.append(Spacer(1, 0.3*cm))
+            print(f"✅ Bloque de fuentes legales agregado")
+        except Exception as e:
+            print(f"⚠️  No se pudo agregar bloque de fuentes: {str(e)}")
         
         elementos.append(Spacer(1, 0.5*cm))
         elementos.append(PageBreak())
@@ -1377,7 +1412,7 @@ class GeneradorPDFLegal:
         elementos.append(PageBreak())
         titulo = Paragraph(
             "🔬 LIMITACIONES TÉCNICAS Y ALCANCE METODOLÓGICO",
-            self.styles['Titulo']
+            self.styles['SubtituloPersonalizado']
         )
         elementos.append(titulo)
         elementos.append(Spacer(1, 0.5*cm))
@@ -1385,7 +1420,7 @@ class GeneradorPDFLegal:
         # Subtítulo: Alcance del análisis
         subtitulo_alcance = Paragraph(
             "<b>1. Alcance del Análisis Geoespacial</b>",
-            self.styles['SubTitulo']
+            self.styles['TextoNormal']
         )
         elementos.append(subtitulo_alcance)
         elementos.append(Spacer(1, 0.3*cm))
@@ -1412,7 +1447,7 @@ class GeneradorPDFLegal:
         # Subtítulo: Limitaciones de las fuentes
         subtitulo_fuentes = Paragraph(
             "<b>2. Limitaciones de las Fuentes de Datos</b>",
-            self.styles['SubTitulo']
+            self.styles['TextoNormal']
         )
         elementos.append(subtitulo_fuentes)
         elementos.append(Spacer(1, 0.3*cm))
@@ -1462,7 +1497,7 @@ class GeneradorPDFLegal:
         # Subtítulo: Metodología de verificación
         subtitulo_metodo = Paragraph(
             "<b>3. Metodología de Verificación</b>",
-            self.styles['SubTitulo']
+            self.styles['TextoNormal']
         )
         elementos.append(subtitulo_metodo)
         elementos.append(Spacer(1, 0.3*cm))
@@ -1489,7 +1524,7 @@ class GeneradorPDFLegal:
         # Subtítulo: Advertencias de uso
         subtitulo_advertencias = Paragraph(
             "<b>4. Advertencias de Uso Responsable</b>",
-            self.styles['SubTitulo']
+            self.styles['TextoNormal']
         )
         elementos.append(subtitulo_advertencias)
         elementos.append(Spacer(1, 0.3*cm))
@@ -1588,11 +1623,17 @@ class GeneradorPDFLegal:
         
         # 3. METADATOS DE CAPAS (Credibilidad Técnica - Fuentes Oficiales)
         print("📚 Generando tabla de metadatos de capas...")
-        elementos.extend(self._crear_tabla_metadatos_capas(departamento))
+        if hasattr(self, '_crear_tabla_metadatos_capas'):
+            elementos.extend(self._crear_tabla_metadatos_capas(departamento))
+        else:
+            print("   ⚠️  Método no disponible, omitiendo...")
         
         # 4. ANÁLISIS DE PROXIMIDAD (Contexto Geográfico)
         print("📍 Generando análisis de proximidad...")
-        elementos.extend(self._crear_seccion_proximidad(distancias, departamento))
+        if hasattr(self, '_crear_seccion_proximidad'):
+            elementos.extend(self._crear_seccion_proximidad(distancias, departamento))
+        else:
+            print("   ⚠️  Método no disponible, omitiendo...")
         
         # 5. MAPA VISUAL (Comprensión Espacial - con flechas y rosa de vientos)
         print(f"🗺️  Generando mapa mejorado con flechas y rosa de vientos...")
@@ -1613,11 +1654,17 @@ class GeneradorPDFLegal:
         
         # 9. RECOMENDACIONES (Acción Concreta)
         print("💡 Generando recomendaciones...")
-        elementos.extend(self._crear_seccion_recomendaciones(resultado, parcela, departamento))
+        if hasattr(self, '_crear_seccion_recomendaciones'):
+            elementos.extend(self._crear_seccion_recomendaciones(resultado, parcela, departamento))
+        else:
+            print("   ⚠️  Método no disponible, omitiendo...")
         
         # 10. LIMITACIONES TÉCNICAS (Disclaimers Legales - al final)
         print("🔬 Generando sección de limitaciones técnicas...")
-        elementos.extend(self._crear_seccion_limitaciones_tecnicas(departamento))
+        if hasattr(self, '_crear_seccion_limitaciones_tecnicas'):
+            elementos.extend(self._crear_seccion_limitaciones_tecnicas(departamento))
+        else:
+            print("   ⚠️  Método no disponible, omitiendo...")
         
         # Construir PDF
         print("🔨 Construyendo documento PDF...")
