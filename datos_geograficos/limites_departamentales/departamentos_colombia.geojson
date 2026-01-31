@@ -1,0 +1,258 @@
+{
+  "type": "FeatureCollection",
+  "name": "Departamentos Colombia",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "DPTO_CNMBR": "Casanare",
+        "DPTO_CCDGO": "85",
+        "CAPITAL": "Yopal"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -73.0,
+              4.9
+            ],
+            [
+              -72.5,
+              4.7
+            ],
+            [
+              -72.0,
+              4.5
+            ],
+            [
+              -71.5,
+              4.5
+            ],
+            [
+              -71.0,
+              4.6
+            ],
+            [
+              -70.5,
+              4.8
+            ],
+            [
+              -70.0,
+              5.2
+            ],
+            [
+              -69.8,
+              5.8
+            ],
+            [
+              -70.0,
+              6.4
+            ],
+            [
+              -71.0,
+              6.5
+            ],
+            [
+              -72.0,
+              6.6
+            ],
+            [
+              -72.8,
+              6.4
+            ],
+            [
+              -73.0,
+              6.0
+            ],
+            [
+              -73.0,
+              4.9
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "DPTO_CNMBR": "Meta",
+        "DPTO_CCDGO": "50",
+        "CAPITAL": "Villavicencio"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -74.5,
+              2.0
+            ],
+            [
+              -71.0,
+              2.0
+            ],
+            [
+              -71.0,
+              5.0
+            ],
+            [
+              -74.5,
+              5.0
+            ],
+            [
+              -74.5,
+              2.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "DPTO_CNMBR": "Vichada",
+        "DPTO_CCDGO": "99",
+        "CAPITAL": "Puerto Carreño"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -71.5,
+              3.0
+            ],
+            [
+              -67.5,
+              3.0
+            ],
+            [
+              -67.5,
+              6.5
+            ],
+            [
+              -71.5,
+              6.5
+            ],
+            [
+              -71.5,
+              3.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "DPTO_CNMBR": "Arauca",
+        "DPTO_CCDGO": "81",
+        "CAPITAL": "Arauca"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -72.5,
+              6.0
+            ],
+            [
+              -69.5,
+              6.0
+            ],
+            [
+              -69.5,
+              7.5
+            ],
+            [
+              -72.5,
+              7.5
+            ],
+            [
+              -72.5,
+              6.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "DPTO_CNMBR": "Boyacá",
+        "DPTO_CCDGO": "15",
+        "CAPITAL": "Tunja"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -74.5,
+              4.5
+            ],
+            [
+              -72.0,
+              4.5
+            ],
+            [
+              -72.0,
+              7.5
+            ],
+            [
+              -74.5,
+              7.5
+            ],
+            [
+              -74.5,
+              4.5
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "DPTO_CNMBR": "Cundinamarca",
+        "DPTO_CCDGO": "25",
+        "CAPITAL": "Bogotá"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -75.0,
+              3.7
+            ],
+            [
+              -73.2,
+              3.7
+            ],
+            [
+              -73.2,
+              5.8
+            ],
+            [
+              -75.0,
+              5.8
+            ],
+            [
+              -75.0,
+              3.7
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

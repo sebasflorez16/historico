@@ -1,4 +1,9 @@
 {
   "type": "FeatureCollection",
-  "features": []
+  "features": [],
+  "metadata": {
+    "note": "Casanare no tiene ecosistemas de páramo (llanura tropical)",
+    "elevation_range": "150-500 msnm",
+    "paramo_threshold": ">3000 msnm"
+  }
 }

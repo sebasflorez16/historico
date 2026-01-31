@@ -1,0 +1,51 @@
+{
+  "parcela_id": 6,
+  "area_total_ha": 60.57,
+  "area_cultivable_ha": {
+    "determinable": true,
+    "valor_ha": 60.57,
+    "nota": "Verificación completa con todas las capas oficiales"
+  },
+  "area_restringida_ha": 0.0,
+  "porcentaje_restringido": 0.0,
+  "cumple_normativa": true,
+  "restricciones_encontradas": [],
+  "fecha_verificacion": "2026-01-27T08:59:06.091157",
+  "advertencias": [],
+  "niveles_confianza": {
+    "red_hidrica": {
+      "cargada": true,
+      "tipo_dato": "drenaje",
+      "confianza": "Alta",
+      "razon": "Red de drenaje con geometría lineal correcta",
+      "geometria_valida": true
+    },
+    "areas_protegidas": {
+      "cargada": true,
+      "tipo_dato": "RUNAP oficial",
+      "confianza": "Alta",
+      "razon": "Fuente oficial PNN (174 áreas)",
+      "geometria_valida": true
+    },
+    "resguardos_indigenas": {
+      "cargada": true,
+      "tipo_dato": "ANT oficial",
+      "confianza": "Alta",
+      "razon": "Fuente oficial ANT (954 resguardos)",
+      "geometria_valida": true
+    },
+    "paramos": {
+      "cargada": true,
+      "tipo_dato": "SIAC/MADS (vacío válido)",
+      "confianza": "Alta",
+      "razon": "Región sin páramos (confirmado geográficamente - llanura tropical)",
+      "geometria_valida": true
+    }
+  },
+  "desglose_areas": {
+    "area_total_ha": 60.57,
+    "areas_por_fuente": [],
+    "area_sin_afectacion_ha": 60.57,
+    "porcentaje_por_tipo": {}
+  }
+}
