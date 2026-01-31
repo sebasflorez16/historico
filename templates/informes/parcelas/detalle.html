@@ -420,6 +420,11 @@
                         <i class="fas fa-file-download me-2"></i>Generar Informe
                     </button>
                     
+                    <a href="{% url 'informes:generar_informe_legal_pdf' parcela.id %}" class="btn btn-success btn-lg" style="border-radius: 12px; font-weight: 600;"
+                       title="Generar informe de verificación legal (restricciones ambientales)">
+                        <i class="fas fa-gavel me-2"></i>Informe Legal
+                    </a>
+                    
                     {% if user.is_superuser %}
                     <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#modalEliminarParcela" 
                             style="border-radius: 12px; font-weight: 600;"

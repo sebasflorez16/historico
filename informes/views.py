@@ -2492,3 +2492,104 @@ def arqueo_caja(request):
         messages.error(request, f'Error cargando arqueo de caja: {str(e)}')
         return redirect('informes:dashboard')
 
+
+# ========================================
+# 📋 INFORME LEGAL PDF - VERIFICACIÓN RESTRICCIONES
+# ========================================
+
+@login_required
+def generar_informe_legal_pdf(request, parcela_id):
+    """
+    Vista para generar informe PDF de verificación legal (restricciones ambientales)
+    Similar a generar_informe_pdf pero usando generador_pdf_legal.py
+    """
+    try:
+        # Verificar que la parcela existe
+        parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
+        
+        # Verificar permisos (propietario o superusuario)
+        if not request.user.is_superuser and parcela.propietario != request.user.username:
+            messages.error(request, 'No tiene permisos para generar informes legales de esta parcela.')
+            return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+        
+        # Verificar que la parcela tiene geometría
+        if not parcela.geometria or parcela.geometria.empty:
+            messages.warning(request, 
+                           'La parcela no tiene geometría definida. '
+                           'Por favor defina la ubicación en el mapa primero.')
+            return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+        
+        # Generar PDF legal
+        try:
+            # Importar el generador legal y verificador
+            import sys
+            import os
+            from pathlib import Path
+            
+            # Agregar directorio raíz al path para importar módulos
+            base_dir = Path(__file__).resolve().parent.parent
+            if str(base_dir) not in sys.path:
+                sys.path.insert(0, str(base_dir))
+            
+            from generador_pdf_legal import GeneradorPDFLegal
+            from verificador_legal import VerificadorRestriccionesLegales
+            
+            # Obtener departamento de la parcela (si existe)
+            departamento = getattr(parcela, 'departamento', 'Casanare')
+            
+            # Instanciar verificador y generador
+            verificador = VerificadorRestriccionesLegales(departamento=departamento)
+            generador = GeneradorPDFLegal()
+            
+            # Generar PDF
+            logger.info(f"🗺️ Iniciando generación de informe legal para parcela {parcela.nombre} (ID: {parcela_id})")
+            
+            ruta_pdf = generador.generar_pdf(
+                parcela=parcela,
+                verificador=verificador,
+                departamento=departamento
+            )
+            
+            # Verificar que el archivo se generó
+            if not os.path.exists(ruta_pdf):
+                raise FileNotFoundError(f"El PDF legal no se generó correctamente en {ruta_pdf}")
+            
+            # Enviar archivo para descarga con nombre descriptivo
+            from django.http import FileResponse
+            from datetime import datetime
+            
+            # Crear nombre de archivo: Propietario_Parcela_Legal_Fecha.pdf
+            propietario_limpio = parcela.propietario.replace(" ", "_").replace("/", "-")
+            parcela_limpia = parcela.nombre.replace(" ", "_").replace("/", "-")
+            fecha_str = datetime.now().strftime("%Y%m%d")
+            nombre_archivo = f"informe_legal_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
+            
+            response = FileResponse(
+                open(ruta_pdf, 'rb'),
+                content_type='application/pdf'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+            
+            # Log de éxito
+            logger.info(f"✅ Informe legal PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")
+            
+            messages.success(request, 
+                           f'¡Informe legal generado exitosamente! '
+                           f'Verificación de restricciones ambientales completada.')
+            
+            return response
+            
+        except Exception as e_generacion:
+            logger.error(f"❌ Error generando PDF legal para parcela {parcela_id}: {str(e_generacion)}")
+            logger.exception(e_generacion)
+            messages.error(request, 
+                          f'Error generando el informe legal PDF: {str(e_generacion)}. '
+                          'Por favor contacte al administrador.')
+            return redirect('informes:detalle_parcela', parcela_id=parcela_id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error en generar_informe_legal_pdf para parcela {parcela_id}: {str(e)}")
+        logger.exception(e)
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('informes:lista_parcelas')
+

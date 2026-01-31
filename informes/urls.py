@@ -68,6 +68,7 @@ urlpatterns = [
     
     # Generación de informes PDF
     path('parcelas/<int:parcela_id>/generar-informe/', views.generar_informe_pdf, name='generar_informe_pdf'),
+    path('parcelas/<int:parcela_id>/generar-informe-legal/', views.generar_informe_legal_pdf, name='generar_informe_legal_pdf'),
     
     # Timeline Visual
     path('parcelas/<int:parcela_id>/timeline/', views.timeline_parcela, name='timeline_parcela'),
