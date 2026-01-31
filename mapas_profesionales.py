@@ -390,33 +390,20 @@ def agregar_leyenda_profesional(ax, municipio_gdf, parcela_gdf, num_rios, areas_
             )
         )
     
-    # Dibujar leyenda
+    # Dibujar leyenda con z-order alto para que no sea cubierta por elementos del mapa
     if legend_elements:
-        ax.legend(
+        legend = ax.legend(
             handles=legend_elements,
             loc='upper left',
             fontsize=9,
-            framealpha=0.95,
+            framealpha=1.0,
             edgecolor='black',
             fancybox=True,
             shadow=True,
             title='Leyenda',
             title_fontsize=10
         )
-    
-    # Dibujar leyenda
-    if legend_elements:
-        ax.legend(
-            handles=legend_elements,
-            loc='upper left',
-            fontsize=9,
-            framealpha=0.95,
-            edgecolor='black',
-            fancybox=True,
-            shadow=True,
-            title='Leyenda',
-            title_fontsize=10
-        )
+        legend.set_zorder(1000)  # Z-order muy alto para garantizar visibilidad completa
 
 
 def agregar_bloque_fuentes_legales():
@@ -430,14 +417,10 @@ def agregar_bloque_fuentes_legales():
     from reportlab.lib import colors
     from reportlab.lib.units import cm
     
-    fuentes_texto = """<b>📚 FUENTES DE DATOS GEOGRÁFICOS</b>
+    fuentes_texto = """<b>📚 FUENTES DE DATOS</b>
 
-• <b>Límites Administrativos:</b> Instituto Geográfico Agustín Codazzi (IGAC) - Marco Geoestadístico Nacional 2023
-• <b>Red Hídrica:</b> Instituto de Hidrología, Meteorología y Estudios Ambientales (IDEAM) - Sistema de Información del Recurso Hídrico (SIRH)
-• <b>Áreas Protegidas:</b> Parques Nacionales Naturales de Colombia - Registro Único Nacional de Áreas Protegidas (RUNAP)
-• <b>Datum/Proyección:</b> WGS84 (EPSG:4326) para visualización, UTM Zona 18N (EPSG:32618) para cálculos
-
-<i>Nota: Estos datos tienen carácter informativo. Para trámites legales o decisiones definitivas, consulte directamente con las autoridades ambientales competentes (CAR, Corporación Autónoma Regional correspondiente).</i>"""
+<b>Fuentes oficiales:</b> IGAC (límites), IDEAM (hidrología), PNN/RUNAP (áreas protegidas), ANT (resguardos). Proyección: WGS84. 
+<i>Datos con carácter informativo. Para trámites oficiales, consulte directamente las autoridades competentes.</i>"""
     
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import Paragraph
