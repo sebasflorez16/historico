@@ -218,6 +218,23 @@ class GeneradorPDFLegal:
         Returns:
             Dict con distancias mínimas en km a cada tipo de zona
         """
+        # 🔧 CRÍTICO: Cargar capas geográficas si no están cargadas
+        if not verificador.stats['red_hidrica_loaded']:
+            print("   🔄 Cargando red hídrica...")
+            verificador.cargar_red_hidrica()
+        
+        if not verificador.stats['areas_protegidas_loaded']:
+            print("   🔄 Cargando áreas protegidas...")
+            verificador.cargar_areas_protegidas()
+        
+        if not verificador.stats['resguardos_loaded']:
+            print("   🔄 Cargando resguardos indígenas...")
+            verificador.cargar_resguardos_indigenas()
+        
+        if not verificador.stats['paramos_loaded']:
+            print("   🔄 Cargando páramos...")
+            verificador.cargar_paramos()
+        
         # Proyección UTM 18N (mejor para Colombia central/oriental)
         UTM_COLOMBIA = 'EPSG:32618'
         
@@ -364,54 +381,39 @@ class GeneradorPDFLegal:
             }
         
         # 3. Distancia a fuente de agua más cercana
-        if verificador.red_hidrica is not None and len(verificador.red_hidrica) > 0:
-            red = verificador.red_hidrica
-            if bbox:
-                red = red.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+        # 🚀 USAR EL MÉTODO verificar_retiros_hidricos QUE YA CALCULA TODO CORRECTAMENTE
+        restricciones_hidricos, _ = verificador.verificar_retiros_hidricos(
+            geometria_parcela=parcela.geometria,
+            distancia_maxima_km=5.0  # Buscar en radio de 5 km
+        )
+        
+        if restricciones_hidricos and len(restricciones_hidricos) > 0:
+            # Ordenar por distancia real (más cercano primero)
+            restricciones_hidricos_ordenadas = sorted(
+                restricciones_hidricos, 
+                key=lambda x: x.get('distancia_real_m', float('inf'))
+            )
             
-            if len(red) > 0:
-                red_utm = red.to_crs(UTM_COLOMBIA)
+            # Tomar el más cercano
+            rio_cercano = restricciones_hidricos_ordenadas[0]
+            dist_min_m = rio_cercano.get('distancia_real_m', 0)
+            dist_min_km = dist_min_m / 1000
+            
+            nombre_rio = rio_cercano.get('nombre', 'Cauce sin nombre oficial')
+            tipo_rio = rio_cercano.get('subtipo', 'Drenaje natural')
+            retiro_minimo = rio_cercano.get('retiro_minimo_m', 30)
+            
+            # Calcular dirección hacia el cauce
+            if verificador.red_hidrica is not None and len(verificador.red_hidrica) > 0:
+                red = verificador.red_hidrica
+                if bbox:
+                    red = red.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]]
                 
-                distancias_m = red_utm.distance(centroide_utm)
-                idx_min = distancias_m.idxmin()
-                dist_min_km = distancias_m.min() / 1000
-                dist_min_m = distancias_m.min()
-                
-                # 🚨 VALIDAR DISTANCIA: si es > 50 km, datos NO concluyentes
-                sin_cobertura = dist_min_km > 50  # En Casanare/Llano, 50+ km a un río es sospechoso
-                
-                if sin_cobertura:
-                    # 🔴 DATOS NO CONCLUYENTES - marcar como NO DETERMINABLE
-                    distancias['red_hidrica'] = {
-                        'distancia_km': None,
-                        'distancia_m': None,
-                        'nombre': 'Red hídrica no determinable con datos actuales',
-                        'tipo': 'NO CONCLUYENTE',
-                        'direccion': 'N/A',
-                        'requiere_retiro': None,  # No determinable
-                        'retiro_minimo_m': 30,
-                        'no_concluyente': True,
-                        'razon_no_concluyente': f'La cartografía disponible no permite determinar con certeza la ubicación de cauces en esta zona. Distancia al cauce más cercano registrado: {dist_min_km:.0f} km (fuera del área de análisis razonable).'
-                    }
-                else:
-                    # Distancia razonable - procesar normalmente
-                    # Intentar múltiples columnas para nombre (compatibilidad IGAC + OSM)
-                    nombre_rio = (red.loc[idx_min].get('NOMBRE_GEO') or 
-                                 red.loc[idx_min].get('NOMBRE') or 
-                                 red.loc[idx_min].get('name') or  # Campo OSM
-                                 red.loc[idx_min].get('NOM_GEO') or 
-                                 red.loc[idx_min].get('nombre') or 
-                                 'Cauce sin nombre oficial')
+                if len(red) > 0:
+                    red_utm = red.to_crs(UTM_COLOMBIA)
+                    distancias_m = red_utm.distance(centroide_utm)
+                    idx_min = distancias_m.idxmin()
                     
-                    # Intentar múltiples columnas para tipo (compatibilidad IGAC + OSM)
-                    tipo_rio = (red.loc[idx_min].get('TIPO') or 
-                               red.loc[idx_min].get('waterway') or  # Campo OSM
-                               red.loc[idx_min].get('CLASE_DREN') or 
-                               red.loc[idx_min].get('tipo') or 
-                               red.loc[idx_min].get('ORDEN') or 
-                               'Drenaje natural')
-                    
-                    # Calcular dirección hacia el cauce (usando geometría UTM)
                     centroide_rio_utm = red_utm.loc[idx_min].geometry.centroid if hasattr(red_utm.loc[idx_min].geometry, 'centroid') else red_utm.loc[idx_min].geometry.representative_point()
                     centroide_rio_geo = gpd.GeoSeries([centroide_rio_utm], crs=UTM_COLOMBIA).to_crs('EPSG:4326').iloc[0]
                     
@@ -427,39 +429,67 @@ class GeneradorPDFLegal:
                         direccion_ns = "Norte" if dy > 0 else "Sur"
                         direccion_eo = "este" if dx > 0 else "oeste"
                         direccion = f"{direccion_ns}{direccion_eo}"
-                    
-                    # Determinar si está dentro del retiro mínimo (30m)
-                    requiere_retiro = dist_min_m < 30
-                    
-                    distancias['red_hidrica'] = {
-                        'distancia_km': round(dist_min_km, 2),
-                        'distancia_m': round(dist_min_m, 0),
-                        'nombre': str(nombre_rio),
-                        'tipo': str(tipo_rio).upper(),
-                        'direccion': direccion,
-                        'requiere_retiro': requiere_retiro,
-                        'retiro_minimo_m': 30
-                    }
+                else:
+                    direccion = "N/A"
             else:
+                direccion = "N/A"
+            
+            # Determinar si está dentro del retiro mínimo
+            requiere_retiro = dist_min_m < retiro_minimo
+            
+            distancias['red_hidrica'] = {
+                'distancia_km': round(dist_min_km, 2),
+                'distancia_m': round(dist_min_m, 0),
+                'nombre': str(nombre_rio),
+                'tipo': str(tipo_rio).upper(),
+                'direccion': direccion,
+                'requiere_retiro': requiere_retiro,
+                'retiro_minimo_m': retiro_minimo
+            }
+        else:
+            # No se encontraron restricciones hídricas cercanas (dentro de 5 km)
+            # 🔍 VERIFICACIÓN INTELIGENTE: ¿Es dato NO CONCLUYENTE o resultado REAL?
+            
+            # Verificar si la capa de red hídrica está cargada y tiene datos
+            tiene_capa_hidrica = (
+                verificador.red_hidrica is not None and 
+                len(verificador.red_hidrica) > 0
+            )
+            
+            if tiene_capa_hidrica:
+                # CASO 1: La capa existe y tiene datos → RESULTADO REAL
+                # "No hay cauces registrados en 5 km" es información VÁLIDA, no error
                 distancias['red_hidrica'] = {
                     'distancia_km': None,
                     'distancia_m': None,
-                    'nombre': f'No hay cauces registrados en {departamento}',
-                    'tipo': 'N/A',
+                    'nombre': 'Sin cauces registrados en radio de búsqueda (5 km)',
+                    'tipo': 'SIN REGISTROS',
+                    'direccion': 'N/A',
                     'requiere_retiro': False,
-                    'retiro_minimo_m': 30
+                    'retiro_minimo_m': 30,
+                    'no_concluyente': False,  # ✅ Es un dato REAL y válido
                 }
-        else:
-            # Capas no cargadas
-            distancias['red_hidrica'] = {
-                'distancia_km': None,
-                'distancia_m': None,
-                'nombre': f'Datos no disponibles para red hídrica',
-                'tipo': 'N/A',
-                'direccion': 'N/A',
-                'requiere_retiro': None,
-                'retiro_minimo_m': 30
-            }
+            else:
+                # CASO 2: La capa NO existe o está vacía → DATO NO CONCLUYENTE
+                # Hay un problema técnico real (capa no cargada o sin datos)
+                distancias['red_hidrica'] = {
+                    'distancia_km': None,
+                    'distancia_m': None,
+                    'nombre': 'Red hídrica no determinable con datos actuales',
+                    'tipo': 'NO DETERMINABLE',
+                    'direccion': 'N/A',
+                    'requiere_retiro': None,
+                    'retiro_minimo_m': 30,
+                    'no_concluyente': True,  # ⚠️ Problema técnico verificable
+                    'razon_no_concluyente': (
+                        f'La capa de red hídrica (IGAC/IDEAM) no pudo cargarse correctamente '
+                        f'o no contiene datos para esta región. Esto impide realizar el análisis '
+                        f'de proximidad y retiros hídricos. Se recomienda:<br/>'
+                        f'• Inspección hidrológica en campo por profesional competente<br/>'
+                        f'• Consulta con la CAR (Corporación Autónoma Regional) competente<br/>'
+                        f'• Verificar con IGAC o IDEAM si existe cartografía de mayor detalle'
+                    )
+                }
         
         # 4. Distancia a páramo más cercano
         if verificador.paramos is not None and len(verificador.paramos) > 0:
@@ -813,13 +843,12 @@ class GeneradorPDFLegal:
             
             data.append(['Resguardos\nIndígenas', dist_texto, dir_texto, nombre, estado])
         
-        # 3. Red hídrica
+        # 3. Red hídrica - LÓGICA PROFESIONAL MEJORADA
         if 'red_hidrica' in distancias:
             rh = distancias['red_hidrica']
-            # 🚨 Verificar si es NO CONCLUYENTE (sin datos reales)
-            es_no_concluyente = rh.get('no_concluyente', False)
             
             if rh['distancia_km'] is not None:
+                # CASO 1: Se encontró un cauce cercano (con distancia real medida)
                 if rh['requiere_retiro']:
                     dist_texto = f"{rh['distancia_m']:.0f} m"
                     dir_texto = rh.get('direccion', '-')
@@ -828,6 +857,7 @@ class GeneradorPDFLegal:
                     dist_texto = f"{rh['distancia_km']} km"
                     dir_texto = rh.get('direccion', '-')
                     estado = '✅ Sin retiro\nrequerido'
+                
                 # Mostrar nombre real del río, no "drenaje" genérico
                 nombre_real = rh['nombre']
                 if not nombre_real or nombre_real in ['N/A', 'n/a', 'Cauce sin nombre oficial']:
@@ -844,14 +874,22 @@ class GeneradorPDFLegal:
                 
                 nombre = f"{nombre_real[:35]}\nTipo: {tipo_cauce}"
             else:
-                dist_texto = 'NO\nDETERMINABLE'
-                dir_texto = 'N/A'
-                nombre = "Datos de red hídrica\nno disponibles para esta zona"
-                # Si es NO CONCLUYENTE, marcar claramente
+                # CASO 2: No se encontraron cauces en el radio de búsqueda (5 km)
+                # Verificar si es dato NO CONCLUYENTE (limitaciones técnicas)
+                es_no_concluyente = rh.get('no_concluyente', False)
+                
                 if es_no_concluyente:
-                    estado = '⚠️ DATO NO\nCONCLUYENTE\n(ver nota)'
+                    # DATO NO CONCLUYENTE - limitaciones de cartografía
+                    dist_texto = 'NO\nDETERMINABLE'
+                    dir_texto = 'N/A'
+                    nombre = "Dato no concluyente\n(ver nota técnica al final)"
+                    estado = '⚠️ VERIFICAR\nEN CAMPO\n(ver nota)'
                 else:
-                    estado = '✅ Sin cauces\nregistrados'
+                    # RESULTADO POSITIVO - no hay cauces registrados en la región
+                    dist_texto = '> 5 km'
+                    dir_texto = 'N/A'
+                    nombre = "Sin cauces registrados\nen cartografía oficial\n(IGAC/IDEAM)"
+                    estado = '✅ Sin cauces\nen la región'
             
             data.append(['Red Hídrica\n(Ríos/Quebradas)', dist_texto, dir_texto, nombre, estado])
         

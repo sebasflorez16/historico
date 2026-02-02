@@ -840,6 +840,26 @@ class VerificadorRestriccionesLegales:
         area_restringida_total = 0.0
         advertencias = []
         
+        # 🔧 CRÍTICO: Cargar capas geográficas si no están cargadas
+        print(f"\n🔄 Verificando estado de capas geográficas...")
+        if not self.stats['red_hidrica_loaded']:
+            print(f"   📥 Cargando red hídrica...")
+            self.cargar_red_hidrica()
+        
+        if not self.stats['areas_protegidas_loaded']:
+            print(f"   📥 Cargando áreas protegidas...")
+            self.cargar_areas_protegidas()
+        
+        if not self.stats['resguardos_loaded']:
+            print(f"   📥 Cargando resguardos indígenas...")
+            self.cargar_resguardos_indigenas()
+        
+        if not self.stats['paramos_loaded']:
+            print(f"   📥 Cargando páramos...")
+            self.cargar_paramos()
+        
+        print(f"   ✅ Capas geográficas listas")
+        
         # Verificar retiros hídricos
         print(f"\n🔍 Verificando retiros hídricos para {nombre_parcela}...")
         rest_hidricos, area_hidricos = self.verificar_retiros_hidricos(geometria_parcela)
