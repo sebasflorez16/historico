@@ -2540,15 +2540,35 @@ def generar_informe_legal_pdf(request, parcela_id):
             # Instanciar verificador (sin argumento departamento)
             verificador = VerificadorRestriccionesLegales()
             
+            # Ejecutar verificación legal usando verificar_parcela que retorna ResultadoVerificacion
+            resultado = verificador.verificar_parcela(
+                parcela_id=parcela.id,
+                geometria_parcela=parcela.geometria,  # Django GEOS Polygon
+                nombre_parcela=parcela.nombre
+            )
+            
             # Instanciar generador
             generador = GeneradorPDFLegal()
+            
+            # Definir ruta de salida del PDF
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            nombre_limpio = parcela.nombre.replace(" ", "_").replace("/", "-")
+            nombre_archivo = f"informe_legal_{nombre_limpio}_{timestamp}.pdf"
+            
+            # Crear directorio si no existe
+            output_dir = os.path.join('media', 'verificacion_legal')
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, nombre_archivo)
             
             # Generar PDF
             logger.info(f"🗺️ Iniciando generación de informe legal para parcela {parcela.nombre} (ID: {parcela_id})")
             
             ruta_pdf = generador.generar_pdf(
                 parcela=parcela,
+                resultado=resultado,
                 verificador=verificador,
+                output_path=output_path,
                 departamento=departamento
             )
             
@@ -2558,19 +2578,18 @@ def generar_informe_legal_pdf(request, parcela_id):
             
             # Enviar archivo para descarga con nombre descriptivo
             from django.http import FileResponse
-            from datetime import datetime
             
-            # Crear nombre de archivo: Propietario_Parcela_Legal_Fecha.pdf
+            # Crear nombre de archivo para descarga: Propietario_Parcela_Legal_Fecha.pdf
             propietario_limpio = parcela.propietario.replace(" ", "_").replace("/", "-")
             parcela_limpia = parcela.nombre.replace(" ", "_").replace("/", "-")
             fecha_str = datetime.now().strftime("%Y%m%d")
-            nombre_archivo = f"informe_legal_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
+            nombre_descarga = f"informe_legal_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
             
             response = FileResponse(
                 open(ruta_pdf, 'rb'),
                 content_type='application/pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+            response['Content-Disposition'] = f'attachment; filename="{nombre_descarga}"'
             
             # Log de éxito
             logger.info(f"✅ Informe legal PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")
