@@ -161,6 +161,47 @@ class GeneradorPDFLegal:
             fontName='Helvetica-Bold'
         ))
     
+    def _crear_pie_pagina(self, canvas, doc):
+        """
+        Crea pie de página con logo de AgroTech en cada página
+        """
+        canvas.saveState()
+        
+        # Logo pequeño en esquina inferior derecha
+        logo_path = os.path.join('static', 'img', 'agrotech solo negro.png')
+        if os.path.exists(logo_path):
+            try:
+                canvas.drawImage(
+                    logo_path,
+                    doc.width + doc.leftMargin - 2.5*cm,  # Esquina derecha
+                    0.5*cm,  # Desde abajo
+                    width=2*cm,
+                    height=0.7*cm,
+                    preserveAspectRatio=True,
+                    mask='auto'
+                )
+            except:
+                pass
+        
+        # Número de página
+        page_num = canvas.getPageNumber()
+        text = f"Página {page_num}"
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.grey)
+        canvas.drawString(doc.leftMargin, 0.5*cm, text)
+        
+        # Línea decorativa
+        canvas.setStrokeColor(colors.HexColor('#2e7d32'))
+        canvas.setLineWidth(0.5)
+        canvas.line(
+            doc.leftMargin, 
+            1.2*cm, 
+            doc.width + doc.leftMargin, 
+            1.2*cm
+        )
+        
+        canvas.restoreState()
+    
     def _calcular_distancias_minimas(
         self, 
         parcela: Parcela, 
@@ -484,8 +525,21 @@ class GeneradorPDFLegal:
         """Portada corporativa - Compacta y profesional"""
         elementos = []
         
-        # Espacio inicial reducido
-        elementos.append(Spacer(1, 1.5*cm))
+        # Logo de AgroTech en la parte superior
+        logo_path = os.path.join('static', 'img', 'Agro Tech logo solo.png')
+        if os.path.exists(logo_path):
+            try:
+                logo = Image(logo_path, width=6*cm, height=6*cm, kind='proportional')
+                logo.hAlign = 'CENTER'
+                elementos.append(Spacer(1, 0.5*cm))
+                elementos.append(logo)
+                elementos.append(Spacer(1, 0.8*cm))
+            except Exception as e:
+                print(f"⚠️  No se pudo cargar el logo: {e}")
+                elementos.append(Spacer(1, 1.5*cm))
+        else:
+            print(f"⚠️  Logo no encontrado en: {logo_path}")
+            elementos.append(Spacer(1, 1.5*cm))
         
         # Título principal - más conciso
         titulo = Paragraph(
@@ -1856,9 +1910,9 @@ class GeneradorPDFLegal:
         print("📝 Generando alcance y limitaciones...")
         elementos.extend(self._crear_alcance_limitaciones(departamento))
         
-        # Construir PDF
+        # Construir PDF con pie de página
         print("🔨 Construyendo documento PDF...")
-        doc.build(elementos)
+        doc.build(elementos, onFirstPage=self._crear_pie_pagina, onLaterPages=self._crear_pie_pagina)
         
         print(f"\n✅ PDF COMERCIAL generado exitosamente: {output_path}")
         print(f"   Tamaño: {os.path.getsize(output_path) / 1024:.2f} KB")
