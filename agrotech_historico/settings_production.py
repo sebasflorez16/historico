@@ -231,6 +231,7 @@ if not DEBUG:
     # CSRF Trusted Origins para Railway
     CSRF_TRUSTED_ORIGINS = [
         'https://historical-production.up.railway.app',
+        'https://agrotech-historico.up.railway.app',
         'https://*.railway.app',
         'https://*.up.railway.app',
     ]

@@ -36,3 +36,23 @@ __pycache__/
 
 # Planes estratégicos (documentación interna sensible)
 /PLANES_ESTRATEGICOS/
+
+# ============================================
+# ARCHIVOS PESADOS - NO subir al repositorio
+# ============================================
+# Datos geográficos (shapefiles ~437MB)
+datos_geograficos/
+
+# Carpeta historical (backup antiguo)
+historical/
+
+# PDFs generados
+*.pdf
+informes_generados/
+
+# Outputs de test
+test_outputs/
+test_outputs_mapas/
+
+# Archivos estáticos compilados
+staticfiles/

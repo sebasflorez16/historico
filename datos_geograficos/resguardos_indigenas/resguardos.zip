@@ -1,5 +1,0 @@
-{
-  "code" : "invalid_request",
-  "error" : true,
-  "message" : "Unexportable view type: href."
-}

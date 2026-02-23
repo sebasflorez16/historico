@@ -75,3 +75,39 @@ test_*.py
 *.tmp
 *.bak
 *.swp
+
+# ============================================
+# ARCHIVOS PESADOS - NO subir a Railway
+# ============================================
+
+# Datos geográficos (shapefiles ~437MB) - se cargan por separado
+datos_geograficos/
+
+# PDFs generados de prueba
+*.pdf
+informes_generados/
+
+# Outputs de test
+test_outputs/
+test_outputs_mapas/
+
+# Carpeta historical (backup antiguo)
+historical/
+
+# Scripts de diagnóstico y prueba (no necesarios en producción)
+diagnostico_*.py
+verificar_*.py
+corregir_*.py
+configurar_*.py
+generar_video*.py
+generar_pdf_*.py
+auditar_*.py
+listar_*.py
+regenerar_*.py
+create_superuser.py
+
+# Archivos de deploy/docs no necesarios
+deploy_*.sh
+*.txt
+!requirements.txt
+invitacion_real.txt
