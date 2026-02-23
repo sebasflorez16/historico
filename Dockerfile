@@ -10,22 +10,23 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Instalar dependencias del sistema para GeoDjango
 # GDAL, GEOS, PROJ son necesarios para GeoDjango
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Dependencias geoespaciales
+# Se usa --fix-missing y reintentos para evitar fallos por mirrors temporalmente desincronizados
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends --fix-missing \
     gdal-bin \
     libgdal-dev \
     libgeos-dev \
     libproj-dev \
     proj-bin \
     proj-data \
-    # PostgreSQL client
     postgresql-client \
     libpq-dev \
-    # Utilidades de compilación
     gcc \
     g++ \
     binutils \
-    # Limpieza
+    || (apt-get update --fix-missing && apt-get install -y --no-install-recommends --fix-missing \
+    gdal-bin libgdal-dev libgeos-dev libproj-dev proj-bin proj-data \
+    postgresql-client libpq-dev gcc g++ binutils) \
     && rm -rf /var/lib/apt/lists/*
 
 # Verificar instalación y crear symlinks para Django
@@ -60,7 +61,7 @@ ENV GDAL_CONFIG=/usr/bin/gdal-config \
     GEOS_LIBRARY_PATH=/usr/lib/libgeos_c.so \
     GDAL_DATA=/usr/share/gdal \
     PROJ_LIB=/usr/share/proj \
-    LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib:${LD_LIBRARY_PATH}
+    LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib
 
 # Crear directorio de trabajo
 WORKDIR /app
