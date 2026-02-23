@@ -1,16 +1,28 @@
 # .dockerignore - Archivos a excluir del build de Docker
-# Esto acelera el build y reduce el tamaño de la imagen
+# REGLA CRÍTICA: !requirements.txt debe ir AL FINAL después de *.txt
 
-# Python
+# ============================================
+# ARCHIVOS PESADOS - Excluir primero
+# ============================================
+datos_geograficos/
+historical/
+.venv/
+venv/
+env/
+ENV/
+.git/
+test_outputs/
+test_outputs_mapas/
+informes_generados/
+media/
+staticfiles/
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-.venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -32,8 +44,6 @@ wheels/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media/
-staticfiles/
 
 # IDE
 .vscode/
@@ -46,10 +56,6 @@ staticfiles/
 .DS_Store
 Thumbs.db
 
-# Git
-.git/
-.gitignore
-
 # Testing
 .tox/
 .coverage
@@ -61,40 +67,18 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Documentación
+# PDFs generados
+*.pdf
+
+# Documentación y texto (excluir)
 *.md
 docs/
 *.txt
+
+# RE-INCLUIR requirements.txt (CRÍTICO - debe ser la ÚLTIMA regla sobre .txt)
 !requirements.txt
 
-# Archivos de prueba
-test_*.py
-*_test.py
-
-# Archivos temporales
-*.tmp
-*.bak
-*.swp
-
-# ============================================
-# ARCHIVOS PESADOS - NO subir a Railway
-# ============================================
-
-# Datos geográficos (shapefiles ~437MB) - se cargan por separado
-datos_geograficos/
-
-# PDFs generados de prueba
-*.pdf
-informes_generados/
-
-# Outputs de test
-test_outputs/
-test_outputs_mapas/
-
-# Carpeta historical (backup antiguo)
-historical/
-
-# Scripts de diagnóstico y prueba (no necesarios en producción)
+# Scripts no necesarios en producción
 diagnostico_*.py
 verificar_*.py
 corregir_*.py
@@ -105,9 +89,6 @@ auditar_*.py
 listar_*.py
 regenerar_*.py
 create_superuser.py
-
-# Archivos de deploy/docs no necesarios
+test_*.py
+*_test.py
 deploy_*.sh
-*.txt
-!requirements.txt
-invitacion_real.txt
