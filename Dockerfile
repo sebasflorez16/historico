@@ -1,5 +1,6 @@
 # Dockerfile para AgroTech - Optimizado para Railway con GeoDjango
-FROM python:3.10-slim
+# Usar bookworm (Debian 12) que tiene GDAL 3.6.2 estable y compatible
+FROM python:3.10-slim-bookworm
 
 # Variables de entorno para Python
 ENV PYTHONUNBUFFERED=1 \
@@ -10,7 +11,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Instalar dependencias del sistema para GeoDjango
 # GDAL, GEOS, PROJ son necesarios para GeoDjango
-# Se usa --fix-missing y reintentos para evitar fallos por mirrors temporalmente desincronizados
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     gdal-bin \
@@ -23,10 +23,8 @@ RUN apt-get update && \
     libpq-dev \
     gcc \
     g++ \
+    make \
     binutils \
-    || (apt-get update --fix-missing && apt-get install -y --no-install-recommends --fix-missing \
-    gdal-bin libgdal-dev libgeos-dev libproj-dev proj-bin proj-data \
-    postgresql-client libpq-dev gcc g++ binutils) \
     && rm -rf /var/lib/apt/lists/*
 
 # Verificar instalación y crear symlinks para Django
@@ -69,15 +67,19 @@ WORKDIR /app
 # Copiar requirements.txt primero (para cachear instalación de dependencias)
 COPY requirements.txt .
 
-# Instalar dependencias Python, GDAL y Fiona con la versión exacta del sistema
-# GDAL y Fiona se instalan DESDE SOURCE para evitar conflictos con GDAL bundled
-RUN GDAL_VERSION=$(gdal-config --version) && \
-    echo "📦 Versión GDAL del sistema: $GDAL_VERSION" && \
-    pip install --upgrade pip && \
+# Instalar dependencias Python
+# Primero las dependencias normales (con wheels binarios rápidos)
+# Luego GDAL compilado desde source SOLO para el binding (--no-binary gdal, NO --no-binary :all:)
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir numpy && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir --no-binary :all: GDAL==$GDAL_VERSION && \
-    pip install --no-cache-dir --no-binary Fiona Fiona && \
-    echo "✅ GDAL y Fiona instalados desde source"
+    # Instalar GDAL Python binding compilando SOLO gdal contra las libs del sistema
+    GDAL_VERSION=$(gdal-config --version) && \
+    echo "📦 Instalando GDAL Python binding v$GDAL_VERSION (compilando solo GDAL, no deps)" && \
+    pip install --no-cache-dir --no-binary gdal GDAL==$GDAL_VERSION && \
+    # Instalar Fiona compilando solo fiona contra GDAL del sistema
+    pip install --no-cache-dir --no-binary fiona Fiona && \
+    echo "✅ GDAL y Fiona instalados correctamente"
 
 # Verificar que GDAL se instaló correctamente en Python
 RUN echo "🧪 Verificando instalación de GDAL en Python..." && \
