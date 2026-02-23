@@ -85,7 +85,6 @@ def dashboard(request):
                 servicios_pagados_legacy = registros_economicos.filter(pagado=True).count()
                 
                 # NUEVAS Estadísticas financieras de informes
-                from datetime import datetime, timedelta
                 
                 # Verificar si existen los campos de pago en Informe
                 if not hasattr(Informe, 'precio_base'):
@@ -276,7 +275,6 @@ def lista_parcelas(request):
         parcelas_activas = total_parcelas
         
         # Parcelas del mes actual
-        from datetime import datetime, date
         inicio_mes = date.today().replace(day=1)
         parcelas_recientes = Parcela.objects.filter(
             activa=True, 
@@ -373,7 +371,6 @@ def detalle_parcela(request, parcela_id):
             logger.error(f"Error calculando centro para parcela {parcela.nombre}: {str(e)}")
         
         # Fecha actual para el selector de rangos
-        from datetime import date
         fecha_actual = date.today()
         
         # Calcular rango de datos disponibles en BD
@@ -436,7 +433,6 @@ def crear_parcela(request):
             # Importar herramientas PostGIS
             from django.contrib.gis.geos import GEOSGeometry
             import json
-            from datetime import datetime
             
             # Procesar geometría
             try:
@@ -507,7 +503,6 @@ def registro_cliente(request):
             # Importar herramientas PostGIS
             from django.contrib.gis.geos import GEOSGeometry
             import json
-            from datetime import datetime, date
             
             # Procesar geometría
             try:
@@ -1071,7 +1066,6 @@ def crear_invitacion(request):
             token = secrets.token_urlsafe(24)
             
             # Calcular fecha de expiración
-            from datetime import timedelta
             fecha_expiracion = timezone.now() + timedelta(days=dias_vigencia)
             
             # Crear invitación
@@ -1203,7 +1197,6 @@ def registro_invitacion(request, token):
                 # Procesar geometría con PostGIS
                 from django.contrib.gis.geos import GEOSGeometry
                 import json
-                from datetime import date
                 
                 geometria_data = json.loads(geometria_json)
                 
@@ -1327,7 +1320,6 @@ def verificar_eosda(request):
             parcela_prueba = Parcela.objects.filter(activa=True).first()
             if parcela_prueba and resultado_conexion['conexion_exitosa']:
                 logger.info(f"Probando obtener datos para parcela: {parcela_prueba.nombre}")
-                from datetime import date, timedelta
                 
                 fecha_fin = date.today()
                 fecha_inicio = fecha_fin - timedelta(days=90)  # Últimos 3 meses
@@ -1378,7 +1370,6 @@ def obtener_datos_historicos(request, parcela_id):
         parcela = get_object_or_404(Parcela, id=parcela_id, activa=True)
         
         # Obtener parámetros de fecha desde URL (enviados por el selector de rangos)
-        from datetime import date, timedelta
         fecha_inicio_param = request.GET.get('fecha_inicio')
         fecha_fin_param = request.GET.get('fecha_fin')
         
@@ -2120,7 +2111,6 @@ def generar_informe_pdf(request, parcela_id):
             
             # Enviar archivo para descarga con nombre descriptivo
             from django.http import FileResponse
-            from datetime import datetime
             
             # Crear nombre de archivo descriptivo: Propietario_Parcela_Fecha.pdf
             propietario_limpio = parcela.propietario.replace(" ", "_").replace("/", "-")
@@ -2551,7 +2541,6 @@ def generar_informe_legal_pdf(request, parcela_id):
             generador = GeneradorPDFLegal()
             
             # Definir ruta de salida del PDF
-            from datetime import datetime
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             nombre_limpio = parcela.nombre.replace(" ", "_").replace("/", "-")
             nombre_archivo = f"informe_legal_{nombre_limpio}_{timestamp}.pdf"
