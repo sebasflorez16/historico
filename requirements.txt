@@ -8,12 +8,10 @@ psycopg2-binary==2.9.9
 django-environ==0.11.2
 dj-database-url==2.1.0
 
-# GeoDjango - IMPORTANTE: Versión de GDAL debe coincidir con el sistema
-# Debian slim tiene GDAL 3.6.x
-GDAL==3.6.2
+# GeoDjango - GDAL y Fiona se instalan en Dockerfile según versión del sistema
+# NO incluir GDAL ni Fiona aquí para evitar incompatibilidad de versiones
 geopandas==0.14.1
 shapely==2.0.2
-Fiona==1.9.5
 
 # APIs y servicios
 python-dotenv==1.0.0

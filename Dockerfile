@@ -69,8 +69,13 @@ WORKDIR /app
 # Copiar requirements.txt primero (para cachear instalación de dependencias)
 COPY requirements.txt .
 
-# Actualizar pip e instalar dependencias Python
-RUN pip install --upgrade pip && \
+# Instalar GDAL y Fiona Python con la versión exacta del sistema
+# Esto evita el error "undefined symbol: CPLDefaultErrorHandler"
+RUN GDAL_VERSION=$(gdal-config --version) && \
+    echo "📦 Instalando GDAL Python binding versión: $GDAL_VERSION" && \
+    pip install --upgrade pip && \
+    pip install --no-cache-dir GDAL==$GDAL_VERSION && \
+    pip install --no-cache-dir Fiona && \
     pip install --no-cache-dir -r requirements.txt
 
 # Verificar que GDAL se instaló correctamente en Python
