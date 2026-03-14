@@ -490,6 +490,19 @@
                 body: JSON.stringify({ geometria: parcelaGeojson })
             });
             
+            // Verificar que la respuesta sea JSON válido
+            const contentType = resp.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                console.error('Respuesta no-JSON:', resp.status, contentType);
+                document.getElementById('loadingOverlay').classList.remove('visible');
+                if (resp.status === 502 || resp.status === 504) {
+                    mostrarError('El servidor tardó demasiado. Intente de nuevo en unos segundos.');
+                } else {
+                    mostrarError('Error del servidor. Intente de nuevo.');
+                }
+                return;
+            }
+            
             const data = await resp.json();
             
             if (data.success && data.redirect_url) {
@@ -501,8 +514,9 @@
                 mostrarError(data.error || 'Error procesando la parcela');
             }
         } catch (err) {
+            console.error('Error fetch:', err);
             document.getElementById('loadingOverlay').classList.remove('visible');
-            mostrarError('Error de conexión. Verifique su internet.');
+            mostrarError('Error de conexión. Verifique su internet e intente de nuevo.');
         } finally {
             btn.classList.remove('loading');
             btn.disabled = false;

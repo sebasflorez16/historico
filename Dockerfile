@@ -91,8 +91,8 @@ RUN echo "🧪 Verificando instalación de GDAL en Python..." && \
 # Copiar el código del proyecto
 COPY . .
 
-# Crear directorios necesarios
-RUN mkdir -p /app/media /app/staticfiles
+# Crear directorios necesarios (incluido demo para heatmaps)
+RUN mkdir -p /app/media /app/media/demo /app/staticfiles
 
 # Verificar que Django puede cargar GeoDjango (diagnóstico completo)
 RUN echo "🧪 Verificando integración completa de GeoDjango..." && \

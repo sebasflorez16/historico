@@ -168,9 +168,10 @@ class DemoLead(models.Model):
     centroide_lon = models.FloatField(default=0)
     
     # URLs de imágenes EOSDA (las 3 de la demo)
-    ndvi_url = models.URLField(blank=True, default='', max_length=500)
-    ndmi_url = models.URLField(blank=True, default='', max_length=500)
-    savi_url = models.URLField(blank=True, default='', max_length=500)
+    # CharField en vez de URLField porque se guardan paths relativos (/media/demo/xxx/ndvi.png)
+    ndvi_url = models.CharField(blank=True, default='', max_length=500)
+    ndmi_url = models.CharField(blank=True, default='', max_length=500)
+    savi_url = models.CharField(blank=True, default='', max_length=500)
     
     # Metadata de la imagen satelital mostrada
     fecha_imagen_satelital = models.DateField(

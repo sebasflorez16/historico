@@ -15,6 +15,9 @@ Dos secciones:
 import json
 import logging
 import os
+import traceback
+import time as _time
+import urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -149,44 +152,69 @@ def demo_guardar_parcela(request, token_uuid):
         if not geojson:
             return JsonResponse({'error': 'No se recibió la geometría de la parcela.'}, status=400)
         
+        logger.info(f"🗺️ Demo: procesando parcela para {token.nombre_completo} (token: {token.token.hex[:8]})")
+        
         # Convertir GeoJSON a geometría PostGIS
-        if isinstance(geojson, dict):
-            # Si viene como Feature, extraer la geometry
-            if geojson.get('type') == 'Feature':
-                geojson = geojson.get('geometry')
-            geojson_str = json.dumps(geojson)
-        else:
-            geojson_str = geojson
+        try:
+            if isinstance(geojson, dict):
+                # Si viene como Feature, extraer la geometry
+                if geojson.get('type') == 'Feature':
+                    geojson = geojson.get('geometry')
+                geojson_str = json.dumps(geojson)
+            else:
+                geojson_str = geojson
             
-        geometria = GEOSGeometry(geojson_str, srid=4326)
-        centroide = geometria.centroid
+            geometria = GEOSGeometry(geojson_str, srid=4326)
+            centroide = geometria.centroid
+            logger.info(f"   ✅ Geometría parseada OK: centroide ({centroide.y:.4f}, {centroide.x:.4f})")
+        except Exception as e:
+            logger.error(f"   ❌ Error parseando geometría: {str(e)}")
+            return JsonResponse({'error': 'La geometría dibujada no es válida. Intente dibujar de nuevo.'}, status=400)
         
         # Calcular área en hectáreas (reproyectar a UTM para precisión métrica)
         try:
             geometria_utm = geometria.clone()
             geometria_utm.transform(32618)  # UTM 18N (Colombia)
             area_ha = geometria_utm.area / 10000
-        except Exception:
-            # Fallback: cálculo aproximado
-            area_ha = geometria.area * 12365  # Aproximación para latitudes tropicales
+        except Exception as e:
+            logger.warning(f"   ⚠️ Error reproyectando a UTM: {str(e)}, usando cálculo aproximado")
+            # Fallback: cálculo aproximado para latitudes tropicales
+            try:
+                area_ha = geometria.area * 12365
+            except Exception:
+                area_ha = 10.0  # Valor por defecto si todo falla
+        
+        logger.info(f"   📐 Área calculada: {area_ha:.2f} ha")
         
         # Crear o actualizar DemoLead
-        lead, created = DemoLead.objects.update_or_create(
-            token=token,
-            defaults={
-                'geometria': geometria,
-                'area_hectareas': round(area_ha, 2),
-                'centroide_lat': round(centroide.y, 6),
-                'centroide_lon': round(centroide.x, 6),
-            }
-        )
+        try:
+            lead, created = DemoLead.objects.update_or_create(
+                token=token,
+                defaults={
+                    'geometria': geometria,
+                    'area_hectareas': round(area_ha, 2),
+                    'centroide_lat': round(centroide.y, 6),
+                    'centroide_lon': round(centroide.x, 6),
+                }
+            )
+            logger.info(f"   ✅ DemoLead {'creado' if created else 'actualizado'}: id={lead.id}")
+        except Exception as e:
+            logger.error(f"   ❌ Error creando DemoLead: {str(e)}")
+            logger.error(traceback.format_exc())
+            return JsonResponse({'error': 'Error guardando la parcela en la base de datos.'}, status=500)
         
         # Obtener imágenes satelitales de EOSDA (LIMITADO: 3 imágenes recientes)
-        imagenes = _obtener_imagenes_demo(geometria, lead)
+        try:
+            imagenes = _obtener_imagenes_demo(geometria, lead)
+        except Exception as e:
+            logger.error(f"   ❌ Error obteniendo imágenes: {str(e)}")
+            logger.error(traceback.format_exc())
+            imagenes = {}  # Continuar sin imágenes — la demo muestra resultado parcial
         
         logger.info(
             f"✅ Demo parcela guardada: {token.nombre_completo} - "
-            f"{area_ha:.1f}ha ({centroide.y:.4f}, {centroide.x:.4f})"
+            f"{area_ha:.1f}ha ({centroide.y:.4f}, {centroide.x:.4f}) "
+            f"- Imágenes: {len(imagenes)} generadas"
         )
         
         return JsonResponse({
@@ -198,9 +226,11 @@ def demo_guardar_parcela(request, token_uuid):
         })
         
     except json.JSONDecodeError:
+        logger.error(f"❌ JSON inválido en demo_guardar_parcela")
         return JsonResponse({'error': 'Datos inválidos.'}, status=400)
     except Exception as e:
-        logger.error(f"❌ Error en demo_guardar_parcela: {e}")
+        logger.error(f"❌ Error inesperado en demo_guardar_parcela: {str(e)}")
+        logger.error(traceback.format_exc())
         return JsonResponse({'error': f'Error procesando la parcela: {str(e)}'}, status=500)
 
 
@@ -294,6 +324,60 @@ def _obtener_imagenes_demo(geometria, lead):
     return imagenes
 
 
+def _polling_eosda_demo(eosda, task_id, max_intentos=8, delay_base=5):
+    """
+    Polling optimizado para demos — más rápido que el estándar.
+    Max: 8 intentos × 5-8s = ~50s (bien dentro del timeout de Gunicorn de 120s).
+    """
+    try:
+        url = f"{eosda.base_url}/api/gdw/api/{task_id}"
+        
+        for intento in range(max_intentos):
+            if intento > 0:
+                delay = delay_base + (intento * 1)  # 5, 6, 7, 8, 9...
+                logger.debug(f"   ⏳ Polling demo: esperando {delay}s (intento {intento+1}/{max_intentos})")
+                _time.sleep(delay)
+            
+            try:
+                response = eosda.session.get(url, timeout=15)
+            except Exception as req_err:
+                logger.warning(f"   ⚠️ Error de red en polling: {str(req_err)}")
+                continue
+            
+            if response.status_code == 429:
+                logger.warning(f"   ⚠️ Rate limit, esperando 10s...")
+                _time.sleep(10)
+                continue
+            
+            if response.status_code != 200:
+                logger.warning(f"   ⚠️ HTTP {response.status_code} en polling")
+                continue
+            
+            data = response.json()
+            
+            # ¿Hay resultados?
+            if 'result' in data and data['result']:
+                logger.info(f"   ✅ EOSDA demo: {len(data['result'])} escenas obtenidas en intento {intento+1}")
+                return data['result']
+            
+            status = data.get('status', 'unknown')
+            if status in ['pending', 'processing', 'running', 'unknown']:
+                logger.info(f"   ⏳ EOSDA demo: {status} ({intento+1}/{max_intentos})")
+                continue
+            
+            # Error explícito
+            if 'errors' in data and data['errors']:
+                logger.error(f"   ❌ EOSDA demo error: {str(data['errors'])[:300]}")
+                return []
+        
+        logger.warning(f"   ⏱️ EOSDA demo: timeout tras {max_intentos} intentos")
+        return []
+        
+    except Exception as e:
+        logger.error(f"   ❌ Error en polling demo: {str(e)}")
+        return []
+
+
 def _consultar_eosda_stats(geometria, lead):
     """
     Consulta EOSDA Statistics API para obtener datos de NDVI, NDMI, SAVI.
@@ -302,7 +386,6 @@ def _consultar_eosda_stats(geometria, lead):
     TRACKING: Cada petición se registra en DemoEosdaRequest para contabilizar
     costos y uso de la API por demos.
     """
-    import time as _time
     inicio_request = _time.time()
     endpoint_url = ''
     
@@ -372,8 +455,9 @@ def _consultar_eosda_stats(geometria, lead):
         
         logger.info(f"⏳ Demo: esperando resultados EOSDA (task: {task_id})")
         
-        # Polling con delays
-        resultados_raw = eosda._obtener_resultados_tarea_lento(task_id)
+        # Polling con delays — REDUCIDO para demos (max 60s, no 150s)
+        # Evita timeout de Gunicorn (120s) y da respuesta más rápida al usuario
+        resultados_raw = _polling_eosda_demo(eosda, task_id)
         tiempo_total_ms = int((_time.time() - inicio_request) * 1000)
         
         if not resultados_raw or not isinstance(resultados_raw, list) or len(resultados_raw) == 0:
@@ -482,6 +566,7 @@ def _generar_imagenes_heatmap(geometria, datos_eosda, lead):
         token_hex = lead.token.token.hex[:8]
         dir_imagenes = DEMO_MEDIA_DIR / token_hex
         dir_imagenes.mkdir(parents=True, exist_ok=True)
+        logger.info(f"   📁 Directorio imágenes: {dir_imagenes} (existe: {dir_imagenes.exists()})")
         
         # Extraer coordenadas del polígono
         coords = geometria.coords[0]  # Lista de tuplas (lon, lat)
@@ -524,19 +609,26 @@ def _generar_imagenes_heatmap(geometria, datos_eosda, lead):
             
             # Generar la imagen
             ruta_archivo = dir_imagenes / cfg['archivo']
-            _generar_un_heatmap(
-                lons, lats, coords,
-                mean, std, vmin_real, vmax_real,
-                cfg['cmap'], cfg['vmin'], cfg['vmax'],
-                cfg['titulo'], cfg['label'],
-                ruta_archivo,
-                lead.area_hectareas,
-                datos_eosda.get('fecha'),
-            )
+            try:
+                _generar_un_heatmap(
+                    lons, lats, coords,
+                    mean, std, vmin_real, vmax_real,
+                    cfg['cmap'], cfg['vmin'], cfg['vmax'],
+                    cfg['titulo'], cfg['label'],
+                    ruta_archivo,
+                    lead.area_hectareas,
+                    datos_eosda.get('fecha'),
+                )
+            except Exception as img_err:
+                logger.error(f"   ❌ Error generando {indice}: {str(img_err)}")
+                continue  # Intentar las demás imágenes
             
-            # URL relativa para servir desde media/
-            url_relativa = f'/media/demo/{token_hex}/{cfg["archivo"]}'
-            imagenes_urls[indice.lower()] = url_relativa
+            # Verificar que el archivo se creó
+            if ruta_archivo.exists():
+                url_relativa = f'/media/demo/{token_hex}/{cfg["archivo"]}'
+                imagenes_urls[indice.lower()] = url_relativa
+            else:
+                logger.warning(f"   ⚠️ Archivo no creado: {ruta_archivo}")
         
         # Guardar URLs en el lead
         lead.ndvi_url = imagenes_urls.get('ndvi', '')
@@ -549,7 +641,6 @@ def _generar_imagenes_heatmap(geometria, datos_eosda, lead):
         
     except Exception as e:
         logger.error(f"❌ Error generando imágenes heatmap: {str(e)}")
-        import traceback
         logger.error(traceback.format_exc())
         return {}
 
