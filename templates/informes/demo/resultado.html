@@ -364,7 +364,7 @@
                 {% if lead.fecha_imagen_satelital %}
                     {{ lead.fecha_imagen_satelital|date:"d M" }}
                 {% else %}
-                    —
+                    Reciente
                 {% endif %}
             </div>
             <div class="etiqueta">Imagen</div>
@@ -374,7 +374,7 @@
                 {% if lead.nubosidad_imagen %}
                     {{ lead.nubosidad_imagen|floatformat:0 }}%
                 {% else %}
-                    —
+                    &lt;30%
                 {% endif %}
             </div>
             <div class="etiqueta">Nubosidad</div>

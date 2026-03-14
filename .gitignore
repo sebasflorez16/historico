@@ -56,3 +56,4 @@ test_outputs_mapas/
 
 # Archivos estáticos compilados
 staticfiles/
+tests/output_heatmap_test/
