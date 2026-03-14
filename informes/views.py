@@ -219,11 +219,41 @@ def dashboard(request):
         from .services.email_service import email_service
         estado_email = email_service.validar_configuracion_email()
         
+        # Estadísticas de Demos
+        estadisticas_demos = {}
+        try:
+            from .models_demo import DemoToken, DemoLead
+            total_demos = DemoToken.objects.count()
+            demos_activas = DemoToken.objects.filter(estado='activo').count()
+            demos_usadas = DemoToken.objects.filter(estado='usado').count()
+            demos_convertidas = DemoLead.objects.filter(convertido_a_cliente=True).count()
+            demos_recientes = DemoToken.objects.order_by('-fecha_creacion')[:5]
+            
+            tasa_conversion_demo = 0
+            if demos_usadas > 0:
+                tasa_conversion_demo = round((demos_convertidas / demos_usadas) * 100, 1)
+            
+            estadisticas_demos = {
+                'total': total_demos,
+                'activas': demos_activas,
+                'usadas': demos_usadas,
+                'convertidas': demos_convertidas,
+                'tasa_conversion': tasa_conversion_demo,
+                'recientes': demos_recientes,
+            }
+        except Exception as e:
+            logger.warning(f"⚠️ Error cargando stats demos: {e}")
+            estadisticas_demos = {
+                'total': 0, 'activas': 0, 'usadas': 0,
+                'convertidas': 0, 'tasa_conversion': 0, 'recientes': [],
+            }
+        
         contexto = {
             'total_parcelas': total_parcelas,
             'total_indices': total_indices,
             'total_informes': total_informes,
             'estadisticas_economicas': estadisticas_economicas,
+            'estadisticas_demos': estadisticas_demos,
             'parcelas_recientes': parcelas_recientes,
             'informes_recientes': informes_recientes,
             'conectividad_eosda': conectividad_eosda,

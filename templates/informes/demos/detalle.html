@@ -1,0 +1,666 @@
+{% extends 'informes/base.html' %}
+{% load humanize %}
+
+{% block title %}Demo {{ token.token.hex|truncatechars:10 }} - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #mapa-demo {
+        height: 350px;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+    }
+    .link-demo-box {
+        background: #f8f9fa;
+        border: 2px dashed #2d5a27;
+        border-radius: 12px;
+        padding: 16px;
+    }
+    .link-demo-box code {
+        font-size: 13px;
+        word-break: break-all;
+    }
+    .timeline-step {
+        position: relative;
+        padding-left: 36px;
+        margin-bottom: 16px;
+    }
+    .timeline-step::before {
+        content: '';
+        position: absolute;
+        left: 14px;
+        top: 24px;
+        bottom: -16px;
+        width: 2px;
+        background: #dee2e6;
+    }
+    .timeline-step:last-child::before {
+        display: none;
+    }
+    .timeline-step .step-dot {
+        position: absolute;
+        left: 4px;
+        top: 4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: white;
+    }
+    .img-demo-preview {
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+        max-width: 100%;
+        transition: transform 0.2s;
+    }
+    .img-demo-preview:hover {
+        transform: scale(1.03);
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'informes:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'informes:panel_demos' %}">Demos</a></li>
+        <li class="breadcrumb-item active">{{ token.token.hex|truncatechars:10 }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row fade-in-up">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2 text-dark">
+                <i class="fas fa-user-tag me-3" style="color: var(--agrotech-verde);"></i>
+                {% if token.nombre_completo %}
+                    {{ token.nombre_completo }}
+                {% else %}
+                    Demo {{ token.token.hex|truncatechars:10 }}
+                {% endif %}
+            </h1>
+            <div>
+                {% if token.estado == 'activo' %}
+                    <span class="badge bg-success fs-6">🟢 Activo</span>
+                {% elif token.estado == 'registrado' %}
+                    <span class="badge bg-primary fs-6">📝 Registrado</span>
+                {% elif token.estado == 'usado' %}
+                    <span class="badge bg-info text-dark fs-6">✅ Usado</span>
+                {% elif token.estado == 'expirado' %}
+                    <span class="badge bg-secondary fs-6">⏰ Expirado</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Columna izquierda: Información -->
+    <div class="col-lg-8">
+        
+        <!-- Link de Demo -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-link me-2"></i> Link de Demo</h5>
+            </div>
+            <div class="card-body">
+                <div class="link-demo-box mb-3">
+                    <code id="demoUrl">{{ demo_url }}</code>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="copiarLink()">
+                        <i class="fas fa-copy me-1"></i> Copiar Link
+                    </button>
+                    <a href="{% url 'informes:reenviar_demo_whatsapp' token.id %}" target="_blank" class="btn btn-success btn-sm">
+                        <i class="fab fa-whatsapp me-1"></i> Enviar por WhatsApp
+                    </a>
+                    {% if token.esta_disponible %}
+                    <a href="{{ demo_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-external-link-alt me-1"></i> Ver Demo
+                    </a>
+                    {% endif %}
+                </div>
+                
+                {% if token.fecha_expiracion %}
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar-times me-1"></i>
+                        Expira: <strong>{{ token.fecha_expiracion|date:"d/m/Y H:i" }}</strong>
+                        {% if token.esta_disponible %}
+                            <span class="text-success ms-2">
+                                <i class="fas fa-clock"></i> Vigente
+                            </span>
+                        {% else %}
+                            <span class="text-danger ms-2">
+                                <i class="fas fa-ban"></i> Expirado
+                            </span>
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Datos del Contacto -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user me-2"></i> Datos del Contacto</h5>
+            </div>
+            <div class="card-body">
+                {% if token.nombre_completo %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Nombre Completo</label>
+                        <p class="fw-bold mb-0">{{ token.nombre_completo }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Teléfono</label>
+                        <p class="fw-bold mb-0">
+                            {{ token.telefono }}
+                            {% if token.telefono %}
+                            <a href="tel:{{ token.telefono }}" class="ms-2 text-primary" title="Llamar">
+                                <i class="fas fa-phone"></i>
+                            </a>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Email</label>
+                        <p class="mb-0">
+                            {% if token.email %}
+                                {{ token.email }}
+                                <a href="mailto:{{ token.email }}" class="ms-2 text-primary" title="Enviar email">
+                                    <i class="fas fa-envelope"></i>
+                                </a>
+                            {% else %}
+                                <span class="text-muted">No proporcionado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Ubicación</label>
+                        <p class="mb-0">
+                            {% if token.municipio or token.departamento %}
+                                {{ token.municipio }}{% if token.municipio and token.departamento %}, {% endif %}{{ token.departamento }}
+                            {% else %}
+                                <span class="text-muted">No proporcionado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% if token.fecha_registro %}
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>
+                    Se registró el {{ token.fecha_registro|date:"d/m/Y" }} a las {{ token.fecha_registro|time:"H:i" }}
+                </small>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-user-clock fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">El prospecto aún no ha llenado el formulario de registro.</p>
+                    {% if token.nombre_prospecto %}
+                    <p class="mt-2 mb-0">
+                        <strong>Prospecto:</strong> {{ token.nombre_prospecto }}
+                        {% if token.telefono_envio %}· <i class="fab fa-whatsapp text-success"></i> {{ token.telefono_envio }}{% endif %}
+                        {% if token.email_envio %}· <i class="fas fa-envelope text-primary"></i> {{ token.email_envio }}{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Parcela Dibujada + Mapa -->
+        {% if lead and lead.geometria %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-draw-polygon me-2"></i> 
+                    Parcela Dibujada
+                    <span class="badge bg-success ms-2">{{ lead.area_hectareas|floatformat:1 }} ha</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4 text-center">
+                        <label class="text-muted small">Área</label>
+                        <h4 class="mb-0">{{ lead.area_hectareas|floatformat:2 }} ha</h4>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <label class="text-muted small">Centroide Lat</label>
+                        <h5 class="mb-0" style="font-family: monospace;">{{ lead.centroide_lat|floatformat:4 }}°</h5>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <label class="text-muted small">Centroide Lon</label>
+                        <h5 class="mb-0" style="font-family: monospace;">{{ lead.centroide_lon|floatformat:4 }}°</h5>
+                    </div>
+                </div>
+                
+                <!-- Mapa interactivo -->
+                <div id="mapa-demo"></div>
+                
+                {% if lead.fecha_imagen_satelital %}
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-satellite me-1"></i>
+                        Imagen satelital del <strong>{{ lead.fecha_imagen_satelital|date:"d/m/Y" }}</strong>
+                        {% if lead.nubosidad_imagen %}
+                            · Nubosidad: {{ lead.nubosidad_imagen|floatformat:0 }}%
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Imágenes Satelitales de la Demo -->
+        {% if lead.ndvi_url or lead.ndmi_url or lead.savi_url %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-satellite-dish me-2"></i> 
+                    Imágenes Satelitales (Demo)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if lead.ndvi_url %}
+                    <div class="col-md-4 mb-3">
+                        <h6 class="text-center text-success">🌱 NDVI</h6>
+                        <img src="{{ lead.ndvi_url }}" alt="NDVI Demo" class="img-demo-preview w-100">
+                        <p class="text-center small text-muted mt-1">Salud del Cultivo</p>
+                    </div>
+                    {% endif %}
+                    {% if lead.ndmi_url %}
+                    <div class="col-md-4 mb-3">
+                        <h6 class="text-center text-primary">💧 NDMI</h6>
+                        <img src="{{ lead.ndmi_url }}" alt="NDMI Demo" class="img-demo-preview w-100">
+                        <p class="text-center small text-muted mt-1">Nivel de Humedad</p>
+                    </div>
+                    {% endif %}
+                    {% if lead.savi_url %}
+                    <div class="col-md-4 mb-3">
+                        <h6 class="text-center" style="color: #6d8a3f;">🌿 SAVI</h6>
+                        <img src="{{ lead.savi_url }}" alt="SAVI Demo" class="img-demo-preview w-100">
+                        <p class="text-center small text-muted mt-1">Vegetación del Suelo</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% elif token.ya_registro_datos %}
+        <div class="card mb-4">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-map-marked-alt fa-3x text-warning mb-3"></i>
+                <h5 class="text-muted">Parcela Pendiente</h5>
+                <p class="text-muted">El prospecto se registró pero aún no dibujó su parcela en el mapa.</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Conversión a Parcela Real -->
+        {% if lead and lead.geometria and not lead.convertido_a_cliente %}
+        <div class="card mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    Convertir a Parcela Real
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>¿Cerró la venta?</strong> Convierte este demo en una Parcela real del sistema.
+                    Se reutilizará el polígono que el prospecto dibujó ({{ lead.area_hectareas|floatformat:1 }} ha) 
+                    y podrás sincronizar con EOSDA inmediatamente.
+                </div>
+                
+                <form method="post" action="{% url 'informes:convertir_demo' token.id %}">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre_parcela" class="form-label fw-bold">Nombre de la Parcela *</label>
+                            <input type="text" class="form-control" id="nombre_parcela" name="nombre_parcela" 
+                                   value="Parcela {{ token.nombre_completo }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="propietario" class="form-label fw-bold">Propietario *</label>
+                            <input type="text" class="form-control" id="propietario" name="propietario" 
+                                   value="{{ token.nombre_completo }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="tipo_cultivo" class="form-label fw-bold">Tipo de Cultivo</label>
+                            <select class="form-select" id="tipo_cultivo" name="tipo_cultivo">
+                                <option value="">— Seleccionar —</option>
+                                <option value="Caña de Azúcar">🌿 Caña de Azúcar</option>
+                                <option value="Café">☕ Café</option>
+                                <option value="Arroz">🌾 Arroz</option>
+                                <option value="Maíz">🌽 Maíz</option>
+                                <option value="Palma de Aceite">🌴 Palma de Aceite</option>
+                                <option value="Banano">🍌 Banano</option>
+                                <option value="Plátano">🍌 Plátano</option>
+                                <option value="Soya">🫘 Soya</option>
+                                <option value="Algodón">🏳️ Algodón</option>
+                                <option value="Aguacate">🥑 Aguacate</option>
+                                <option value="Cacao">🍫 Cacao</option>
+                                <option value="Pasto">🌱 Pasto / Ganadería</option>
+                                <option value="Otro">📦 Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_inicio_monitoreo" class="form-label fw-bold">
+                                Inicio Monitoreo
+                            </label>
+                            <input type="date" class="form-control" id="fecha_inicio_monitoreo" 
+                                   name="fecha_inicio_monitoreo" value="{{ today|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted align-self-center">
+                            <i class="fas fa-draw-polygon me-1"></i>
+                            Se usará la geometría del demo: <strong>{{ lead.area_hectareas|floatformat:1 }} ha</strong>
+                        </span>
+                        <button type="submit" class="btn btn-success btn-lg"
+                                onclick="return confirm('¿Confirmar conversión a parcela real? Se creará una nueva parcela en el sistema.')">
+                            <i class="fas fa-check-double me-2"></i>
+                            Convertir a Parcela
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% elif lead and lead.convertido_a_cliente %}
+        <div class="card mb-4 border-success">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4 class="text-success">🎉 ¡Convertido a Cliente!</h4>
+                <p class="text-muted">Este lead ya fue convertido exitosamente a una parcela real.</p>
+                {% if lead.parcela_real_id %}
+                <a href="{% url 'informes:detalle_parcela' lead.parcela_real_id %}" class="btn btn-success">
+                    <i class="fas fa-eye me-1"></i> Ver Parcela #{{ lead.parcela_real_id }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Columna derecha: Timeline + Acciones -->
+    <div class="col-lg-4">
+        
+        <!-- Timeline de Eventos -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i> Timeline</h5>
+            </div>
+            <div class="card-body">
+                <!-- Creado -->
+                <div class="timeline-step">
+                    <div class="step-dot bg-primary">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <strong>Demo Creada</strong>
+                    <br>
+                    <small class="text-muted">{{ token.fecha_creacion|date:"d/m/Y H:i" }}</small>
+                </div>
+                
+                <!-- Registrado -->
+                <div class="timeline-step">
+                    <div class="step-dot {% if token.fecha_registro %}bg-success{% else %}bg-secondary{% endif %}">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    {% if token.fecha_registro %}
+                        <strong>Datos Registrados</strong>
+                        <br><small class="text-muted">{{ token.fecha_registro|date:"d/m/Y H:i" }}</small>
+                    {% else %}
+                        <span class="text-muted">Pendiente de registro</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Parcela dibujada -->
+                <div class="timeline-step">
+                    <div class="step-dot {% if lead and lead.geometria %}bg-success{% else %}bg-secondary{% endif %}">
+                        <i class="fas fa-draw-polygon"></i>
+                    </div>
+                    {% if lead and lead.geometria %}
+                        <strong>Parcela Dibujada</strong>
+                        <br><small class="text-muted">{{ lead.area_hectareas|floatformat:1 }} ha</small>
+                    {% else %}
+                        <span class="text-muted">Pendiente de dibujo</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Usado -->
+                <div class="timeline-step">
+                    <div class="step-dot {% if token.fecha_uso %}bg-info{% else %}bg-secondary{% endif %}">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    {% if token.fecha_uso %}
+                        <strong>Demo Visualizada</strong>
+                        <br><small class="text-muted">{{ token.fecha_uso|date:"d/m/Y H:i" }}</small>
+                    {% else %}
+                        <span class="text-muted">Pendiente de visualización</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Convertido -->
+                <div class="timeline-step">
+                    <div class="step-dot {% if lead and lead.convertido_a_cliente %}bg-success{% else %}bg-secondary{% endif %}">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                    {% if lead and lead.convertido_a_cliente %}
+                        <strong class="text-success">¡Convertido a Cliente!</strong>
+                        {% if lead.parcela_real_id %}
+                        <br><small class="text-muted">Parcela #{{ lead.parcela_real_id }}</small>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">Pendiente de conversión</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notas Comerciales -->
+        {% if token.notas_comerciales %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i> Notas</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ token.notas_comerciales|linebreaks }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Tracking -->
+        {% if token.ip_acceso or token.user_agent %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-fingerprint me-2"></i> Tracking</h5>
+            </div>
+            <div class="card-body">
+                {% if token.ip_acceso %}
+                <div class="mb-2">
+                    <label class="text-muted small">IP de Acceso</label>
+                    <p class="mb-0" style="font-family: monospace;">{{ token.ip_acceso }}</p>
+                </div>
+                {% endif %}
+                {% if token.user_agent %}
+                <div>
+                    <label class="text-muted small">Dispositivo</label>
+                    <p class="mb-0 small">{{ token.user_agent|truncatechars:120 }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Acciones -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i> Acciones de Envío</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                {% if token.esta_disponible %}
+                <a href="{% url 'informes:reenviar_demo_whatsapp' token.id %}" 
+                   class="btn btn-success" target="_blank">
+                    <i class="fab fa-whatsapp me-2"></i>
+                    {% if token.metodo_envio == 'whatsapp' %}Reenviar{% else %}Enviar{% endif %} por WhatsApp
+                </a>
+                
+                <!-- Enviar por Email -->
+                <form method="post" action="{% url 'informes:enviar_demo_email' token.id %}" class="d-grid">
+                    {% csrf_token %}
+                    {% if token.email_envio or token.email %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-envelope me-2"></i>
+                        {% if token.metodo_envio == 'email' %}Reenviar{% else %}Enviar{% endif %} por Email
+                    </button>
+                    {% else %}
+                    <div class="input-group">
+                        <input type="email" name="email_destino" class="form-control form-control-sm" 
+                               placeholder="correo@ejemplo.com" required>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-paper-plane me-1"></i> Enviar
+                        </button>
+                    </div>
+                    {% endif %}
+                </form>
+                {% endif %}
+                
+                <button class="btn btn-outline-primary" onclick="copiarLink()">
+                    <i class="fas fa-copy me-2"></i>
+                    Copiar Link
+                </button>
+                
+                {% if token.esta_disponible %}
+                <a href="{{ demo_url }}" target="_blank" class="btn btn-outline-secondary">
+                    <i class="fas fa-external-link-alt me-2"></i>
+                    Ver Demo
+                </a>
+                {% endif %}
+                
+                <!-- Info de envío -->
+                {% if token.fecha_envio %}
+                <div class="alert alert-light mt-2 mb-0 small">
+                    <i class="fas fa-check-circle text-success me-1"></i>
+                    Enviado por <strong>{{ token.get_metodo_envio_display }}</strong>
+                    el {{ token.fecha_envio|date:"d/m/Y H:i" }}
+                    {% if token.metodo_envio == 'whatsapp' and token.telefono_envio %}
+                        a {{ token.telefono_envio }}
+                    {% elif token.metodo_envio == 'email' and token.email_envio %}
+                        a {{ token.email_envio }}
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Vista previa del mensaje -->
+        {% if mensaje_profesional %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-eye me-2"></i> Mensaje</h5>
+            </div>
+            <div class="card-body">
+                <div style="background:#f8f9fa; border-radius:8px; padding:12px; font-size:13px; white-space:pre-line; line-height:1.5; max-height:250px; overflow-y:auto;">{{ mensaje_profesional }}</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Navegación -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog me-2"></i> Gestión</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a href="{% url 'informes:panel_demos' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Volver al Panel
+                </a>
+                
+                {% if not lead or not lead.convertido_a_cliente %}
+                <form method="post" action="{% url 'informes:eliminar_demo' token.id %}" class="mt-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger w-100"
+                            onclick="return confirm('¿Eliminar este demo? Esta acción no se puede deshacer.')">
+                        <i class="fas fa-trash me-2"></i>
+                        Eliminar Demo
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Copiar link al portapapeles
+    window.copiarLink = function() {
+        const url = document.getElementById('demoUrl').textContent;
+        navigator.clipboard.writeText(url).then(() => {
+            // Feedback visual
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> ¡Copiado!';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-success');
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-primary');
+            }, 2000);
+        });
+    };
+    
+    // Mapa con la parcela dibujada
+    {% if geojson_parcela %}
+    const mapaEl = document.getElementById('mapa-demo');
+    if (mapaEl) {
+        const map = L.map('mapa-demo');
+        
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Esri Satellite'
+        }).addTo(map);
+        
+        const geojson = JSON.parse('{{ geojson_parcela|escapejs }}');
+        const parcela = L.geoJSON(geojson, {
+            style: {
+                color: '#00ff88',
+                weight: 3,
+                fillColor: '#00ff88',
+                fillOpacity: 0.15
+            }
+        }).addTo(map);
+        
+        map.fitBounds(parcela.getBounds(), { padding: [30, 30] });
+        
+        // Popup con info
+        parcela.bindPopup(
+            '<strong>Parcela Demo</strong><br>' +
+            'Área: {{ lead.area_hectareas|floatformat:1 }} ha<br>' +
+            'Centro: {{ lead.centroide_lat|floatformat:4 }}°, {{ lead.centroide_lon|floatformat:4 }}°'
+        );
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

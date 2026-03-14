@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Demo AgroTech - Análisis Satelital</title>
+    
+    <!-- Open Graph para previews en WhatsApp/Redes Sociales -->
+    <meta property="og:title" content="🌾 Demo Satelital Gratuita — AgroTech Histórico">
+    <meta property="og:description" content="Dibuja tu parcela y ve imágenes satelitales reales de tu terreno. Índices NDVI, NDMI y SAVI de tus cultivos.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="{% static 'img/Agro Tech logo solo.png' %}">
+    <meta property="og:image:width" content="300">
+    <meta property="og:image:height" content="300">
+    <meta property="og:site_name" content="AgroTech Histórico">
+    <meta property="og:locale" content="es_CO">
+    
+    <!-- Twitter Card (también usado por WhatsApp en algunos casos) -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="🌾 Demo Satelital Gratuita — AgroTech">
+    <meta name="twitter:description" content="Dibuja tu parcela y ve imágenes satelitales reales de tu terreno.">
+    
+    <!-- Descripción para buscadores -->
+    <meta name="description" content="Demo gratuita de análisis satelital agrícola. Dibuja tu parcela y obtén imágenes NDVI, NDMI y SAVI reales de tu terreno.">
+    
+    <link rel="icon" type="image/png" href="{% static 'img/Agro Tech logo solo.png' %}">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --verde: #2d5a27;
+            --verde-claro: #4a7c59;
+            --verde-suave: #e8f5e8;
+            --gris: #2c3e50;
+            --blanco: #ffffff;
+            --fondo: #f0f4f0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--fondo);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        /* Header compacto */
+        .header {
+            background: linear-gradient(135deg, var(--verde), var(--verde-claro));
+            padding: 16px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header img {
+            height: 40px;
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 14px;
+            font-weight: 400;
+            margin-top: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        /* Contenido principal */
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+        
+        .bienvenida {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .bienvenida .icono {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .bienvenida h2 {
+            font-size: 22px;
+            color: var(--verde);
+            margin-bottom: 8px;
+        }
+        
+        .bienvenida p {
+            font-size: 15px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        /* Formulario */
+        .formulario {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        .formulario h3 {
+            font-size: 16px;
+            color: var(--gris);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .campo {
+            margin-bottom: 16px;
+        }
+        
+        .campo label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        
+        .campo label .requerido {
+            color: #e74c3c;
+        }
+        
+        .campo input, .campo select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px; /* Mínimo 16px para evitar zoom en iOS */
+            color: #333;
+            background: #fafafa;
+            transition: border-color 0.2s;
+            -webkit-appearance: none;
+        }
+        
+        .campo input:focus, .campo select:focus {
+            outline: none;
+            border-color: var(--verde);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.1);
+        }
+        
+        .campo input::placeholder {
+            color: #aaa;
+        }
+        
+        .btn-continuar {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--verde), var(--verde-claro));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-continuar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(45, 90, 39, 0.3);
+        }
+        
+        .btn-continuar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-continuar .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .btn-continuar.loading .spinner { display: block; }
+        .btn-continuar.loading .texto { display: none; }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Error */
+        .error-msg {
+            background: #fff3f3;
+            color: #d32f2f;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: none;
+            text-align: center;
+        }
+        
+        .error-msg.visible { display: block; }
+        
+        /* Nota de privacidad */
+        .nota-privacidad {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 12px;
+            color: #999;
+            line-height: 1.5;
+        }
+        
+        /* Footer compacto */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <img src="{% static 'img/Agro Tech logo solo.png' %}" alt="AgroTech">
+        <h1>Análisis Satelital Agrícola</h1>
+    </div>
+    
+    <!-- Contenido -->
+    <div class="container">
+        <div class="bienvenida">
+            <div class="icono">🛰️</div>
+            <h2>Tu Demo Satelital</h2>
+            <p>
+                Regístrate para ver imágenes satelitales reales de tu terreno.
+                Podrás dibujar tu parcela y obtener un análisis instantáneo.
+            </p>
+        </div>
+        
+        <div class="formulario">
+            <h3>📋 Completa tus datos</h3>
+            
+            <div id="errorMsg" class="error-msg"></div>
+            
+            <div class="campo">
+                <label>Nombre completo <span class="requerido">*</span></label>
+                <input type="text" id="nombre" placeholder="Ej: Juan Pérez" autocomplete="name" required>
+            </div>
+            
+            <div class="campo">
+                <label>Teléfono / WhatsApp <span class="requerido">*</span></label>
+                <input type="tel" id="telefono" placeholder="Ej: 300 123 4567" autocomplete="tel" required>
+            </div>
+            
+            <div class="campo">
+                <label>Email <small style="color:#999;">(opcional)</small></label>
+                <input type="email" id="email" placeholder="correo@ejemplo.com" autocomplete="email">
+            </div>
+            
+            <div class="campo">
+                <label>Departamento</label>
+                <select id="departamento">
+                    <option value="">Seleccionar...</option>
+                    <option value="Amazonas">Amazonas</option>
+                    <option value="Antioquia">Antioquia</option>
+                    <option value="Arauca">Arauca</option>
+                    <option value="Atlántico">Atlántico</option>
+                    <option value="Bolívar">Bolívar</option>
+                    <option value="Boyacá">Boyacá</option>
+                    <option value="Caldas">Caldas</option>
+                    <option value="Caquetá">Caquetá</option>
+                    <option value="Casanare">Casanare</option>
+                    <option value="Cauca">Cauca</option>
+                    <option value="Cesar">Cesar</option>
+                    <option value="Chocó">Chocó</option>
+                    <option value="Córdoba">Córdoba</option>
+                    <option value="Cundinamarca">Cundinamarca</option>
+                    <option value="Guainía">Guainía</option>
+                    <option value="Guaviare">Guaviare</option>
+                    <option value="Huila">Huila</option>
+                    <option value="La Guajira">La Guajira</option>
+                    <option value="Magdalena">Magdalena</option>
+                    <option value="Meta">Meta</option>
+                    <option value="Nariño">Nariño</option>
+                    <option value="Norte de Santander">Norte de Santander</option>
+                    <option value="Putumayo">Putumayo</option>
+                    <option value="Quindío">Quindío</option>
+                    <option value="Risaralda">Risaralda</option>
+                    <option value="San Andrés">San Andrés y Providencia</option>
+                    <option value="Santander">Santander</option>
+                    <option value="Sucre">Sucre</option>
+                    <option value="Tolima">Tolima</option>
+                    <option value="Valle del Cauca">Valle del Cauca</option>
+                    <option value="Vaupés">Vaupés</option>
+                    <option value="Vichada">Vichada</option>
+                </select>
+            </div>
+            
+            <div class="campo">
+                <label>Municipio <small style="color:#999;">(opcional)</small></label>
+                <input type="text" id="municipio" placeholder="Ej: Yopal">
+            </div>
+            
+            <button class="btn-continuar" id="btnContinuar" onclick="enviarRegistro()">
+                <span class="texto">Continuar al mapa →</span>
+                <div class="spinner"></div>
+            </button>
+        </div>
+        
+        <p class="nota-privacidad">
+            🔒 Tus datos están seguros. Solo los usaremos para contactarte 
+            sobre tu análisis satelital.
+        </p>
+    </div>
+    
+    <div class="footer">
+        🌾 AgroTech Histórico © 2026
+    </div>
+    
+    <script>
+    const TOKEN_UUID = '{{ token.token }}';
+    
+    function mostrarError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.classList.add('visible');
+        setTimeout(() => el.classList.remove('visible'), 5000);
+    }
+    
+    async function enviarRegistro() {
+        const btn = document.getElementById('btnContinuar');
+        const nombre = document.getElementById('nombre').value.trim();
+        const telefono = document.getElementById('telefono').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const departamento = document.getElementById('departamento').value;
+        const municipio = document.getElementById('municipio').value.trim();
+        
+        // Validación
+        if (!nombre) { mostrarError('El nombre es obligatorio'); return; }
+        if (!telefono) { mostrarError('El teléfono es obligatorio'); return; }
+        if (telefono.replace(/\D/g, '').length < 7) { 
+            mostrarError('Ingrese un número de teléfono válido'); return; 
+        }
+        
+        // Loading
+        btn.classList.add('loading');
+        btn.disabled = true;
+        
+        try {
+            const resp = await fetch(`/demo/${TOKEN_UUID}/registrar/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre, telefono, email, departamento, municipio })
+            });
+            
+            const data = await resp.json();
+            
+            if (data.success) {
+                // Redirigir al mapa
+                window.location.href = data.redirect_url;
+            } else {
+                mostrarError(data.error || 'Error al registrar. Intente de nuevo.');
+            }
+        } catch (err) {
+            mostrarError('Error de conexión. Verifique su internet.');
+        } finally {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+    
+    // Enter para enviar
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') enviarRegistro();
+        });
+    });
+    </script>
+</body>
+</html>

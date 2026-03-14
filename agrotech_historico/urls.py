@@ -29,6 +29,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", redirigir_a_login, name='home'),
     path("informes/", include('informes.urls')),
+    
+    # Sistema Demo - Links únicos (AISLADO - sin autenticación)
+    path("demo/", include('informes.urls_demo', namespace='demo')),
 ]
 
 # Servir archivos media en desarrollo Y producción

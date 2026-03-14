@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Demo Expirada - AgroTech</title>
+    
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'img/Agro Tech logo solo.png' %}">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --verde: #2d5a27;
+            --verde-claro: #4a7c59;
+            --whatsapp: #25D366;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            color: #333;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 28px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        
+        .icono {
+            font-size: 56px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+        
+        .mensaje {
+            font-size: 15px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        
+        .estado-info {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 13px;
+            color: #f57c00;
+            margin-bottom: 24px;
+        }
+        
+        .btn-whatsapp {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px 24px;
+            background: var(--whatsapp);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.25);
+        }
+        
+        .btn-whatsapp:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+        }
+        
+        .logo {
+            margin-top: 32px;
+            opacity: 0.4;
+        }
+        
+        .logo img {
+            height: 36px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        {% if token.estado == 'usado' %}
+            <div class="icono">✅</div>
+            <h1>Demo ya utilizada</h1>
+            <p class="mensaje">
+                Este link de demo ya fue utilizado. Cada link es de un solo uso 
+                para garantizar la seguridad de tus datos.
+            </p>
+            <div class="estado-info">
+                {% if token.fecha_uso %}
+                    Utilizado el {{ token.fecha_uso|date:"d M Y" }} a las {{ token.fecha_uso|time:"H:i" }}
+                {% else %}
+                    Este link ya fue utilizado anteriormente.
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="icono">⏰</div>
+            <h1>Link expirado</h1>
+            <p class="mensaje">
+                Este link de demo ha expirado. Los links de demo tienen una 
+                validez de 7 días por seguridad.
+            </p>
+            {% if token.fecha_expiracion %}
+            <div class="estado-info">
+                Expiró el {{ token.fecha_expiracion|date:"d M Y" }}
+            </div>
+            {% endif %}
+        {% endif %}
+        
+        <p class="mensaje" style="margin-bottom:20px;">
+            ¿Quieres acceder al servicio completo de análisis satelital? 
+            Contacta a nuestro equipo:
+        </p>
+        
+        <a href="https://wa.me/573223088873?text=Hola%2C%20mi%20link%20de%20demo%20expiró%20y%20me%20interesa%20el%20servicio%20completo%20de%20análisis%20satelital." 
+           target="_blank" class="btn-whatsapp">
+            📱 Contactar por WhatsApp
+        </a>
+    </div>
+    
+    <div class="logo">
+        <img src="{% static 'img/Agro Tech logo solo.png' %}" alt="AgroTech">
+    </div>
+
+</body>
+</html>

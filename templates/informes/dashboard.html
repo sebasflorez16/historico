@@ -368,6 +368,172 @@
 {% endif %}
 {% endif %}
 
+<!-- Panel de Demos Comerciales -->
+{% if estadisticas_demos %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="text-dark mb-0">
+                <i class="fas fa-rocket me-2"></i>
+                Demos Comerciales
+            </h4>
+            <div>
+                <a href="{% url 'informes:crear_demo' %}" class="btn btn-primary btn-sm me-2">
+                    <i class="fas fa-plus me-1"></i> Nuevo Demo
+                </a>
+                <a href="{% url 'informes:panel_demos' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-external-link-alt me-1"></i> Ver Panel
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-primary h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Demos Creadas</h6>
+                        <h3 class="mb-0 text-primary">{{ estadisticas_demos.total }}</h3>
+                        <small class="text-muted">{{ estadisticas_demos.activas }} activas</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-link fa-3x text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Demos Usadas</h6>
+                        <h3 class="mb-0 text-info">{{ estadisticas_demos.usadas }}</h3>
+                        <small class="text-muted">Prospectos que vieron demo</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-eye fa-3x text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Convertidos</h6>
+                        <h3 class="mb-0 text-success">{{ estadisticas_demos.convertidas }}</h3>
+                        <small class="text-muted">Demos → Clientes</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-handshake fa-3x text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card h-100" style="border-left: 4px solid #9c27b0;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="text-uppercase text-muted mb-1">Tasa Conversión</h6>
+                        <h3 class="mb-0" style="color: #9c27b0;">{{ estadisticas_demos.tasa_conversion }}%</h3>
+                        <small class="text-muted">Demos usadas → clientes</small>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-percentage fa-3x opacity-50" style="color: #9c27b0;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demos Recientes -->
+{% if estadisticas_demos.recientes %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Últimos Demos
+                </h5>
+                <a href="{% url 'informes:panel_demos' %}" class="btn btn-outline-primary btn-sm">
+                    Ver todos
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Token</th>
+                                <th>Contacto</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for demo in estadisticas_demos.recientes %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'informes:detalle_demo' demo.id %}" style="font-family: monospace;">
+                                        {{ demo.token.hex|truncatechars:10 }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if demo.nombre_completo %}
+                                        {{ demo.nombre_completo }}
+                                    {% else %}
+                                        <span class="text-muted fst-italic">Sin registrar</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if demo.estado == 'activo' %}
+                                        <span class="badge bg-success">🟢 Activo</span>
+                                    {% elif demo.estado == 'registrado' %}
+                                        <span class="badge bg-primary">📝 Registrado</span>
+                                    {% elif demo.estado == 'usado' %}
+                                        <span class="badge bg-info text-dark">✅ Usado</span>
+                                    {% elif demo.estado == 'expirado' %}
+                                        <span class="badge bg-secondary">⏰ Expirado</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ demo.fecha_creacion|date:"d/m/Y" }}</small></td>
+                                <td>
+                                    <a href="{% url 'informes:detalle_demo' demo.id %}" 
+                                       class="btn btn-outline-primary btn-sm" title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if demo.esta_disponible %}
+                                    <a href="{% url 'informes:reenviar_demo_whatsapp' demo.id %}" 
+                                       class="btn btn-outline-success btn-sm" title="WhatsApp" target="_blank">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
 <!-- Estado de Servicios -->
 <div class="row mb-4">
     <div class="col-12">
@@ -713,43 +879,63 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <a href="{% url 'informes:crear_parcela' %}" class="btn btn-outline-primary w-100 py-3">
                             <i class="fas fa-plus fa-2x mb-2"></i>
                             <br>
                             <strong>Nueva Parcela</strong>
                             <br>
-                            <small>Agregar terreno al sistema</small>
+                            <small>Agregar terreno</small>
                         </a>
                     </div>
                     
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <a href="{% url 'informes:lista_parcelas' %}" class="btn btn-outline-success w-100 py-3">
                             <i class="fas fa-map fa-2x mb-2"></i>
                             <br>
                             <strong>Ver Parcelas</strong>
                             <br>
-                            <small>Gestionar terrenos existentes</small>
+                            <small>Terrenos existentes</small>
                         </a>
                     </div>
                     
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <a href="{% url 'informes:lista_informes' %}" class="btn btn-outline-warning w-100 py-3">
                             <i class="fas fa-chart-line fa-2x mb-2"></i>
                             <br>
                             <strong>Análisis</strong>
                             <br>
-                            <small>Revisar informes satelitales</small>
+                            <small>Informes satelitales</small>
                         </a>
                     </div>
                     
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
+                        <a href="{% url 'informes:crear_demo' %}" class="btn btn-outline-info w-100 py-3">
+                            <i class="fas fa-rocket fa-2x mb-2"></i>
+                            <br>
+                            <strong>Nuevo Demo</strong>
+                            <br>
+                            <small>Link por WhatsApp</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-2 mb-3">
+                        <a href="{% url 'informes:panel_demos' %}" class="btn btn-outline-dark w-100 py-3">
+                            <i class="fas fa-funnel-dollar fa-2x mb-2"></i>
+                            <br>
+                            <strong>Panel Demos</strong>
+                            <br>
+                            <small>Seguimiento leads</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-md-2 mb-3">
                         <a href="{% url 'informes:estado_sistema' %}" class="btn btn-outline-secondary w-100 py-3">
                             <i class="fas fa-cogs fa-2x mb-2"></i>
                             <br>
                             <strong>Sistema</strong>
                             <br>
-                            <small>Monitorear estado general</small>
+                            <small>Estado general</small>
                         </a>
                     </div>
                 </div>

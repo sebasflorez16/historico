@@ -225,3 +225,6 @@ admin.site.index_title = "Sistema de Análisis Satelital Agrícola"
 
 # CSS personalizado para el admin
 admin.site.enable_nav_sidebar = False
+
+# === Sistema Demo - Links únicos ===
+import informes.admin_demo  # noqa: F401

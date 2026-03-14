@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dibuja tu Parcela - AgroTech Demo</title>
+    
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'img/Agro Tech logo solo.png' %}">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --verde: #2d5a27;
+            --verde-claro: #4a7c59;
+            --verde-suave: #e8f5e8;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Header compacto */
+        .header {
+            background: linear-gradient(135deg, var(--verde), var(--verde-claro));
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        
+        .header img { height: 32px; }
+        
+        .header .info {
+            color: white;
+            flex: 1;
+        }
+        
+        .header .info h2 {
+            font-size: 15px;
+            font-weight: 600;
+        }
+        
+        .header .info p {
+            font-size: 11px;
+            opacity: 0.85;
+        }
+        
+        /* Instrucciones */
+        .instrucciones {
+            background: var(--verde-suave);
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--verde);
+            text-align: center;
+            flex-shrink: 0;
+            border-bottom: 1px solid #c8e6c9;
+        }
+        
+        .instrucciones strong { font-weight: 700; }
+        
+        /* Mapa ocupa todo el espacio */
+        #map {
+            flex: 1;
+            width: 100%;
+            z-index: 1;
+        }
+        
+        /* Panel inferior flotante */
+        .panel-inferior {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            border-radius: 20px 20px 0 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        
+        .panel-inferior.oculto {
+            transform: translateY(100%);
+        }
+        
+        .info-parcela {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 12px;
+        }
+        
+        .info-item {
+            text-align: center;
+        }
+        
+        .info-item .valor {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--verde);
+        }
+        
+        .info-item .etiqueta {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .btn-analizar {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--verde), var(--verde-claro));
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-analizar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(45, 90, 39, 0.3);
+        }
+        
+        .btn-analizar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-analizar .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .btn-analizar.loading .spinner { display: block; }
+        .btn-analizar.loading .texto-btn { display: none; }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .btn-limpiar {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            color: #999;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        
+        /* Progreso de carga */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .loading-overlay.visible {
+            display: flex;
+        }
+        
+        .loading-overlay .contenido {
+            background: white;
+            border-radius: 20px;
+            padding: 32px 24px;
+            text-align: center;
+            max-width: 320px;
+            margin: 0 16px;
+        }
+        
+        .loading-overlay .satelite-anim {
+            font-size: 48px;
+            animation: flotar 2s ease-in-out infinite;
+        }
+        
+        @keyframes flotar {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .loading-overlay h3 {
+            margin-top: 16px;
+            color: var(--verde);
+            font-size: 18px;
+        }
+        
+        .loading-overlay p {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+        
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--verde), var(--verde-claro));
+            border-radius: 3px;
+            animation: progreso 30s ease-out forwards;
+        }
+        
+        @keyframes progreso {
+            0% { width: 0%; }
+            30% { width: 40%; }
+            60% { width: 65%; }
+            80% { width: 80%; }
+            95% { width: 90%; }
+            100% { width: 95%; }
+        }
+        
+        /* Error toast */
+        .toast-error {
+            position: fixed;
+            top: 80px;
+            left: 16px;
+            right: 16px;
+            background: #d32f2f;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            text-align: center;
+            z-index: 3000;
+            display: none;
+            box-shadow: 0 4px 15px rgba(211,47,47,0.3);
+        }
+        
+        .toast-error.visible { display: block; }
+        
+        /* Leaflet overrides para mobile */
+        .leaflet-draw-toolbar a {
+            width: 36px !important;
+            height: 36px !important;
+            line-height: 36px !important;
+        }
+        
+        .leaflet-control-geocoder {
+            max-width: calc(100vw - 100px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <img src="{% static 'img/Agro Tech logo solo.png' %}" alt="AgroTech">
+        <div class="info">
+            <h2>Hola, {{ token.nombre_completo }}! 👋</h2>
+            <p>Dibuja tu parcela en el mapa</p>
+        </div>
+    </div>
+    
+    <!-- Instrucciones -->
+    <div class="instrucciones" id="instrucciones">
+        📌 <strong>Toca el polígono</strong> en la barra de herramientas y marca los vértices de tu parcela
+    </div>
+    
+    <!-- Mapa -->
+    <div id="map"></div>
+    
+    <!-- Panel inferior (se muestra al dibujar) -->
+    <div class="panel-inferior oculto" id="panelInferior">
+        <div class="info-parcela">
+            <div class="info-item">
+                <div class="valor" id="areaValor">—</div>
+                <div class="etiqueta">Hectáreas</div>
+            </div>
+            <div class="info-item">
+                <div class="valor" id="verticesValor">—</div>
+                <div class="etiqueta">Vértices</div>
+            </div>
+        </div>
+        
+        <button class="btn-analizar" id="btnAnalizar" onclick="enviarParcela()" disabled>
+            <span class="texto-btn">🛰️ Ver Análisis Satelital</span>
+            <div class="spinner"></div>
+        </button>
+        
+        <button class="btn-limpiar" onclick="limpiarParcela()">
+            🗑️ Borrar y volver a dibujar
+        </button>
+    </div>
+    
+    <!-- Overlay de carga -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="contenido">
+            <div class="satelite-anim">🛰️</div>
+            <h3>Consultando satélite...</h3>
+            <p>
+                Estamos buscando la mejor imagen satelital de tu parcela. 
+                Esto puede tomar hasta 30 segundos.
+            </p>
+            <div class="progress-bar">
+                <div class="fill"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Error toast -->
+    <div class="toast-error" id="toastError"></div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+    
+    <script>
+    const TOKEN_UUID = '{{ token.token }}';
+    let parcelaGeojson = null;
+    let drawnItems = new L.FeatureGroup();
+    
+    // ========================================
+    // INICIALIZAR MAPA
+    // ========================================
+    
+    // Centro en Colombia (Casanare por defecto)
+    const map = L.map('map', {
+        center: [5.3, -72.4],
+        zoom: 7,
+        zoomControl: true,
+        attributionControl: false
+    });
+    
+    // Capa base satelital (Google Satellite)
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '© Google'
+    }).addTo(map);
+    
+    // Capa de etiquetas encima
+    L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        opacity: 0.7
+    }).addTo(map);
+    
+    map.addLayer(drawnItems);
+    
+    // ========================================
+    // HERRAMIENTAS DE DIBUJO
+    // ========================================
+    
+    const drawControl = new L.Control.Draw({
+        position: 'topright',
+        draw: {
+            polygon: {
+                allowIntersection: false,
+                showArea: true,
+                shapeOptions: {
+                    color: '#2d5a27',
+                    fillColor: '#4a7c59',
+                    fillOpacity: 0.3,
+                    weight: 3
+                }
+            },
+            polyline: false,
+            rectangle: false,
+            circle: false,
+            circlemarker: false,
+            marker: false
+        },
+        edit: {
+            featureGroup: drawnItems,
+            remove: true,
+            edit: true
+        }
+    });
+    map.addControl(drawControl);
+    
+    // Buscador de lugares
+    L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: '🔍 Buscar lugar...',
+        errorMessage: 'No encontrado',
+        collapsed: true
+    }).on('markgeocode', function(e) {
+        map.fitBounds(e.geocode.bbox || [e.geocode.center], { maxZoom: 15 });
+    }).addTo(map);
+    
+    // ========================================
+    // EVENTOS DE DIBUJO
+    // ========================================
+    
+    map.on(L.Draw.Event.CREATED, function(e) {
+        drawnItems.clearLayers();
+        drawnItems.addLayer(e.layer);
+        
+        const geojson = e.layer.toGeoJSON();
+        parcelaGeojson = geojson.geometry;
+        
+        // Calcular área aproximada
+        const coords = parcelaGeojson.coordinates[0];
+        const areaSqM = L.GeometryUtil.geodesicArea(
+            coords.map(c => L.latLng(c[1], c[0]))
+        );
+        const areaHa = (areaSqM / 10000).toFixed(1);
+        
+        // Mostrar panel
+        document.getElementById('areaValor').textContent = areaHa;
+        document.getElementById('verticesValor').textContent = coords.length - 1;
+        document.getElementById('panelInferior').classList.remove('oculto');
+        document.getElementById('btnAnalizar').disabled = false;
+        document.getElementById('instrucciones').innerHTML = 
+            '✅ <strong>Parcela dibujada</strong> — Toca "Ver Análisis" para continuar';
+    });
+    
+    map.on(L.Draw.Event.DELETED, function() {
+        parcelaGeojson = null;
+        document.getElementById('panelInferior').classList.add('oculto');
+        document.getElementById('btnAnalizar').disabled = true;
+        document.getElementById('instrucciones').innerHTML = 
+            '📌 <strong>Toca el polígono</strong> en la barra de herramientas y marca los vértices de tu parcela';
+    });
+    
+    // ========================================
+    // ENVIAR PARCELA
+    // ========================================
+    
+    function mostrarError(msg) {
+        const el = document.getElementById('toastError');
+        el.textContent = msg;
+        el.classList.add('visible');
+        setTimeout(() => el.classList.remove('visible'), 5000);
+    }
+    
+    function limpiarParcela() {
+        drawnItems.clearLayers();
+        parcelaGeojson = null;
+        document.getElementById('panelInferior').classList.add('oculto');
+        document.getElementById('instrucciones').innerHTML = 
+            '📌 <strong>Toca el polígono</strong> en la barra de herramientas y marca los vértices de tu parcela';
+    }
+    
+    async function enviarParcela() {
+        if (!parcelaGeojson) {
+            mostrarError('Dibuja tu parcela primero');
+            return;
+        }
+        
+        const btn = document.getElementById('btnAnalizar');
+        btn.classList.add('loading');
+        btn.disabled = true;
+        
+        // Mostrar overlay de carga
+        document.getElementById('loadingOverlay').classList.add('visible');
+        
+        try {
+            const resp = await fetch(`/demo/${TOKEN_UUID}/guardar-parcela/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ geometria: parcelaGeojson })
+            });
+            
+            const data = await resp.json();
+            
+            if (data.success && data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else if (data.success) {
+                window.location.href = `/demo/${TOKEN_UUID}/resultado/`;
+            } else {
+                document.getElementById('loadingOverlay').classList.remove('visible');
+                mostrarError(data.error || 'Error procesando la parcela');
+            }
+        } catch (err) {
+            document.getElementById('loadingOverlay').classList.remove('visible');
+            mostrarError('Error de conexión. Verifique su internet.');
+        } finally {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+    
+    // Intentar geolocalización del dispositivo
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+            },
+            () => { /* silencioso si no permite GPS */ },
+            { timeout: 5000 }
+        );
+    }
+    </script>
+</body>
+</html>

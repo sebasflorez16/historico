@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tu Análisis Satelital - AgroTech Demo</title>
+    
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'img/Agro Tech logo solo.png' %}">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --verde: #2d5a27;
+            --verde-claro: #4a7c59;
+            --verde-suave: #e8f5e8;
+            --fondo: #0f1923;
+            --card-bg: #1a2332;
+            --texto: #e0e6ed;
+            --texto-muted: #7a8b9e;
+            --borde: #2a3a4e;
+            --whatsapp: #25D366;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--fondo);
+            min-height: 100vh;
+            color: var(--texto);
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--verde), var(--verde-claro));
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header img { height: 36px; }
+        
+        .header h1 {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            color: rgba(255,255,255,0.85);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        
+        /* Resumen de parcela */
+        .resumen {
+            display: flex;
+            justify-content: space-around;
+            padding: 16px 12px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--borde);
+        }
+        
+        .resumen-item {
+            text-align: center;
+        }
+        
+        .resumen-item .valor {
+            font-size: 20px;
+            font-weight: 700;
+            color: #4ade80;
+        }
+        
+        .resumen-item .etiqueta {
+            font-size: 10px;
+            color: var(--texto-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 16px 12px 120px;
+        }
+        
+        /* Cards de índices */
+        .indice-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 1px solid var(--borde);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .indice-header {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--borde);
+        }
+        
+        .indice-header .icono {
+            font-size: 28px;
+        }
+        
+        .indice-header .info h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .indice-header .info p {
+            font-size: 11px;
+            color: var(--texto-muted);
+        }
+        
+        .indice-header .valor-badge {
+            margin-left: auto;
+            background: rgba(74, 222, 128, 0.15);
+            color: #4ade80;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        .indice-imagen {
+            width: 100%;
+            display: block;
+            background: #111827;
+        }
+        
+        .indice-imagen img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .indice-explicacion {
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #b0bec5;
+        }
+        
+        .indice-explicacion strong {
+            color: white;
+        }
+        
+        /* Sin imágenes */
+        .sin-imagenes {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 32px 20px;
+            text-align: center;
+            border: 1px solid var(--borde);
+            margin-bottom: 16px;
+        }
+        
+        .sin-imagenes .icono-grande { font-size: 48px; margin-bottom: 12px; }
+        .sin-imagenes h3 { font-size: 18px; color: white; margin-bottom: 8px; }
+        .sin-imagenes p { font-size: 14px; color: var(--texto-muted); line-height: 1.6; }
+        
+        /* Card CTA */
+        .cta-card {
+            background: linear-gradient(135deg, #1a3a2e, #1e4d3d);
+            border-radius: 16px;
+            padding: 24px 20px;
+            text-align: center;
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            margin-bottom: 16px;
+        }
+        
+        .cta-card .icono-cta { font-size: 36px; margin-bottom: 12px; }
+        
+        .cta-card h3 {
+            font-size: 18px;
+            color: white;
+            margin-bottom: 8px;
+        }
+        
+        .cta-card p {
+            font-size: 13px;
+            color: #a7c4b8;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .cta-card .features {
+            text-align: left;
+            margin: 16px 0;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .cta-card .features li {
+            padding: 6px 0;
+            font-size: 14px;
+            color: #c8e6c9;
+        }
+        
+        .cta-card .features li::before {
+            content: '✅ ';
+        }
+        
+        .btn-whatsapp {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px 24px;
+            background: var(--whatsapp);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+        }
+        
+        .btn-whatsapp:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+        }
+        
+        .btn-whatsapp svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        /* Metadata satelital */
+        .metadata {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--borde);
+            margin-bottom: 16px;
+        }
+        
+        .metadata h4 {
+            font-size: 12px;
+            color: var(--texto-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #90a4ae;
+        }
+        
+        .metadata-item .emoji { font-size: 14px; }
+        
+        /* Aviso de datos */
+        .aviso-datos {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: #ffd54f;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        /* Footer fijo con CTA */
+        .footer-fijo {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 25, 35, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            z-index: 100;
+            border-top: 1px solid var(--borde);
+        }
+        
+        .footer-fijo .btn-whatsapp-mini {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 14px;
+            background: var(--whatsapp);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+        }
+        
+        /* Animación de entrada */
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .delay-1 { animation-delay: 0.1s; animation-fill-mode: backwards; }
+        .delay-2 { animation-delay: 0.3s; animation-fill-mode: backwards; }
+        .delay-3 { animation-delay: 0.5s; animation-fill-mode: backwards; }
+        .delay-4 { animation-delay: 0.7s; animation-fill-mode: backwards; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-top">
+            <img src="{% static 'img/Agro Tech logo solo.png' %}" alt="AgroTech">
+            <div>
+                <h1>🛰️ Tu Análisis Satelital</h1>
+                <p>{{ token.nombre_completo }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resumen de parcela -->
+    <div class="resumen fade-in">
+        <div class="resumen-item">
+            <div class="valor">{{ lead.area_hectareas|floatformat:1 }}</div>
+            <div class="etiqueta">Hectáreas</div>
+        </div>
+        <div class="resumen-item">
+            <div class="valor">
+                {% if lead.fecha_imagen_satelital %}
+                    {{ lead.fecha_imagen_satelital|date:"d M" }}
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="etiqueta">Imagen</div>
+        </div>
+        <div class="resumen-item">
+            <div class="valor">
+                {% if lead.nubosidad_imagen %}
+                    {{ lead.nubosidad_imagen|floatformat:0 }}%
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="etiqueta">Nubosidad</div>
+        </div>
+        {% if token.municipio %}
+        <div class="resumen-item">
+            <div class="valor" style="font-size:14px;">{{ token.municipio|truncatechars:12 }}</div>
+            <div class="etiqueta">Ubicación</div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Contenido -->
+    <div class="container">
+        
+        {% if tiene_imagenes %}
+        
+            <!-- NDVI -->
+            <div class="indice-card fade-in delay-1">
+                <div class="indice-header">
+                    <span class="icono">🌿</span>
+                    <div class="info">
+                        <h3>Salud del Cultivo</h3>
+                        <p>Índice NDVI</p>
+                    </div>
+                </div>
+                {% if lead.ndvi_url %}
+                <div class="indice-imagen">
+                    <img src="{{ lead.ndvi_url }}" alt="Mapa NDVI de tu parcela" loading="lazy">
+                </div>
+                {% endif %}
+                <div class="indice-explicacion">
+                    Muestra <strong>qué tan verde y saludable</strong> está tu cultivo. 
+                    Las zonas en <strong>verde intenso</strong> indican plantas vigorosas.
+                    Las zonas en <strong>amarillo o rojo</strong> pueden señalar estrés, 
+                    plagas o suelos pobres que necesitan atención.
+                </div>
+            </div>
+            
+            <!-- NDMI -->
+            <div class="indice-card fade-in delay-2">
+                <div class="indice-header">
+                    <span class="icono">💧</span>
+                    <div class="info">
+                        <h3>Nivel de Humedad</h3>
+                        <p>Índice NDMI</p>
+                    </div>
+                </div>
+                {% if lead.ndmi_url %}
+                <div class="indice-imagen">
+                    <img src="{{ lead.ndmi_url }}" alt="Mapa NDMI de tu parcela" loading="lazy">
+                </div>
+                {% endif %}
+                <div class="indice-explicacion">
+                    Indica la <strong>cantidad de agua</strong> en tus plantas y suelo.
+                    Las zonas en <strong>azul</strong> tienen buena hidratación. 
+                    Las zonas en <strong>rojo o naranja</strong> pueden estar sufriendo 
+                    <strong>estrés hídrico</strong> (falta de agua) y necesitar riego.
+                </div>
+            </div>
+            
+            <!-- SAVI -->
+            <div class="indice-card fade-in delay-3">
+                <div class="indice-header">
+                    <span class="icono">🌱</span>
+                    <div class="info">
+                        <h3>Vegetación del Suelo</h3>
+                        <p>Índice SAVI</p>
+                    </div>
+                </div>
+                {% if lead.savi_url %}
+                <div class="indice-imagen">
+                    <img src="{{ lead.savi_url }}" alt="Mapa SAVI de tu parcela" loading="lazy">
+                </div>
+                {% endif %}
+                <div class="indice-explicacion">
+                    Análisis especializado para <strong>suelos con poca cobertura</strong> vegetal.
+                    Detecta la <strong>vegetación real</strong> separándola del suelo expuesto.
+                    Ideal para cultivos jóvenes, zonas recién sembradas o terrenos con 
+                    suelo visible entre hileras.
+                </div>
+            </div>
+        
+        {% else %}
+        
+            <!-- Sin imágenes disponibles -->
+            <div class="sin-imagenes fade-in delay-1">
+                <div class="icono-grande">☁️</div>
+                <h3>Imágenes en proceso</h3>
+                <p>
+                    No encontramos imágenes con buena visibilidad en los últimos 90 días 
+                    para esta zona. Esto es normal en regiones con alta cobertura de nubes.
+                </p>
+                <p style="margin-top:12px;">
+                    Nuestro equipo puede hacer una evaluación personalizada de tu parcela 
+                    con técnicas avanzadas de filtrado.
+                </p>
+            </div>
+        
+        {% endif %}
+        
+        <!-- Metadata satelital -->
+        <div class="metadata fade-in delay-3">
+            <h4>Datos técnicos</h4>
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <span class="emoji">🛰️</span> Sentinel-2 (ESA)
+                </div>
+                <div class="metadata-item">
+                    <span class="emoji">📐</span> Resolución 10m/px
+                </div>
+                {% if lead.fecha_imagen_satelital %}
+                <div class="metadata-item">
+                    <span class="emoji">📅</span> {{ lead.fecha_imagen_satelital|date:"d M Y" }}
+                </div>
+                {% endif %}
+                {% if lead.nubosidad_imagen %}
+                <div class="metadata-item">
+                    <span class="emoji">☁️</span> Nubosidad {{ lead.nubosidad_imagen|floatformat:0 }}%
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- CTA Principal -->
+        <div class="cta-card fade-in delay-4">
+            <div class="icono-cta">📊</div>
+            <h3>Esto es solo una captura del momento</h3>
+            <p>
+                Con el <strong>Informe Histórico Completo</strong>, nuestro motor 
+                de inteligencia artificial analiza <strong>mes a mes durante 12 a 24 meses</strong>, 
+                detectando:
+            </p>
+            <ul class="features">
+                <li>Tendencias de salud a lo largo del tiempo</li>
+                <li>Alertas tempranas de estrés o plagas</li>
+                <li>Zonas con problemas de riego</li>
+                <li>Recomendaciones personalizadas con IA</li>
+                <li>Informe PDF profesional descargable</li>
+            </ul>
+            <a href="{{ whatsapp_url }}" target="_blank" class="btn-whatsapp">
+                <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Contratar Informe Completo
+            </a>
+        </div>
+        
+        <!-- Aviso si son datos estimados -->
+        {% if not tiene_imagenes %}
+        <div class="aviso-datos">
+            ⚠️ Las imágenes mostradas son estimaciones basadas en datos satelitales disponibles. 
+            El informe completo incluye imágenes de alta resolución con análisis detallado.
+        </div>
+        {% endif %}
+        
+    </div>
+    
+    <!-- Footer fijo con CTA siempre visible -->
+    <div class="footer-fijo">
+        <a href="{{ whatsapp_url }}" target="_blank" class="btn-whatsapp-mini">
+            📱 Contactar por WhatsApp
+        </a>
+    </div>
+
+</body>
+</html>

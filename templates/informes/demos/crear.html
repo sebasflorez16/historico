@@ -1,0 +1,364 @@
+{% extends 'informes/base.html' %}
+
+{% block title %}Crear Demo - AgroTech Histórico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .preview-card {
+        background: #e8f5e8;
+        border: 2px solid #2d5a27;
+        border-radius: 12px;
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 14px;
+        white-space: pre-line;
+        line-height: 1.6;
+        color: #333;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .metodo-option {
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    .metodo-option:hover {
+        border-color: #4a7c59;
+        background: #f8fdf8;
+    }
+    .metodo-option.selected {
+        border-color: #2d5a27;
+        background: #e8f5e8;
+        box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.15);
+    }
+    .metodo-option .icono { font-size: 32px; margin-bottom: 8px; }
+    .metodo-option .nombre { font-weight: 600; font-size: 14px; }
+    .metodo-option .desc { font-size: 12px; color: #888; margin-top: 4px; }
+    .campo-condicional { display: none; animation: fadeIn 0.3s ease; }
+    .campo-condicional.visible { display: block; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .btn-enviar-wa { background: #25D366; border-color: #25D366; color: white; }
+    .btn-enviar-wa:hover { background: #1da851; border-color: #1da851; color: white; }
+    .btn-enviar-email { background: #4285f4; border-color: #4285f4; color: white; }
+    .btn-enviar-email:hover { background: #3367c9; border-color: #3367c9; color: white; }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'informes:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'informes:panel_demos' %}">Demos</a></li>
+        <li class="breadcrumb-item active">Crear Demo</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row fade-in-up">
+    <div class="col-12">
+        <h1 class="h2 text-dark mb-4">
+            <i class="fas fa-plus-circle me-3" style="color: var(--agrotech-verde);"></i>
+            Crear Nuevo Demo
+        </h1>
+    </div>
+</div>
+
+<form method="post" id="formCrearDemo">
+    {% csrf_token %}
+    
+    <div class="row">
+        <!-- Columna izquierda: Formulario -->
+        <div class="col-lg-7">
+            
+            <!-- Datos del prospecto -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>
+                        Datos del Prospecto
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>¿Cómo funciona?</strong> Se genera un link único. El prospecto 
+                        registra sus datos, dibuja su parcela y ve 3 imágenes satelitales reales.
+                        El link expira automáticamente.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nombre_prospecto" class="form-label fw-bold">
+                            <i class="fas fa-user me-1"></i>
+                            Nombre del Prospecto
+                        </label>
+                        <input type="text" class="form-control" id="nombre_prospecto" 
+                               name="nombre_prospecto" 
+                               value="{{ form_data.nombre_prospecto|default:'' }}"
+                               placeholder="Ej: Juan Carlos Pérez"
+                               oninput="actualizarPreview()">
+                        <small class="text-muted">Se usará para personalizar el mensaje de envío.</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="telefono_envio" class="form-label fw-bold">
+                                <i class="fab fa-whatsapp me-1 text-success"></i>
+                                Teléfono / WhatsApp
+                            </label>
+                            <input type="tel" class="form-control" id="telefono_envio" 
+                                   name="telefono_envio"
+                                   value="{{ form_data.telefono_envio|default:'' }}"
+                                   placeholder="Ej: 300 123 4567">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email_envio" class="form-label fw-bold">
+                                <i class="fas fa-envelope me-1 text-primary"></i>
+                                Email
+                            </label>
+                            <input type="email" class="form-control" id="email_envio" 
+                                   name="email_envio"
+                                   value="{{ form_data.email_envio|default:'' }}"
+                                   placeholder="correo@ejemplo.com">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notas_comerciales" class="form-label fw-bold">
+                            <i class="fas fa-sticky-note me-1"></i>
+                            Notas Comerciales <small class="text-muted">(opcional)</small>
+                        </label>
+                        <textarea class="form-control" id="notas_comerciales" 
+                                  name="notas_comerciales" rows="2" 
+                                  placeholder="Ej: Contacto de feria agrícola. Interesado en caña. 50 ha.">{{ form_data.notas_comerciales|default:'' }}</textarea>
+                        <small class="text-muted">Notas internas — el prospecto no las ve.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="dias_expiracion" class="form-label fw-bold">
+                            <i class="fas fa-calendar-times me-1"></i>
+                            Días de Expiración
+                        </label>
+                        <select class="form-select" id="dias_expiracion" name="dias_expiracion"
+                                onchange="actualizarPreview()">
+                            <option value="3" {% if form_data.dias_expiracion == '3' %}selected{% endif %}>3 días</option>
+                            <option value="5" {% if form_data.dias_expiracion == '5' %}selected{% endif %}>5 días</option>
+                            <option value="7" {% if form_data.dias_expiracion == '7' or not form_data.dias_expiracion %}selected{% endif %}>7 días (recomendado)</option>
+                            <option value="14" {% if form_data.dias_expiracion == '14' %}selected{% endif %}>14 días</option>
+                            <option value="30" {% if form_data.dias_expiracion == '30' %}selected{% endif %}>30 días</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Método de envío -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        ¿Cómo enviar el link?
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <input type="hidden" name="metodo_envio" id="metodo_envio" value="{{ form_data.metodo_envio|default:'whatsapp' }}">
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-4">
+                            <div class="metodo-option" id="opt_whatsapp" onclick="seleccionarMetodo('whatsapp', this)">
+                                <div class="icono">📱</div>
+                                <div class="nombre">WhatsApp</div>
+                                <div class="desc">Abre wa.me con mensaje prellenado</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="metodo-option" id="opt_email" onclick="seleccionarMetodo('email', this)">
+                                <div class="icono">📧</div>
+                                <div class="nombre">Email</div>
+                                <div class="desc">Envía email HTML profesional</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="metodo-option" id="opt_link" onclick="seleccionarMetodo('link', this)">
+                                <div class="icono">🔗</div>
+                                <div class="nombre">Solo Link</div>
+                                <div class="desc">Genera el link para copiar</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="aviso_whatsapp" class="campo-condicional">
+                        <div class="alert alert-success mb-0">
+                            <i class="fab fa-whatsapp me-2"></i>
+                            <strong>WhatsApp:</strong> Se abrirá WhatsApp con el mensaje prellenado 
+                            para que lo envíes tú. Requiere teléfono del prospecto arriba.
+                        </div>
+                    </div>
+                    
+                    <div id="aviso_email" class="campo-condicional">
+                        <div class="alert alert-primary mb-0">
+                            <i class="fas fa-envelope me-2"></i>
+                            <strong>Email:</strong> Se enviará un correo HTML profesional directamente 
+                            al prospecto desde agrotechdigitalcolombia@gmail.com. Requiere email arriba.
+                        </div>
+                    </div>
+                    
+                    <div id="aviso_link" class="campo-condicional">
+                        <div class="alert alert-secondary mb-0">
+                            <i class="fas fa-link me-2"></i>
+                            <strong>Solo Link:</strong> Se generará el link y podrás copiarlo manualmente 
+                            para enviarlo como quieras.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{% url 'informes:panel_demos' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
+                </a>
+                
+                <div>
+                    <button type="submit" id="btn_wa" class="btn btn-lg btn-enviar-wa" style="display:none">
+                        <i class="fab fa-whatsapp me-2"></i>
+                        Crear y Enviar por WhatsApp
+                    </button>
+                    <button type="submit" id="btn_email" class="btn btn-lg btn-enviar-email" style="display:none">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Crear y Enviar por Email
+                    </button>
+                    <button type="submit" id="btn_link" class="btn btn-lg btn-primary" style="display:none">
+                        <i class="fas fa-link me-2"></i>
+                        Generar Link de Demo
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Columna derecha: Preview del mensaje -->
+        <div class="col-lg-5">
+            <div class="card mb-4 sticky-top" style="top: 80px;">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>
+                        Vista Previa del Mensaje
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="preview-card" id="previewMensaje"></div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Así se verá el mensaje en WhatsApp (los *asteriscos* se muestran como <strong>negritas</strong>).
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Pasos del proceso -->
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-route me-2"></i>
+                        Flujo del Prospecto
+                    </h6>
+                    <div class="row text-center">
+                        <div class="col-md-6 col-3 mb-3">
+                            <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 44px; height: 44px;">
+                                <i class="fas fa-link text-white"></i>
+                            </div>
+                            <p class="small mb-0"><strong>1.</strong> Recibe link</p>
+                        </div>
+                        <div class="col-md-6 col-3 mb-3">
+                            <div class="rounded-circle bg-info d-inline-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 44px; height: 44px;">
+                                <i class="fas fa-user-edit text-white"></i>
+                            </div>
+                            <p class="small mb-0"><strong>2.</strong> Se registra</p>
+                        </div>
+                        <div class="col-md-6 col-3 mb-3">
+                            <div class="rounded-circle bg-success d-inline-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 44px; height: 44px;">
+                                <i class="fas fa-draw-polygon text-white"></i>
+                            </div>
+                            <p class="small mb-0"><strong>3.</strong> Dibuja parcela</p>
+                        </div>
+                        <div class="col-md-6 col-3 mb-3">
+                            <div class="rounded-circle bg-warning d-inline-flex align-items-center justify-content-center mb-2" 
+                                 style="width: 44px; height: 44px;">
+                                <i class="fas fa-satellite text-dark"></i>
+                            </div>
+                            <p class="small mb-0"><strong>4.</strong> Ve imágenes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar método de envío
+    const metodoGuardado = document.getElementById('metodo_envio').value || 'whatsapp';
+    const optEl = document.getElementById('opt_' + metodoGuardado);
+    if (optEl) {
+        seleccionarMetodo(metodoGuardado, optEl);
+    }
+    actualizarPreview();
+});
+
+function seleccionarMetodo(metodo, el) {
+    // Actualizar hidden input
+    document.getElementById('metodo_envio').value = metodo;
+    
+    // Actualizar visual de opciones
+    document.querySelectorAll('.metodo-option').forEach(o => o.classList.remove('selected'));
+    if (el) el.classList.add('selected');
+    
+    // Mostrar aviso correspondiente
+    document.getElementById('aviso_whatsapp').classList.toggle('visible', metodo === 'whatsapp');
+    document.getElementById('aviso_email').classList.toggle('visible', metodo === 'email');
+    document.getElementById('aviso_link').classList.toggle('visible', metodo === 'link');
+    
+    // Mostrar botón correcto
+    document.getElementById('btn_wa').style.display = metodo === 'whatsapp' ? '' : 'none';
+    document.getElementById('btn_email').style.display = metodo === 'email' ? '' : 'none';
+    document.getElementById('btn_link').style.display = metodo === 'link' ? '' : 'none';
+}
+
+function actualizarPreview() {
+    const nombre = document.getElementById('nombre_prospecto').value.trim() || 'cliente';
+    const dias = document.getElementById('dias_expiracion').value || '7';
+    
+    const mensaje = 
+`🌾 <b>AgroTech Histórico — Demo Satelital Gratuita</b>
+
+¡Hola ${nombre}! 👋
+
+Te envío acceso a tu <b>demo gratuita</b> de análisis satelital agrícola. Podrás:
+
+🗺️ Dibujar tu parcela en un mapa interactivo
+🛰️ Ver imágenes satelitales reales de tu terreno
+📊 Obtener índices NDVI, NDMI y SAVI de tus cultivos
+
+👉 <b>Accede aquí:</b>
+<span style="color:#2d5a27; text-decoration:underline;">https://tudominio.com/demo/xxxxx/</span>
+
+⏰ El link es válido por <b>${dias} días</b> y es de un solo uso.
+
+Si tienes preguntas, responde a este mensaje.
+
+<i style="color:#888;">AgroTech Histórico · Análisis Satelital Agrícola</i>`;
+
+    document.getElementById('previewMensaje').innerHTML = mensaje;
+}
+</script>
+{% endblock %}

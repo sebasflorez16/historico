@@ -5,6 +5,7 @@ URLs para la aplicación de informes
 from django.urls import path
 from . import views
 from . import views_eliminacion
+from . import views_demo
 
 app_name = 'informes'
 
@@ -77,4 +78,13 @@ urlpatterns = [
     
     # API endpoints
     path('api/parcelas/<int:parcela_id>/datos/', views.api_datos_parcela, name='api_datos_parcela'),
+    
+    # ========= Panel de Demos (dashboard admin) =========
+    path('demos/', views_demo.panel_demos, name='panel_demos'),
+    path('demos/crear/', views_demo.crear_demo, name='crear_demo'),
+    path('demos/<int:token_id>/', views_demo.detalle_demo, name='detalle_demo'),
+    path('demos/<int:token_id>/convertir/', views_demo.convertir_demo_a_parcela, name='convertir_demo'),
+    path('demos/<int:token_id>/eliminar/', views_demo.eliminar_demo, name='eliminar_demo'),
+    path('demos/<int:token_id>/reenviar-whatsapp/', views_demo.reenviar_demo_whatsapp, name='reenviar_demo_whatsapp'),
+    path('demos/<int:token_id>/enviar-email/', views_demo.enviar_demo_email, name='enviar_demo_email'),
 ]

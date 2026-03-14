@@ -232,6 +232,10 @@ EMAIL_TIMEOUT = 30  # Timeout para evitar bloqueos
 ADMIN_EMAIL = 'agrotechdigitalcolombia@gmail.com'
 ADMIN_WHATSAPP = '+57 322 308 8873'
 
+# Costo estimado por request EOSDA (USD) — para tracking de costos por demo/venta
+# Ajustar según el plan contratado con EOSDA
+EOSDA_COSTO_POR_REQUEST_USD = float(os.environ.get('EOSDA_COSTO_POR_REQUEST_USD', '0.01'))
+
 # Configuración adicional para resolver problemas SSL en desarrollo
 import ssl
 EMAIL_SSL_CERTFILE = None
