@@ -1048,6 +1048,8 @@ def gestionar_invitaciones(request):
             'ingresos_pendientes': RegistroEconomico.objects.filter(
                 pagado=False
             ).aggregate(total=Sum('valor_final'))['total'] or 0,
+            'pagadas': ClienteInvitacion.objects.filter(pagado=True).count(),
+            'sin_pago': ClienteInvitacion.objects.filter(pagado=False).count(),
         }
         
         contexto = {
@@ -2533,64 +2535,78 @@ def exportar_video_timeline(request, parcela_id):
 
 
 # ============================================================================
-# VISTAS DE FACTURACIÓN Y PAGOS (TEMPORAL - EN DESARROLLO)
+# VISTAS DE FACTURACIÓN Y PAGOS
 # ============================================================================
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def arqueo_caja(request):
     """
-    Vista temporal de arqueo de caja / facturación
-    TODO: Implementar funcionalidad completa de arqueo de caja
-    Por ahora muestra un resumen básico de informes y sus estados de pago
+    Vista completa de arqueo de caja / facturación.
+    Muestra resumen financiero, estadísticas por estado y listado filtrable
+    con paginación y búsqueda.
     """
     try:
-        # Obtener todos los informes con información de pago
-        # Nota: propietario es CharField, no ForeignKey, no usar select_related
-        informes = Informe.objects.select_related(
+        # Queryset base con relaciones
+        informes_qs = Informe.objects.select_related(
             'parcela', 'cliente'
         ).order_by('-fecha_generacion')
         
-        # Filtros
-        filtro_estado = request.GET.get('estado', '')
-        filtro_mes = request.GET.get('mes', '')
-        filtro_anio = request.GET.get('anio', '')
+        # === FILTROS ===
+        estado_filtro = request.GET.get('estado', 'todos')
+        busqueda = request.GET.get('busqueda', '')
         
-        if filtro_estado:
-            informes = informes.filter(metodo_pago=filtro_estado)
+        if estado_filtro and estado_filtro != 'todos':
+            informes_qs = informes_qs.filter(estado_pago=estado_filtro)
         
-        if filtro_mes and filtro_anio:
-            informes = informes.filter(
-                fecha_generacion__month=int(filtro_mes),
-                fecha_generacion__year=int(filtro_anio)
+        if busqueda:
+            informes_qs = informes_qs.filter(
+                Q(parcela__nombre__icontains=busqueda) |
+                Q(parcela__propietario__icontains=busqueda) |
+                Q(cliente__nombre_cliente__icontains=busqueda) |
+                Q(titulo__icontains=busqueda)
             )
-        elif filtro_anio:
-            informes = informes.filter(fecha_generacion__year=int(filtro_anio))
         
-        # Estadísticas
-        from decimal import Decimal
-        total_ingresos = Decimal('0')
-        total_pendiente = Decimal('0')
+        # === ESTADÍSTICAS (sobre TODOS los informes, sin filtros) ===
+        todos = Informe.objects.all()
         
-        if hasattr(Informe, 'precio_base'):
-            # Si tiene campos de pago
-            total_ingresos = informes.filter(
-                metodo_pago__in=['pagado', 'parcial']
-            ).aggregate(Sum('monto_pagado'))['monto_pagado__sum'] or Decimal('0')
-            
-            informes_con_saldo = informes.filter(
-                metodo_pago__in=['pendiente', 'parcial', 'vencido']
-            ).exclude(metodo_pago='cortesia')
-            
-            total_pendiente = sum([inf.saldo_pendiente for inf in informes_con_saldo])
+        ingresos_totales = todos.filter(
+            estado_pago__in=['pagado', 'parcial']
+        ).aggregate(total=Sum('monto_pagado'))['total'] or Decimal('0')
+        
+        cuentas_por_cobrar = todos.filter(
+            estado_pago__in=['pendiente', 'parcial', 'vencido']
+        ).aggregate(total=Sum('saldo_pendiente'))['total'] or Decimal('0')
+        
+        informes_pagados = todos.filter(estado_pago='pagado').count()
+        informes_pendientes = todos.filter(estado_pago='pendiente').count()
+        informes_vencidos = todos.filter(estado_pago='vencido').count()
+        informes_parciales = todos.filter(estado_pago='parcial').count()
+        
+        estados_count = {
+            'pagado': informes_pagados,
+            'pendiente': informes_pendientes,
+            'vencido': informes_vencidos,
+            'parcial': informes_parciales,
+            'cortesia': todos.filter(estado_pago='cortesia').count(),
+        }
+        
+        # === PAGINACIÓN ===
+        paginator = Paginator(informes_qs, 15)
+        page_number = request.GET.get('page')
+        informes = paginator.get_page(page_number)
         
         context = {
             'informes': informes,
-            'total_ingresos': total_ingresos,
-            'total_pendiente': total_pendiente,
-            'filtro_estado': filtro_estado,
-            'filtro_mes': filtro_mes,
-            'filtro_anio': filtro_anio,
+            'ingresos_totales': ingresos_totales,
+            'cuentas_por_cobrar': cuentas_por_cobrar,
+            'informes_pagados': informes_pagados,
+            'informes_pendientes': informes_pendientes,
+            'informes_vencidos': informes_vencidos,
+            'informes_parciales': informes_parciales,
+            'estados_count': estados_count,
+            'estado_filtro': estado_filtro,
+            'busqueda': busqueda,
         }
         
         return render(request, 'informes/arqueo_caja.html', context)
@@ -2600,6 +2616,251 @@ def arqueo_caja(request):
         logger.exception(e)
         messages.error(request, f'Error cargando arqueo de caja: {str(e)}')
         return redirect('informes:dashboard')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def registrar_pago_informe(request, informe_id):
+    """
+    Registrar un pago total o parcial para un informe.
+    Actualiza estado de pago, monto pagado, método y referencia.
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        monto_str = request.POST.get('monto', '0').replace(',', '.').replace(' ', '')
+        metodo = request.POST.get('metodo_pago', '')
+        referencia = request.POST.get('referencia_pago', '')
+        notas = request.POST.get('notas_pago', '')
+        tipo_pago = request.POST.get('tipo_pago', 'total')  # 'total' o 'parcial'
+        
+        monto = Decimal(monto_str)
+        
+        if monto <= 0:
+            messages.error(request, '❌ El monto debe ser mayor a cero.')
+            return redirect('informes:detalle_informe', informe_id=informe.id)
+        
+        # Preparar nota de auditoría
+        ahora = timezone.now().strftime('%d/%m/%Y %H:%M')
+        nota_auditoria = f"[{ahora}] Pago ${monto:,.0f} COP — {metodo or 'Sin método'}"
+        if referencia:
+            nota_auditoria += f" (Ref: {referencia})"
+        if notas:
+            nota_auditoria += f" — {notas}"
+        nota_auditoria += f" — Registrado por: {request.user.username}"
+        
+        if tipo_pago == 'total':
+            informe.marcar_como_pagado(
+                monto=monto,
+                metodo=metodo,
+                referencia=referencia,
+                notas=nota_auditoria
+            )
+            messages.success(request, f'✅ Pago total de ${monto:,.0f} COP registrado exitosamente para "{informe.parcela.nombre}".')
+        else:
+            informe.registrar_pago_parcial(
+                monto=monto,
+                metodo=metodo,
+                referencia=referencia,
+                notas=nota_auditoria
+            )
+            messages.success(request, f'✅ Abono de ${monto:,.0f} COP registrado. Saldo pendiente: ${informe.saldo_pendiente:,.0f} COP.')
+        
+        logger.info(f"💰 Pago registrado: Informe #{informe.id} — ${monto:,.0f} COP — por {request.user.username}")
+        
+        # Redirigir según origen
+        origen = request.POST.get('origen', 'detalle')
+        if origen == 'arqueo':
+            return redirect('informes:arqueo_caja')
+        return redirect('informes:detalle_informe', informe_id=informe.id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error registrando pago informe #{informe_id}: {str(e)}")
+        messages.error(request, f'Error registrando pago: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def aplicar_descuento_informe(request, informe_id):
+    """
+    Aplicar un descuento porcentual a un informe.
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        porcentaje_str = request.POST.get('porcentaje', '0').replace(',', '.')
+        notas = request.POST.get('notas', '')
+        porcentaje = Decimal(porcentaje_str)
+        
+        if porcentaje <= 0 or porcentaje > 100:
+            messages.error(request, '❌ El porcentaje debe estar entre 1 y 100.')
+            return redirect('informes:detalle_informe', informe_id=informe.id)
+        
+        ahora = timezone.now().strftime('%d/%m/%Y %H:%M')
+        nota_auditoria = f"[{ahora}] Descuento {porcentaje}% aplicado — {notas}" if notas else f"[{ahora}] Descuento {porcentaje}% aplicado"
+        nota_auditoria += f" — Por: {request.user.username}"
+        
+        informe.aplicar_descuento(porcentaje, nota_auditoria)
+        
+        messages.success(request, f'✅ Descuento del {porcentaje}% aplicado. Nuevo precio: ${informe.precio_final:,.0f} COP.')
+        logger.info(f"🏷️ Descuento {porcentaje}% aplicado: Informe #{informe.id} — por {request.user.username}")
+        
+        return redirect('informes:detalle_informe', informe_id=informe.id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error aplicando descuento informe #{informe_id}: {str(e)}")
+        messages.error(request, f'Error aplicando descuento: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def anular_pago_informe(request, informe_id):
+    """
+    Anular todos los pagos de un informe (resetear a pendiente).
+    Requiere confirmación. Deja registro de auditoría.
+    """
+    try:
+        informe = get_object_or_404(Informe, id=informe_id)
+        
+        motivo = request.POST.get('motivo', 'Sin motivo especificado')
+        
+        # Guardar datos anteriores para auditoría
+        monto_anterior = informe.monto_pagado
+        estado_anterior = informe.get_estado_pago_display()
+        
+        ahora = timezone.now().strftime('%d/%m/%Y %H:%M')
+        nota_auditoria = (
+            f"[{ahora}] ⚠️ PAGO ANULADO — "
+            f"Monto anulado: ${monto_anterior:,.0f} COP — "
+            f"Estado anterior: {estado_anterior} — "
+            f"Motivo: {motivo} — "
+            f"Por: {request.user.username}"
+        )
+        
+        informe.monto_pagado = Decimal('0.00')
+        informe.metodo_pago = ''
+        informe.referencia_pago = ''
+        informe.fecha_pago = None
+        informe.notas_pago = f"{informe.notas_pago}\n{nota_auditoria}" if informe.notas_pago else nota_auditoria
+        informe.save()
+        
+        messages.warning(request, f'⚠️ Pago anulado para informe de "{informe.parcela.nombre}". Monto ${monto_anterior:,.0f} COP revertido.')
+        logger.warning(f"⚠️ Pago anulado: Informe #{informe.id} — ${monto_anterior:,.0f} COP — Motivo: {motivo} — por {request.user.username}")
+        
+        return redirect('informes:detalle_informe', informe_id=informe.id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error anulando pago informe #{informe_id}: {str(e)}")
+        messages.error(request, f'Error anulando pago: {str(e)}')
+        return redirect('informes:detalle_informe', informe_id=informe_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def marcar_invitacion_aceptada(request, invitacion_id):
+    """
+    Marcar manualmente una invitación como aceptada/utilizada.
+    Útil cuando el registro se hizo por otro medio (teléfono, presencial).
+    """
+    try:
+        invitacion = get_object_or_404(ClienteInvitacion, id=invitacion_id)
+        
+        if invitacion.estado == 'utilizada':
+            messages.info(request, 'ℹ️ Esta invitación ya está marcada como utilizada.')
+            return redirect('informes:detalle_invitacion', invitacion_id=invitacion.id)
+        
+        notas = request.POST.get('notas', '')
+        
+        invitacion.estado = 'utilizada'
+        invitacion.fecha_utilizacion = timezone.now()
+        
+        # Guardar notas de la aceptación manual
+        nota_manual = f"[{timezone.now().strftime('%d/%m/%Y %H:%M')}] Aceptación manual — Por: {request.user.username}"
+        if notas:
+            nota_manual += f" — {notas}"
+        invitacion.notas_pago = f"{invitacion.notas_pago}\n{nota_manual}" if invitacion.notas_pago else nota_manual
+        invitacion.save()
+        
+        messages.success(request, f'✅ Invitación de "{invitacion.nombre_cliente}" marcada como aceptada.')
+        logger.info(f"✅ Invitación #{invitacion.id} marcada como aceptada manualmente por {request.user.username}")
+        
+        return redirect('informes:detalle_invitacion', invitacion_id=invitacion.id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error marcando invitación #{invitacion_id} como aceptada: {str(e)}")
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('informes:detalle_invitacion', invitacion_id=invitacion_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_http_methods(["POST"])
+def marcar_invitacion_pagada(request, invitacion_id):
+    """
+    Marcar manualmente el pago de una invitación como recibido.
+    Actualiza ClienteInvitacion y, si existe, el RegistroEconomico asociado.
+    """
+    try:
+        invitacion = get_object_or_404(ClienteInvitacion, id=invitacion_id)
+        
+        metodo = request.POST.get('metodo_pago', '')
+        referencia = request.POST.get('referencia_pago', '')
+        notas = request.POST.get('notas_pago', '')
+        
+        ahora = timezone.now()
+        nota_auditoria = f"[{ahora.strftime('%d/%m/%Y %H:%M')}] 💰 Pago recibido: ${invitacion.costo_servicio:,.0f} COP"
+        if metodo:
+            nota_auditoria += f" — Método: {metodo}"
+        if referencia:
+            nota_auditoria += f" (Ref: {referencia})"
+        if notas:
+            nota_auditoria += f" — {notas}"
+        nota_auditoria += f" — Registrado por: {request.user.username}"
+        
+        # Actualizar invitación
+        invitacion.pagado = True
+        invitacion.fecha_pago = ahora
+        invitacion.notas_pago = f"{invitacion.notas_pago}\n{nota_auditoria}" if invitacion.notas_pago else nota_auditoria
+        invitacion.save()
+        
+        # Actualizar registros económicos asociados
+        registros = RegistroEconomico.objects.filter(invitacion=invitacion, pagado=False)
+        for registro in registros:
+            registro.pagado = True
+            registro.fecha_pago = ahora
+            registro.metodo_pago = metodo
+            registro.referencia_pago = referencia
+            registro.notas = f"{registro.notas}\n{nota_auditoria}" if registro.notas else nota_auditoria
+            registro.save()
+        
+        # Si la invitación tiene parcela con informes pendientes, marcarlos también
+        if invitacion.parcela:
+            informes_pendientes = Informe.objects.filter(
+                parcela=invitacion.parcela,
+                estado_pago__in=['pendiente', 'vencido']
+            )
+            for informe in informes_pendientes:
+                informe.marcar_como_pagado(
+                    metodo=metodo,
+                    referencia=referencia,
+                    notas=nota_auditoria
+                )
+        
+        messages.success(request, f'✅ Pago de "${invitacion.costo_servicio:,.0f} COP" registrado para "{invitacion.nombre_cliente}".')
+        logger.info(f"💰 Pago invitación #{invitacion.id} registrado — ${invitacion.costo_servicio:,.0f} COP — por {request.user.username}")
+        
+        return redirect('informes:detalle_invitacion', invitacion_id=invitacion.id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error marcando pago invitación #{invitacion_id}: {str(e)}")
+        messages.error(request, f'Error registrando pago: {str(e)}')
+        return redirect('informes:detalle_invitacion', invitacion_id=invitacion_id)
 
 
 # ========================================

@@ -42,12 +42,14 @@ urlpatterns = [
     path('informes/<int:informe_id>/', views.detalle_informe, name='detalle_informe'),
     path('informes/<int:informe_id>/eliminar/', views_eliminacion.eliminar_informe, name='eliminar_informe'),
     
-    # Sistema de pagos de informes (TODO: Implementar estas vistas)
-    # path('informes/<int:informe_id>/registrar-pago/', views.registrar_pago_informe, name='registrar_pago'),
-    # path('informes/<int:informe_id>/aplicar-descuento/', views.aplicar_descuento_informe, name='aplicar_descuento'),
-    # path('informes/<int:informe_id>/anular-pago/', views.anular_pago_informe, name='anular_pago'),
-    # path('informes/<int:informe_id>/factura/', views.generar_factura_informe, name='generar_factura'),
-    # path('informes/<int:informe_id>/eliminar/', views.eliminar_informe_facturacion, name='eliminar_informe_facturacion'),
+    # Sistema de pagos de informes
+    path('informes/<int:informe_id>/registrar-pago/', views.registrar_pago_informe, name='registrar_pago'),
+    path('informes/<int:informe_id>/aplicar-descuento/', views.aplicar_descuento_informe, name='aplicar_descuento'),
+    path('informes/<int:informe_id>/anular-pago/', views.anular_pago_informe, name='anular_pago'),
+    
+    # Acciones manuales sobre invitaciones (pago y aceptación)
+    path('invitaciones/<int:invitacion_id>/marcar-aceptada/', views.marcar_invitacion_aceptada, name='marcar_invitacion_aceptada'),
+    path('invitaciones/<int:invitacion_id>/marcar-pagada/', views.marcar_invitacion_pagada, name='marcar_invitacion_pagada'),
     
     # Arqueo de caja / Facturación
     path('facturacion/', views.arqueo_caja, name='arqueo_caja'),

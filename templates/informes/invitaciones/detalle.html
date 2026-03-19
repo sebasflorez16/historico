@@ -13,6 +13,8 @@
     .badge-success { background: #4a8234; }
     .badge-warning { background: #f39c12; }
     .badge-danger { background: #e74c3c; }
+    .badge-paid { background: #28a745; color: white; }
+    .badge-unpaid { background: #dc3545; color: white; }
     
     .info-item {
         border-left: 3px solid #4a8234;
@@ -39,24 +41,24 @@
         background: #4a8234;
     }
     
-    .timeline-item.completed {
-        border-left-color: #4a8234;
-    }
+    .timeline-item.completed { border-left-color: #4a8234; }
+    .timeline-item.pending { border-left-color: #f39c12; }
+    .timeline-item.expired { border-left-color: #e74c3c; }
+    .timeline-item.paid { border-left-color: #28a745; }
+    .timeline-item.paid::before { background: #28a745; }
     
-    .timeline-item.pending {
-        border-left-color: #f39c12;
-    }
-    
-    .timeline-item.expired {
-        border-left-color: #e74c3c;
-    }
-    
-    .qr-container {
-        background: white;
+    .payment-status-card {
+        border-radius: 12px;
         padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px dashed #4a8234;
+        margin-bottom: 20px;
+    }
+    .payment-status-card.paid {
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        border: 2px solid #28a745;
+    }
+    .payment-status-card.unpaid {
+        background: linear-gradient(135deg, #fff3cd, #ffeeba);
+        border: 2px solid #ffc107;
     }
 </style>
 {% endblock %}
@@ -105,12 +107,21 @@
                                 <a href="mailto:{{ invitacion.email_cliente }}">{{ invitacion.email_cliente }}</a>
                             </div>
                             
+                            {% if invitacion.telefono_cliente %}
+                            <div class="info-item">
+                                <strong>Teléfono:</strong><br>
+                                {{ invitacion.telefono_cliente }}
+                            </div>
+                            {% endif %}
+                            
                             <div class="info-item">
                                 <strong>Estado:</strong><br>
                                 {% if invitacion.esta_expirada %}
                                     <span class="badge badge-danger">Expirada</span>
-                                {% elif invitacion.fecha_utilizacion %}
+                                {% elif invitacion.estado == 'utilizada' %}
                                     <span class="badge badge-success">Completada</span>
+                                {% elif invitacion.estado == 'cancelada' %}
+                                    <span class="badge badge-danger">Cancelada</span>
                                 {% else %}
                                     <span class="badge badge-warning">Pendiente</span>
                                 {% endif %}
@@ -145,7 +156,7 @@
                 </div>
             </div>
 
-            <!-- Servicio -->
+            <!-- Servicio y Pago -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -160,8 +171,8 @@
                     </div>
                     
                     <div class="info-item">
-                        <strong>Precio:</strong><br>
-                        <span class="h5 text-success">${{ invitacion.costo_servicio|floatformat:2 }}</span>
+                        <strong>Precio del Servicio:</strong><br>
+                        <span class="h5 text-success">${{ invitacion.costo_servicio|floatformat:2 }} {{ invitacion.moneda }}</span>
                     </div>
                     
                     {% if invitacion.area_max_hectareas and invitacion.area_max_hectareas > 0 %}
@@ -170,6 +181,53 @@
                         <span class="h5 text-primary">{{ invitacion.area_max_hectareas }} ha</span>
                     </div>
                     {% endif %}
+                </div>
+            </div>
+            
+            <!-- === ESTADO DE PAGO === -->
+            <div class="payment-status-card {% if invitacion.pagado %}paid{% else %}unpaid{% endif %}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h4 class="mb-2">
+                            {% if invitacion.pagado %}
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Pago Recibido
+                            {% else %}
+                                <i class="fas fa-clock text-warning me-2"></i>
+                                Pago Pendiente
+                            {% endif %}
+                        </h4>
+                        <p class="mb-1">
+                            <strong>Monto:</strong> ${{ invitacion.costo_servicio|floatformat:0 }} {{ invitacion.moneda }}
+                        </p>
+                        {% if invitacion.pagado %}
+                        <p class="mb-1">
+                            <strong>Fecha de pago:</strong> {{ invitacion.fecha_pago|date:"d/m/Y H:i" }}
+                        </p>
+                        {% endif %}
+                        {% if invitacion.notas_pago %}
+                        <details class="mt-2">
+                            <summary class="text-muted" style="cursor: pointer;">
+                                <i class="fas fa-history me-1"></i>Historial de notas
+                            </summary>
+                            <div class="mt-2 p-2 bg-white rounded" style="font-size: 0.85rem;">
+                                {{ invitacion.notas_pago|linebreaks }}
+                            </div>
+                        </details>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-end">
+                        {% if not invitacion.pagado %}
+                        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#modalMarcarPagada">
+                            <i class="fas fa-money-bill-wave me-2"></i>
+                            Marcar como Pagada
+                        </button>
+                        {% else %}
+                        <span class="badge badge-paid" style="font-size: 1.1rem; padding: 10px 20px;">
+                            <i class="fas fa-check me-1"></i> PAGADO
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -192,7 +250,7 @@
                         </div>
                     </div>
                     
-                    {% if invitacion.fecha_utilizacion %}
+                    {% if invitacion.estado == 'utilizada' %}
                     <div class="timeline-item completed">
                         <div class="d-flex justify-content-between">
                             <div>
@@ -223,6 +281,18 @@
                         </div>
                     </div>
                     {% endif %}
+                    
+                    {% if invitacion.pagado %}
+                    <div class="timeline-item paid">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>💰 Pago Recibido</strong>
+                                <p class="mb-0 text-muted">${{ invitacion.costo_servicio|floatformat:0 }} {{ invitacion.moneda }}</p>
+                            </div>
+                            <small class="text-muted">{{ invitacion.fecha_pago|date:"d/m/Y H:i" }}</small>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -239,7 +309,6 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <!-- Botones de envío -->
                     <div class="d-grid gap-2 mb-3">
                         {% if invitacion.email_cliente %}
                         <form method="post" style="display: inline;">
@@ -258,7 +327,6 @@
                         </button>
                     </div>
                     
-                    <!-- Enlace para copiar -->
                     <div class="mt-3">
                         <label class="form-label small">Enlace de invitación:</label>
                         <div class="input-group">
@@ -277,6 +345,55 @@
             </div>
             {% endif %}
 
+            <!-- Acciones Admin -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>
+                        Acciones Administrativas
+                    </h6>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    {% if invitacion.estado == 'utilizada' and invitacion.parcela %}
+                    <a href="{% url 'informes:detalle_parcela' invitacion.parcela.id %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye me-2"></i>
+                        Ver Parcela Registrada
+                    </a>
+                    {% endif %}
+                    
+                    {% if invitacion.estado == 'pendiente' and not invitacion.esta_expirada %}
+                    <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalAceptarManual">
+                        <i class="fas fa-user-check me-2"></i>
+                        Marcar como Aceptada
+                    </button>
+                    {% endif %}
+                    
+                    {% if not invitacion.pagado %}
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMarcarPagada">
+                        <i class="fas fa-money-bill-wave me-2"></i>
+                        Registrar Pago
+                    </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'informes:arqueo_caja' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-cash-register me-2"></i>
+                        Ir a Facturación
+                    </a>
+                    
+                    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>
+                        Imprimir Detalle
+                    </button>
+                    
+                    {% if not invitacion.fecha_utilizacion and not invitacion.esta_expirada %}
+                    <button class="btn btn-outline-info btn-sm" onclick="mostrarMensajeWhatsApp()">
+                        <i class="fas fa-eye me-2"></i>
+                        Ver Mensaje WhatsApp
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Información de Token -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -290,12 +407,10 @@
                         <small class="text-muted">Token:</small><br>
                         <code class="small">{{ invitacion.token }}</code>
                     </div>
-                    
                     <div class="mb-2">
                         <small class="text-muted">ID:</small><br>
                         <span class="small">#{{ invitacion.id }}</span>
                     </div>
-                    
                     <div>
                         <small class="text-muted">Creado por:</small><br>
                         <span class="small">{{ invitacion.creado_por.get_full_name|default:invitacion.creado_por.username }}</span>
@@ -303,63 +418,156 @@
                 </div>
             </div>
 
-            <!-- Acciones -->
+            <!-- Registros Económicos -->
+            {% if registros_economicos %}
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-tools me-2"></i>
-                        Acciones
+                        <i class="fas fa-receipt me-2"></i>
+                        Registros Económicos
                     </h6>
                 </div>
-                <div class="card-body">
-                    {% if invitacion.fecha_utilizacion %}
-                        {% if invitacion.parcela %}
-                        <a href="{% url 'informes:detalle_parcela' invitacion.parcela.id %}" class="btn btn-outline-primary btn-sm w-100 mb-2">
-                            <i class="fas fa-eye me-2"></i>
-                            Ver Parcela Registrada
-                        </a>
-                        {% else %}
-                        <span class="btn btn-outline-secondary btn-sm w-100 mb-2 disabled">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            Parcela no vinculada
-                        </span>
-                        {% endif %}
-                    {% endif %}
-                    
-                    <button class="btn btn-outline-secondary btn-sm w-100 mb-2" 
-                            onclick="window.print()">
-                        <i class="fas fa-print me-2"></i>
-                        Imprimir Detalle
-                    </button>
-                    
-                    {% if not invitacion.fecha_utilizacion and not invitacion.esta_expirada %}
-                    <button class="btn btn-outline-info btn-sm w-100" 
-                            onclick="mostrarMensajeWhatsApp()">
-                        <i class="fas fa-eye me-2"></i>
-                        Ver Mensaje WhatsApp
-                    </button>
-                    {% endif %}
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for registro in registros_economicos %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>{{ registro.get_tipo_servicio_display }}</strong>
+                                    <br><small class="text-muted">{{ registro.fecha_servicio|date:"d/m/Y" }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="fw-bold">${{ registro.valor_final|floatformat:0 }}</span>
+                                    <br>
+                                    {% if registro.pagado %}
+                                        <span class="badge bg-success">Pagado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<!-- ========================================== -->
+<!-- MODAL: Marcar Invitación como Aceptada     -->
+<!-- ========================================== -->
+{% if invitacion.estado == 'pendiente' and not invitacion.esta_expirada %}
+<div class="modal fade" id="modalAceptarManual" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f39c12, #e67e22); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-check me-2"></i>
+                    Marcar Invitación como Aceptada
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'informes:marcar_invitacion_aceptada' invitacion.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Acción manual:</strong> Esto marcará la invitación de 
+                        <strong>{{ invitacion.nombre_cliente }}</strong> como utilizada sin que el cliente 
+                        haya completado el registro online. Útil si el registro se hizo por teléfono o presencialmente.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">📝 Notas / Motivo (opcional)</label>
+                        <textarea class="form-control" name="notas" rows="3" 
+                                  placeholder="Ej: Cliente registró por teléfono el 15/03/2026..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-check me-2"></i>Confirmar Aceptación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========================================== -->
+<!-- MODAL: Registrar Pago de Invitación        -->
+<!-- ========================================== -->
+{% if not invitacion.pagado %}
+<div class="modal fade" id="modalMarcarPagada" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-money-bill-wave me-2"></i>
+                    Registrar Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'informes:marcar_invitacion_pagada' invitacion.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Cliente:</strong> {{ invitacion.nombre_cliente }}<br>
+                        <strong>Monto del servicio:</strong> 
+                        <span class="fw-bold text-success">${{ invitacion.costo_servicio|floatformat:0 }} {{ invitacion.moneda }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">💳 Método de pago</label>
+                        <select class="form-select" name="metodo_pago">
+                            <option value="Transferencia bancaria">Transferencia bancaria</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Nequi">Nequi</option>
+                            <option value="Daviplata">Daviplata</option>
+                            <option value="PSE">PSE</option>
+                            <option value="Tarjeta crédito">Tarjeta crédito</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">🔖 Referencia de pago (opcional)</label>
+                        <input type="text" class="form-control" name="referencia_pago" 
+                               placeholder="Ej: Comprobante #12345, Nequi 300xxx">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">📝 Notas (opcional)</label>
+                        <textarea class="form-control" name="notas_pago" rows="2" 
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check-circle me-2"></i>Confirmar Pago Recibido
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script>
 const mensajeWhatsApp = `{{ mensaje_whatsapp|escapejs }}`;
 
 function copiarEnlace(url) {
     navigator.clipboard.writeText(url).then(function() {
-        // Crear notificación temporal
         const toast = document.createElement('div');
         toast.className = 'alert alert-success position-fixed';
         toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
         toast.innerHTML = '<i class="fas fa-check me-2"></i>Enlace copiado al portapapeles';
         document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
+        setTimeout(() => { toast.remove(); }, 3000);
     });
 }
 
@@ -369,7 +577,6 @@ function abrirWhatsApp() {
 }
 
 function mostrarMensajeWhatsApp() {
-    // Crear modal con el mensaje
     const modalHtml = `
         <div class="modal fade" id="whatsappModal" tabindex="-1">
             <div class="modal-dialog">
@@ -400,12 +607,10 @@ function mostrarMensajeWhatsApp() {
         </div>
     `;
     
-    // Agregar modal al DOM si no existe
     if (!document.getElementById('whatsappModal')) {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
     
-    // Mostrar modal
     const modal = new bootstrap.Modal(document.getElementById('whatsappModal'));
     modal.show();
 }
@@ -413,16 +618,12 @@ function mostrarMensajeWhatsApp() {
 function copiarMensajeWhatsApp() {
     const mensaje = document.getElementById('mensajeWhatsApp').value;
     navigator.clipboard.writeText(mensaje).then(function() {
-        // Crear notificación temporal
         const toast = document.createElement('div');
         toast.className = 'alert alert-success position-fixed';
         toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
         toast.innerHTML = '<i class="fas fa-check me-2"></i>Mensaje copiado al portapapeles';
         document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
+        setTimeout(() => { toast.remove(); }, 3000);
     });
 }
 </script>

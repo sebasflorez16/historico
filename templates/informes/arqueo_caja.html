@@ -13,10 +13,8 @@
 {% endblock %}
 
 {% block content %}
-<!-- Token CSRF disponible para JavaScript -->
 {% csrf_token %}
 <script>
-    // Hacer el token CSRF disponible globalmente
     window.CSRF_TOKEN = '{{ csrf_token }}';
 </script>
 
@@ -28,6 +26,9 @@
                 Arqueo de Caja - Facturación
             </h1>
             <div class="d-flex gap-2">
+                <a href="{% url 'informes:gestionar_invitaciones' %}" class="btn btn-outline-success">
+                    <i class="fas fa-envelope-open-text me-2"></i>Invitaciones
+                </a>
                 <a href="{% url 'informes:dashboard' %}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Volver
                 </a>
@@ -163,14 +164,14 @@
                                 <th>Fecha</th>
                                 <th>Parcela</th>
                                 <th>Cliente</th>
-                                <th>Precio Base</th>
-                                <th>Descuento</th>
-                                <th>Precio Final</th>
-                                <th>Pagado</th>
-                                <th>Saldo</th>
-                                <th>Estado</th>
+                                <th class="text-end">Precio Base</th>
+                                <th class="text-center">Descuento</th>
+                                <th class="text-end">Precio Final</th>
+                                <th class="text-end">Pagado</th>
+                                <th class="text-end">Saldo</th>
+                                <th class="text-center">Estado</th>
                                 <th>Vencimiento</th>
-                                <th>Acciones</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -178,19 +179,19 @@
                             <tr>
                                 <td>{{ informe.fecha_generacion|date:"d/m/Y" }}</td>
                                 <td>
-                                    <a href="{% url 'informes:detalle_informe' informe.id %}" class="text-decoration-none">
+                                    <a href="{% url 'informes:detalle_parcela' informe.parcela.id %}" class="text-decoration-none">
                                         <strong>{{ informe.parcela.nombre }}</strong>
                                     </a>
                                 </td>
                                 <td>
-                                    {% if informe.parcela.cliente %}
-                                        {{ informe.parcela.cliente.get_full_name }}
+                                    {% if informe.cliente %}
+                                        {{ informe.cliente.nombre_cliente }}
                                     {% else %}
                                         <span class="text-muted">{{ informe.parcela.propietario }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end">${{ informe.precio_base|floatformat:0|intcomma }}</td>
-                                <td class="text-end">
+                                <td class="text-center">
                                     {% if informe.descuento_porcentaje > 0 %}
                                         <span class="badge bg-success">-{{ informe.descuento_porcentaje }}%</span>
                                     {% else %}
@@ -199,8 +200,10 @@
                                 </td>
                                 <td class="text-end fw-bold">${{ informe.precio_final|floatformat:0|intcomma }}</td>
                                 <td class="text-end text-success">${{ informe.monto_pagado|floatformat:0|intcomma }}</td>
-                                <td class="text-end text-warning">${{ informe.saldo_pendiente|floatformat:0|intcomma }}</td>
-                                <td>
+                                <td class="text-end {% if informe.saldo_pendiente > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                    ${{ informe.saldo_pendiente|floatformat:0|intcomma }}
+                                </td>
+                                <td class="text-center">
                                     {% if informe.estado_pago == 'pagado' %}
                                         <span class="badge bg-success">🟢 Pagado</span>
                                     {% elif informe.estado_pago == 'parcial' %}
@@ -215,28 +218,26 @@
                                 </td>
                                 <td>
                                     {% if informe.fecha_vencimiento %}
-                                        {{ informe.fecha_vencimiento|date:"d/m/Y" }}
+                                        <span class="{% if informe.esta_vencido %}text-danger fw-bold{% endif %}">
+                                            {{ informe.fecha_vencimiento|date:"d/m/Y" }}
+                                        </span>
                                     {% else %}
                                         <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     <div class="btn-group btn-group-sm" role="group">
-                                        {% comment %}
-                                        TODO: Descomentar cuando se implementen las vistas de pago
                                         {% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
-                                        <a href="{% url 'informes:registrar_pago' informe.id %}" 
-                                           class="btn btn-outline-success" 
-                                           title="Registrar Pago">
+                                        <button type="button" 
+                                                class="btn btn-outline-success btn-registrar-pago-rapido" 
+                                                title="Registrar Pago"
+                                                data-informe-id="{{ informe.id }}"
+                                                data-parcela-nombre="{{ informe.parcela.nombre }}"
+                                                data-saldo="{{ informe.saldo_pendiente }}"
+                                                data-precio-final="{{ informe.precio_final }}">
                                             <i class="fas fa-money-bill"></i>
-                                        </a>
+                                        </button>
                                         {% endif %}
-                                        <a href="{% url 'informes:generar_factura' informe.id %}" 
-                                           class="btn btn-outline-primary" 
-                                           title="Ver Factura">
-                                            <i class="fas fa-file-invoice"></i>
-                                        </a>
-                                        {% endcomment %}
                                         <a href="{% url 'informes:detalle_informe' informe.id %}" 
                                            class="btn btn-outline-info" 
                                            title="Ver Detalle">
@@ -308,6 +309,88 @@
     </div>
 </div>
 
+<!-- ========================================== -->
+<!-- MODAL: Registrar Pago Rápido desde Tabla   -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalPagoRapido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-cash-register me-2"></i>
+                    Registrar Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formPagoRapido" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="origen" value="arqueo">
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong><i class="fas fa-info-circle me-1"></i>Parcela:</strong>
+                        <span id="modalPagoParcelaNombre"></span>
+                        <br>
+                        <strong>Saldo pendiente:</strong>
+                        <span id="modalPagoSaldo" class="text-danger fw-bold"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tipo de pago</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_pago" id="tipoTotal" value="total" checked>
+                                <label class="form-check-label" for="tipoTotal">Pago Total</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_pago" id="tipoParcial" value="parcial">
+                                <label class="form-check-label" for="tipoParcial">Abono Parcial</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">💵 Monto (COP)</label>
+                        <input type="number" class="form-control form-control-lg" name="monto" 
+                               id="modalPagoMonto" min="1" step="1000" required
+                               style="font-size: 1.3rem; font-weight: 700;">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">💳 Método de pago</label>
+                        <select class="form-select" name="metodo_pago">
+                            <option value="Transferencia bancaria">Transferencia bancaria</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Nequi">Nequi</option>
+                            <option value="Daviplata">Daviplata</option>
+                            <option value="PSE">PSE</option>
+                            <option value="Tarjeta crédito">Tarjeta crédito</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">🔖 Referencia (opcional)</label>
+                        <input type="text" class="form-control" name="referencia_pago" 
+                               placeholder="Ej: Comprobante #12345">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">📝 Notas (opcional)</label>
+                        <textarea class="form-control" name="notas_pago" rows="2" 
+                                  placeholder="Observaciones del pago..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check-circle me-2"></i>Confirmar Pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
     .card {
         transition: transform 0.2s ease;
@@ -335,7 +418,6 @@
 </style>
 
 <script>
-// Función para obtener CSRF token de las cookies (método estándar de Django)
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -353,45 +435,64 @@ function getCookie(name) {
 
 function confirmarEliminacion(informeId, parcelaNombre) {
     if (confirm(`¿Estás seguro de eliminar el informe de "${parcelaNombre}"?\n\nEsta acción no se puede deshacer y eliminará el archivo PDF.`)) {
-        // Obtener el token CSRF - primero intentar de la variable global, luego de las cookies
         let csrfToken = window.CSRF_TOKEN || getCookie('csrftoken');
-        
         if (!csrfToken) {
             alert('Error: Token CSRF no encontrado. Por favor, recarga la página.');
-            console.error('CSRF token no disponible');
             return;
         }
-        
-        console.log('Enviando petición de eliminación para informe ID:', informeId);
-        
-        // Crear un formulario oculto para enviar la petición POST
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/informes/informes/${informeId}/eliminar/`;
-        
-        // Agregar token CSRF
         const input = document.createElement('input');
         input.type = 'hidden';
         input.name = 'csrfmiddlewaretoken';
         input.value = csrfToken;
         form.appendChild(input);
-        
-        // Agregar el formulario al body y enviarlo
         document.body.appendChild(form);
         form.submit();
     }
 }
 
-// Inicializar event listeners cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
-    // Agregar event listeners a todos los botones de eliminación
-    const botonesEliminar = document.querySelectorAll('.btn-eliminar-informe');
+    // Botones de eliminación
+    document.querySelectorAll('.btn-eliminar-informe').forEach(function(boton) {
+        boton.addEventListener('click', function() {
+            confirmarEliminacion(
+                this.getAttribute('data-informe-id'),
+                this.getAttribute('data-parcela-nombre')
+            );
+        });
+    });
     
-    botonesEliminar.forEach(function(boton) {
+    // Botones de pago rápido → abrir modal
+    document.querySelectorAll('.btn-registrar-pago-rapido').forEach(function(boton) {
         boton.addEventListener('click', function() {
             const informeId = this.getAttribute('data-informe-id');
             const parcelaNombre = this.getAttribute('data-parcela-nombre');
-            confirmarEliminacion(informeId, parcelaNombre);
+            const saldo = this.getAttribute('data-saldo');
+            
+            document.getElementById('modalPagoParcelaNombre').textContent = parcelaNombre;
+            document.getElementById('modalPagoSaldo').textContent = '$' + parseFloat(saldo).toLocaleString('es-CO') + ' COP';
+            document.getElementById('modalPagoMonto').value = Math.round(parseFloat(saldo));
+            document.getElementById('formPagoRapido').action = `/informes/informes/${informeId}/registrar-pago/`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalPagoRapido'));
+            modal.show();
+        });
+    });
+    
+    // Al cambiar tipo de pago, ajustar monto
+    document.querySelectorAll('input[name="tipo_pago"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            const montoInput = document.getElementById('modalPagoMonto');
+            if (this.value === 'total') {
+                const saldoText = document.getElementById('modalPagoSaldo').textContent;
+                const saldoNum = parseFloat(saldoText.replace(/[^0-9.-]/g, ''));
+                montoInput.value = Math.round(saldoNum);
+            } else {
+                montoInput.value = '';
+                montoInput.focus();
+            }
         });
     });
 });

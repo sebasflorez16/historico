@@ -681,21 +681,23 @@ class Informe(models.Model):
     def aplicar_descuento(self, porcentaje, notas=''):
         self.descuento_porcentaje = Decimal(str(porcentaje))
         if notas:
-            self.notas_pago = notas
+            self.notas_pago = f"{self.notas_pago}\n{notas}" if self.notas_pago else notas
         self.save()
     
     def marcar_como_pagado(self, monto=None, metodo='', referencia='', notas=''):
         self.monto_pagado = monto if monto else self.precio_final
+        self.fecha_pago = timezone.now()
         if metodo:
             self.metodo_pago = metodo
         if referencia:
             self.referencia_pago = referencia
         if notas:
-            self.notas_pago = notas
+            self.notas_pago = f"{self.notas_pago}\n{notas}" if self.notas_pago else notas
         self.save()
     
     def registrar_pago_parcial(self, monto, metodo='', referencia='', notas=''):
         self.monto_pagado += Decimal(str(monto))
+        self.fecha_pago = timezone.now()
         if metodo:
             self.metodo_pago = metodo
         if referencia:

@@ -141,6 +141,7 @@
                                 <th>Fecha Envío</th>
                                 <th>Vencimiento</th>
                                 <th>Estado</th>
+                                <th>Pago</th>
                                 <th>Servicio</th>
                                 <th>Acciones</th>
                             </tr>
@@ -157,14 +158,23 @@
                                 <td>
                                     {% if invitacion.esta_expirada %}
                                         <span class="badge badge-danger">Expirada</span>
-                                    {% elif invitacion.fecha_utilizacion %}
+                                    {% elif invitacion.estado == 'utilizada' %}
                                         <span class="badge badge-success">Completada</span>
+                                    {% elif invitacion.estado == 'cancelada' %}
+                                        <span class="badge badge-danger">Cancelada</span>
                                     {% else %}
                                         <span class="badge badge-warning">Pendiente</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="text-muted">${{ invitacion.costo_servicio|floatformat:2 }}</span>
+                                    {% if invitacion.pagado %}
+                                        <span class="badge bg-success">💰 Pagado</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">❌ Sin pago</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-muted">${{ invitacion.costo_servicio|floatformat:0 }}</span>
                                 </td>
                                 <td>
                                     <a href="{% url 'informes:detalle_invitacion' invitacion.id %}" 

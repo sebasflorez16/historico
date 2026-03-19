@@ -405,37 +405,33 @@
                 
                 <!-- Botones de acción de pago -->
                 <div class="mt-4 d-flex gap-2 flex-wrap">
-                    <!-- TODO: Descomentar cuando se implemente registrar_pago_informe
                     {% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
-                        <a href="{% url 'informes:registrar_pago' informe.id %}" class="btn btn-payment">
+                        <button type="button" class="btn btn-payment" data-bs-toggle="modal" data-bs-target="#modalRegistrarPago">
                             <i class="fas fa-cash-register me-2"></i>
                             Registrar Pago
-                        </a>
+                        </button>
                     {% endif %}
-                    -->
                     
-                    <!-- TODO: Descomentar cuando se implementen las vistas de facturación
                     {% if user.is_superuser %}
                         {% if informe.estado_pago != 'cortesia' and informe.descuento_porcentaje == 0 %}
-                        <a href="{% url 'informes:aplicar_descuento' informe.id %}" class="btn btn-warning">
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalAplicarDescuento">
                             <i class="fas fa-percent me-2"></i>
                             Aplicar Descuento
-                        </a>
+                        </button>
                         {% endif %}
                         
                         {% if informe.monto_pagado > 0 %}
-                        <a href="{% url 'informes:anular_pago' informe.id %}" class="btn btn-danger">
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalAnularPago">
                             <i class="fas fa-ban me-2"></i>
                             Anular Pago
-                        </a>
+                        </button>
                         {% endif %}
                     {% endif %}
                     
-                    <a href="{% url 'informes:generar_factura' informe.id %}" class="btn btn-outline-primary">
-                        <i class="fas fa-file-invoice me-2"></i>
-                        Ver Factura
+                    <a href="{% url 'informes:arqueo_caja' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-cash-register me-2"></i>
+                        Ir a Facturación
                     </a>
-                    -->
                 </div>
                 
                 <!-- Historial de pagos (notas) -->
@@ -781,4 +777,178 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<!-- ========================================== -->
+<!-- MODAL: Registrar Pago del Informe          -->
+<!-- ========================================== -->
+{% if informe.estado_pago != 'pagado' and informe.estado_pago != 'cortesia' %}
+<div class="modal fade" id="modalRegistrarPago" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-cash-register me-2"></i>
+                    Registrar Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'informes:registrar_pago' informe.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Informe:</strong> {{ informe.parcela.nombre }}<br>
+                        <strong>Precio final:</strong> ${{ informe.precio_final|floatformat:0 }} COP<br>
+                        <strong>Saldo pendiente:</strong> 
+                        <span class="text-danger fw-bold">${{ informe.saldo_pendiente|floatformat:0 }} COP</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tipo de pago</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_pago" id="tipoPagoTotal" value="total" checked
+                                       onchange="document.getElementById('montoInforme').value='{{ informe.saldo_pendiente|floatformat:0 }}'.replace(',','')">
+                                <label class="form-check-label" for="tipoPagoTotal">Pago Total</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_pago" id="tipoPagoParcial" value="parcial"
+                                       onchange="document.getElementById('montoInforme').value=''; document.getElementById('montoInforme').focus();">
+                                <label class="form-check-label" for="tipoPagoParcial">Abono Parcial</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">💵 Monto (COP)</label>
+                        <input type="number" class="form-control form-control-lg" name="monto" 
+                               id="montoInforme" min="1" step="1000" required
+                               value="{{ informe.saldo_pendiente|floatformat:0 }}"
+                               style="font-size: 1.3rem; font-weight: 700;">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">💳 Método de pago</label>
+                        <select class="form-select" name="metodo_pago">
+                            <option value="Transferencia bancaria">Transferencia bancaria</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Nequi">Nequi</option>
+                            <option value="Daviplata">Daviplata</option>
+                            <option value="PSE">PSE</option>
+                            <option value="Tarjeta crédito">Tarjeta crédito</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">🔖 Referencia (opcional)</label>
+                        <input type="text" class="form-control" name="referencia_pago" 
+                               placeholder="Ej: Comprobante #12345">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">📝 Notas (opcional)</label>
+                        <textarea class="form-control" name="notas_pago" rows="2" 
+                                  placeholder="Observaciones del pago..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check-circle me-2"></i>Confirmar Pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========================================== -->
+<!-- MODAL: Aplicar Descuento                   -->
+<!-- ========================================== -->
+{% if user.is_superuser and informe.estado_pago != 'cortesia' and informe.descuento_porcentaje == 0 %}
+<div class="modal fade" id="modalAplicarDescuento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ffc107, #ffca2c); color: #333;">
+                <h5 class="modal-title">
+                    <i class="fas fa-percent me-2"></i>
+                    Aplicar Descuento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'informes:aplicar_descuento' informe.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Precio actual:</strong> ${{ informe.precio_base|floatformat:0 }} COP
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Porcentaje de descuento (%)</label>
+                        <input type="number" class="form-control form-control-lg" name="porcentaje" 
+                               min="1" max="100" step="1" required placeholder="Ej: 10, 15, 20..."
+                               style="font-size: 1.3rem; font-weight: 700;">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">📝 Motivo del descuento (opcional)</label>
+                        <textarea class="form-control" name="notas" rows="2" 
+                                  placeholder="Ej: Descuento por pronto pago, cliente frecuente..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-tag me-2"></i>Aplicar Descuento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========================================== -->
+<!-- MODAL: Anular Pago                         -->
+<!-- ========================================== -->
+{% if user.is_superuser and informe.monto_pagado > 0 %}
+<div class="modal fade" id="modalAnularPago" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #dc3545, #c82333); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-ban me-2"></i>
+                    Anular Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'informes:anular_pago' informe.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-danger mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>⚠️ Atención:</strong> Esta acción revertirá el pago de 
+                        <strong>${{ informe.monto_pagado|floatformat:0 }} COP</strong> y el estado 
+                        volverá a "Pendiente". La acción quedará registrada en el historial.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Motivo de la anulación *</label>
+                        <textarea class="form-control" name="motivo" rows="3" required
+                                  placeholder="Describa el motivo de la anulación del pago..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-ban me-2"></i>Confirmar Anulación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
