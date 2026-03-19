@@ -1341,7 +1341,10 @@ def registro_invitacion(request, token):
                 )
                 if perimetro_precalculado:
                     parcela.perimetro_metros = round(perimetro_precalculado, 2)
-                parcela.save()
+                
+                # Guardar directamente sin recalcular (ya precalculamos todo arriba)
+                from django.db import models as db_models
+                db_models.Model.save(parcela)
                 
                 # Marcar invitación como utilizada
                 invitacion.marcar_como_utilizada(parcela)
@@ -1357,22 +1360,35 @@ def registro_invitacion(request, token):
                         valor_final=invitacion.costo_servicio
                     )
                 
-                # MEJORA: Enviar notificación al administrador
-                try:
-                    from .services.email_service import email_service
-                    resultado_notificacion = email_service.notificar_nueva_parcela_admin(
-                        invitacion, parcela
-                    )
-                    if resultado_notificacion['exito']:
-                        logger.info(f"Notificación enviada al admin: {parcela.nombre}")
-                    else:
-                        logger.warning(f"No se pudo notificar al admin: {resultado_notificacion.get('error')}")
-                except Exception as e_notif:
-                    logger.error(f"Error enviando notificación al admin: {str(e_notif)}")
+                logger.info(f"✅ Parcela registrada por invitación: {invitacion.token} - {parcela.nombre}")
                 
-                logger.info(f"Parcela registrada por invitación: {invitacion.token} - {parcela.nombre}")
+                # Notificación al admin en background (no bloquea la respuesta al cliente)
+                import threading
+                def _notificar_admin_background(inv_id, parcela_id):
+                    try:
+                        import django
+                        django.setup()
+                        from informes.models import Parcela as _Parcela
+                        from informes.models_clientes import ClienteInvitacion as _Inv
+                        from informes.services.email_service import email_service
+                        _inv = _Inv.objects.get(id=inv_id)
+                        _par = _Parcela.objects.get(id=parcela_id)
+                        resultado = email_service.notificar_nueva_parcela_admin(_inv, _par)
+                        if resultado['exito']:
+                            logger.info(f"📧 Notificación admin enviada: {_par.nombre}")
+                        else:
+                            logger.warning(f"⚠️ No se pudo notificar admin: {resultado.get('error')}")
+                    except Exception as e:
+                        logger.error(f"❌ Error notificación admin (background): {str(e)}")
                 
-                # REDIRECT (PRG pattern) — evita doble envío si el usuario recarga o retrocede
+                t = threading.Thread(
+                    target=_notificar_admin_background,
+                    args=(invitacion.id, parcela.id),
+                    daemon=True
+                )
+                t.start()
+                
+                # REDIRECT inmediato (PRG pattern) — no espera al email
                 return redirect('informes:registro_invitacion_exito', token=invitacion.token)
                 
             except Exception as e:
