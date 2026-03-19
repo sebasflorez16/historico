@@ -309,22 +309,14 @@ def _obtener_imagenes_demo(geometria, lead):
     if not resultados_eosda:
         logger.warning("⚠️ Sin datos EOSDA — generando imágenes con valores por defecto")
         # Generar imágenes con valores por defecto para que la demo no quede vacía
-        fecha_estimada = (datetime.now() - timedelta(days=5)).date()
         resultados_eosda = {
-            'NDVI': {'mean': 0.55, 'min': 0.20, 'max': 0.85, 'std': 0.18},
-            'NDMI': {'mean': 0.10, 'min': -0.20, 'max': 0.40, 'std': 0.15},
-            'SAVI': {'mean': 0.42, 'min': 0.12, 'max': 0.70, 'std': 0.16},
-            'fecha': fecha_estimada,
-            'nubosidad': 12,
+            'NDVI': {'mean': 0.55, 'min': 0.25, 'max': 0.80, 'std': 0.12},
+            'NDMI': {'mean': 0.10, 'min': -0.15, 'max': 0.35, 'std': 0.10},
+            'SAVI': {'mean': 0.42, 'min': 0.18, 'max': 0.65, 'std': 0.10},
+            'fecha': None,
+            'nubosidad': None,
             'sin_datos_reales': True,
         }
-        # Guardar metadata estimada para que se muestre en resultado
-        try:
-            lead.fecha_imagen_satelital = fecha_estimada
-            lead.nubosidad_imagen = 12.0
-            lead.save(update_fields=['fecha_imagen_satelital', 'nubosidad_imagen'])
-        except Exception:
-            pass
     
     # Generar imágenes PNG con Matplotlib
     imagenes = _generar_imagenes_heatmap(geometria, resultados_eosda, lead)
@@ -661,11 +653,8 @@ def _generar_un_heatmap(lons, lats, coords_poligono,
     """
     Genera UNA imagen PNG de heatmap para un índice satelital.
     
-    Crea un grid con distribución espacial REALISTA:
-    - Múltiples zonas (parches) de alto/bajo valor
-    - Gradientes direccionales que simulan orientación del terreno
-    - Efecto borde (estrés en bordes del polígono)
-    - Ruido de textura que simula variación natural
+    Crea un grid de datos con variación espacial realista dentro del polígono,
+    y muestra solo los píxeles dentro de la parcela dibujada.
     """
     try:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6), dpi=150)
@@ -678,116 +667,42 @@ def _generar_un_heatmap(lons, lats, coords_poligono,
         padding_lon = (lon_max - lon_min) * 0.15
         padding_lat = (lat_max - lat_min) * 0.15
         
-        # Grid de datos (200px para mejor detalle)
-        grid_size = 200
+        # Grid de datos
+        grid_size = 150
         grid_lon = np.linspace(lon_min - padding_lon, lon_max + padding_lon, grid_size)
         grid_lat = np.linspace(lat_min - padding_lat, lat_max + padding_lat, grid_size)
         grid_lon_2d, grid_lat_2d = np.meshgrid(grid_lon, grid_lat)
         
-        # Seed determinista por índice + ubicación (consistente pero diferente por índice)
-        seed_val = abs(hash(f"{mean:.4f}_{label_indice}_{lon_min:.4f}_{lat_min:.4f}")) % (2**32)
-        rng = np.random.RandomState(seed_val)
+        # Generar datos con variación espacial realista
+        np.random.seed(hash(str(mean) + label_indice) % 2**32)
         
-        # Normalizar coordenadas a [0, 1]
-        rango_lon = max(lon_max - lon_min, 1e-8)
-        rango_lat = max(lat_max - lat_min, 1e-8)
-        norm_lon = (grid_lon_2d - lon_min) / rango_lon
-        norm_lat = (grid_lat_2d - lat_min) / rango_lat
+        # Base: gradiente suave (simula variación natural del terreno)
+        grad_x = np.random.uniform(-1, 1)
+        grad_y = np.random.uniform(-1, 1)
+        norm_lon = (grid_lon_2d - lon_min) / max(lon_max - lon_min, 1e-6)
+        norm_lat = (grid_lat_2d - lat_min) / max(lat_max - lat_min, 1e-6)
+        gradiente = grad_x * norm_lon + grad_y * norm_lat
+        gradiente = (gradiente - gradiente.mean()) * std * 0.5
         
-        # =====================================================
-        # CAPA 1: Gradiente diagonal principal (orientación del terreno)
-        # =====================================================
-        angulo = rng.uniform(0, 2 * np.pi)
-        gradiente = np.cos(angulo) * norm_lon + np.sin(angulo) * norm_lat
-        gradiente = (gradiente - gradiente.mean()) / max(gradiente.std(), 1e-6)
-        gradiente *= std * 0.8
+        # Ruido local (variación pixel a pixel)
+        ruido = np.random.normal(0, std * 0.3, (grid_size, grid_size))
         
-        # =====================================================
-        # CAPA 2: Parches circulares de zonas buenas/malas
-        # Simula zonas de diferente calidad dentro de la parcela
-        # =====================================================
-        parches = np.zeros((grid_size, grid_size))
-        num_parches = rng.randint(4, 9)  # 4-8 parches
+        # Combinar: media + gradiente + ruido
+        datos = mean + gradiente + ruido
+        datos = np.clip(datos, vmin_real - std, vmax_real + std)
         
-        for _ in range(num_parches):
-            cx = rng.uniform(0.1, 0.9)
-            cy = rng.uniform(0.1, 0.9)
-            radio = rng.uniform(0.08, 0.35)  # Radios variados
-            intensidad = rng.uniform(-1.5, 1.5) * std  # Puede ser bueno o malo
-            
-            distancia = np.sqrt((norm_lon - cx)**2 + (norm_lat - cy)**2)
-            # Caída gaussiana suave
-            parche = intensidad * np.exp(-(distancia**2) / (2 * radio**2))
-            parches += parche
-        
-        # =====================================================
-        # CAPA 3: Franjas de cultivo (patrón lineal)
-        # Simula hileras o zonas de diferente manejo
-        # =====================================================
-        freq = rng.uniform(3, 8)
-        ang_franjas = rng.uniform(0, np.pi)
-        franjas_coord = norm_lon * np.cos(ang_franjas) + norm_lat * np.sin(ang_franjas)
-        franjas = np.sin(franjas_coord * freq * 2 * np.pi) * std * 0.25
-        
-        # =====================================================
-        # CAPA 4: Ruido de textura (variación natural pixel a pixel)
-        # =====================================================
-        # Ruido fino
-        ruido_fino = rng.normal(0, std * 0.15, (grid_size, grid_size))
-        
-        # Ruido medio (manchas más grandes) usando bloques y resize
-        bloque = rng.normal(0, std * 0.3, (grid_size // 8, grid_size // 8))
-        # Expandir el bloque al tamaño completo usando repetición
-        ruido_medio = np.repeat(np.repeat(bloque, 8, axis=0), 8, axis=1)
-        # Ajustar tamaño si no coincide exactamente
-        ruido_medio = ruido_medio[:grid_size, :grid_size]
-        
-        # =====================================================
-        # CAPA 5: Efecto borde (valores más bajos cerca del borde del polígono)
-        # Simula estrés de borde realista
-        # =====================================================
+        # Crear máscara del polígono
+        # Convertir coordenadas del polígono a posiciones en el grid
         poly_path = MplPath([(lon, lat) for lon, lat in coords_poligono])
         puntos_grid = np.column_stack([grid_lon_2d.ravel(), grid_lat_2d.ravel()])
         mascara = poly_path.contains_points(puntos_grid).reshape(grid_size, grid_size)
         
-        # Calcular distancia al borde (aproximación eficiente con erosión numpy)
-        dist_borde = np.zeros((grid_size, grid_size))
-        mascara_acum = mascara.astype(float)
-        for paso in range(1, 8):
-            # Erosión eficiente: un pixel es interior si TODOS sus vecinos lo son
-            erosionada = np.ones_like(mascara_acum)
-            erosionada[paso:, :] *= mascara_acum[:-paso, :]   # arriba
-            erosionada[:-paso, :] *= mascara_acum[paso:, :]   # abajo
-            erosionada[:, paso:] *= mascara_acum[:, :-paso]   # izquierda
-            erosionada[:, :-paso] *= mascara_acum[:, paso:]   # derecha
-            dist_borde += erosionada
-        
-        # Normalizar distancia al borde
-        max_dist = dist_borde.max()
-        if max_dist > 0:
-            dist_borde_norm = dist_borde / max_dist
-        else:
-            dist_borde_norm = np.ones_like(dist_borde)
-        
-        efecto_borde = (1 - dist_borde_norm) * (-std * 0.6)  # Reduce valor en bordes
-        efecto_borde = np.where(mascara, efecto_borde, 0)
-        
-        # =====================================================
-        # COMBINAR todas las capas
-        # =====================================================
-        datos = mean + gradiente + parches + franjas + ruido_medio + ruido_fino + efecto_borde
-        
-        # Recortar al rango realista (con más margen que antes)
-        datos = np.clip(datos, vmin_real - std * 0.5, vmax_real + std * 0.5)
-        
-        # Aplicar máscara del polígono: NaN fuera
+        # Aplicar máscara: NaN fuera del polígono
         datos_masked = np.where(mascara, datos, np.nan)
         
-        # =====================================================
-        # DIBUJAR
-        # =====================================================
+        # Dibujar heatmap
         cmap = plt.get_cmap(cmap_name).copy()
-        cmap.set_bad(color='#1a1a2e')
+        cmap.set_bad(color='#1a1a2e')  # Color de fondo para NaN
         
         im = ax.pcolormesh(
             grid_lon, grid_lat, datos_masked,
@@ -795,10 +710,10 @@ def _generar_un_heatmap(lons, lats, coords_poligono,
             shading='auto'
         )
         
-        # Borde del polígono
+        # Dibujar borde del polígono
         poly_lons = [c[0] for c in coords_poligono]
         poly_lats = [c[1] for c in coords_poligono]
-        ax.plot(poly_lons, poly_lats, color='white', linewidth=1.8, linestyle='-', alpha=0.85)
+        ax.plot(poly_lons, poly_lats, color='white', linewidth=2, linestyle='-', alpha=0.9)
         
         # Colorbar
         cbar = plt.colorbar(im, ax=ax, shrink=0.7, pad=0.02, aspect=30)
@@ -815,14 +730,16 @@ def _generar_un_heatmap(lons, lats, coords_poligono,
         subtitulo_parts.append(f'Promedio: {mean:.2f}')
         ax.set_xlabel('  |  '.join(subtitulo_parts), fontsize=9, color='#aaa', labelpad=8)
         
-        # Estilo
+        # Estilo del eje
         ax.set_facecolor('#1a1a2e')
         ax.tick_params(colors='#666', labelsize=7)
         ax.set_aspect('equal')
+        
+        # Ajustar vista al polígono con padding
         ax.set_xlim(lon_min - padding_lon, lon_max + padding_lon)
         ax.set_ylim(lat_min - padding_lat, lat_max + padding_lat)
         
-        # Marca de agua
+        # Marca de agua sutil
         ax.text(0.02, 0.02, 'AgroTech · Sentinel-2', transform=ax.transAxes,
                 fontsize=7, color='#555', alpha=0.7, ha='left', va='bottom')
         
@@ -835,8 +752,7 @@ def _generar_un_heatmap(lons, lats, coords_poligono,
         
     except Exception as e:
         logger.error(f"   ❌ Error generando heatmap {label_indice}: {str(e)}")
-        logger.error(traceback.format_exc())
-        plt.close('all')
+        plt.close('all')  # Asegurar limpieza
 
 
 # ========================================

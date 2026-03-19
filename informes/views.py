@@ -1081,6 +1081,7 @@ def crear_invitacion(request):
             precio_servicio = request.POST.get('precio_servicio', '0.00')
             moneda = request.POST.get('moneda', 'COP')
             dias_vigencia = int(request.POST.get('dias_vigencia', '15'))
+            area_max_hectareas = request.POST.get('area_max_hectareas', '0')
             
             # Validaciones
             if not nombre_cliente:
@@ -1106,6 +1107,7 @@ def crear_invitacion(request):
                 telefono_cliente='',  # No se solicita en el formulario actual
                 moneda=moneda,
                 costo_servicio=Decimal(precio_servicio),
+                area_max_hectareas=Decimal(area_max_hectareas) if area_max_hectareas else Decimal('0'),
                 descripcion_servicio=descripcion_servicio,
                 fecha_expiracion=fecha_expiracion,
                 creado_por=request.user
@@ -1264,6 +1266,12 @@ def registro_invitacion(request, token):
                         m_per_deg = 111320 * math.cos(math.radians(lat_center))
                         area_ha = geometria_postgis.area * (m_per_deg ** 2) / 10000
                     
+                    # Validar límite de área acordada (backend)
+                    area_max = float(invitacion.area_max_hectareas or 0)
+                    excede_area = False
+                    if area_max > 0 and round(area_ha, 2) > area_max:
+                        excede_area = True
+                    
                     return render(request, 'informes/invitaciones/confirmar.html', {
                         'invitacion': invitacion,
                         'nombre': nombre,
@@ -1271,19 +1279,67 @@ def registro_invitacion(request, token):
                         'geometria_json': geometria_json,
                         'notas': notas,
                         'telefono_contacto': telefono_contacto,
-                        'area_hectareas': round(area_ha, 2)
+                        'area_hectareas': round(area_ha, 2),
+                        'area_max_hectareas': area_max if area_max > 0 else None,
+                        'excede_area': excede_area,
                     })
                 
                 # PASO 2: Confirmación recibida, crear la parcela
-                parcela = Parcela.objects.create(
+                # Verificar que la invitación no fue ya utilizada (doble click / race condition)
+                invitacion.refresh_from_db()
+                if invitacion.estado != 'pendiente':
+                    if invitacion.parcela:
+                        return redirect('informes:registro_invitacion_exito', token=invitacion.token)
+                    messages.error(request, 'Esta invitación ya fue procesada.')
+                    return render(request, 'informes/invitaciones/error.html', {
+                        'error': 'Invitación ya procesada', 'invitacion': invitacion
+                    })
+                
+                # Precalcular área antes de crear (evita que save() tarde mucho)
+                try:
+                    geom_utm = geometria_postgis.clone()
+                    geom_utm.transform(32618)
+                    area_precalculada = geom_utm.area / 10000
+                    perimetro_precalculado = geom_utm.length
+                except Exception:
+                    import math
+                    lat_center = geometria_postgis.centroid.y
+                    m_per_deg = 111320 * math.cos(math.radians(lat_center))
+                    area_precalculada = geometria_postgis.area * (m_per_deg ** 2) / 10000
+                    perimetro_precalculado = None
+                
+                # Validar límite de área acordada (backend — seguridad)
+                area_max = float(invitacion.area_max_hectareas or 0)
+                if area_max > 0 and round(area_precalculada, 2) > area_max:
+                    logger.warning(
+                        f"⚠️ Intento de registrar parcela excediendo límite: "
+                        f"{area_precalculada:.2f}ha > {area_max:.2f}ha (invitación {invitacion.token})"
+                    )
+                    messages.error(
+                        request,
+                        f'El área dibujada ({area_precalculada:.2f} ha) excede el límite acordado '
+                        f'de {area_max:.0f} hectáreas. Por favor vuelva a dibujar la parcela.'
+                    )
+                    return render(request, 'informes/invitaciones/registro.html', {
+                        'invitacion': invitacion
+                    })
+                
+                parcela = Parcela(
                     nombre=nombre,
                     propietario=invitacion.nombre_cliente,
                     geometria=geometria_postgis,
                     tipo_cultivo=tipo_cultivo,
                     fecha_inicio_monitoreo=date.today(),
                     notas=f"Registrada por invitación.\nCliente: {invitacion.nombre_cliente}\nEmail: {invitacion.email_cliente}\n{notas}",
-                    activa=True
+                    activa=True,
+                    # Precalcular para que save() no tenga que reproyectar
+                    area_hectareas=round(area_precalculada, 2),
+                    centroide=geometria_postgis.centroid,
+                    coordenadas=geometria_postgis.geojson,
                 )
+                if perimetro_precalculado:
+                    parcela.perimetro_metros = round(perimetro_precalculado, 2)
+                parcela.save()
                 
                 # Marcar invitación como utilizada
                 invitacion.marcar_como_utilizada(parcela)
@@ -1314,12 +1370,8 @@ def registro_invitacion(request, token):
                 
                 logger.info(f"Parcela registrada por invitación: {invitacion.token} - {parcela.nombre}")
                 
-                # MEJORA: Mostrar página de éxito con mensaje final
-                return render(request, 'informes/invitaciones/exito.html', {
-                    'invitacion': invitacion,
-                    'parcela': parcela,
-                    'mostrar_mensaje_final': True
-                })
+                # REDIRECT (PRG pattern) — evita doble envío si el usuario recarga o retrocede
+                return redirect('informes:registro_invitacion_exito', token=invitacion.token)
                 
             except Exception as e:
                 logger.error(f"Error procesando registro por invitación: {str(e)}")
@@ -1333,6 +1385,29 @@ def registro_invitacion(request, token):
     except Exception as e:
         logger.error(f"Error en registro_invitacion: {str(e)}")
         messages.error(request, 'Error procesando invitación.')
+        return render(request, 'informes/invitaciones/error.html', {
+            'error': 'Error del sistema'
+        })
+
+
+def registro_invitacion_exito(request, token):
+    """
+    Vista GET de éxito tras registrar parcela por invitación.
+    Patrón PRG (Post-Redirect-Get): evita doble envío y problemas con history.back().
+    """
+    try:
+        invitacion = get_object_or_404(ClienteInvitacion, token=token)
+        
+        if not invitacion.parcela:
+            return redirect('informes:registro_invitacion', token=token)
+        
+        return render(request, 'informes/invitaciones/exito.html', {
+            'invitacion': invitacion,
+            'parcela': invitacion.parcela,
+            'mostrar_mensaje_final': True
+        })
+    except Exception as e:
+        logger.error(f"Error en registro_invitacion_exito: {str(e)}")
         return render(request, 'informes/invitaciones/error.html', {
             'error': 'Error del sistema'
         })

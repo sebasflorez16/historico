@@ -154,6 +154,34 @@
                             </ol>
                         </div>
                         
+                        {% if invitacion.area_max_hectareas and invitacion.area_max_hectareas > 0 %}
+                        <!-- Indicador de límite de área acordada -->
+                        <div class="alert alert-warning d-flex align-items-center" id="alertaLimiteArea">
+                            <i class="fas fa-ruler-combined fa-lg me-3"></i>
+                            <div>
+                                <strong>Límite de área acordado:</strong> 
+                                <span class="fs-5 fw-bold text-dark">{{ invitacion.area_max_hectareas }} hectáreas</span>
+                                <br>
+                                <small class="text-muted">El polígono no puede exceder este límite. Se validará en tiempo real.</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Indicador de área en tiempo real (se muestra al dibujar) -->
+                        <div id="areaEnTiempoReal" class="mb-3" style="display: none;">
+                            <div class="progress" style="height: 30px; border-radius: 8px;">
+                                <div id="barraArea" class="progress-bar" role="progressbar" 
+                                     style="width: 0%; font-size: 14px; font-weight: 600;"
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    0 ha
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">0 ha</small>
+                                <small class="text-muted fw-bold" id="labelMaxArea"></small>
+                            </div>
+                        </div>
+                        
                         <!-- Buscador de ubicación -->
                         <div class="mb-3">
                             <div class="input-group">
@@ -179,6 +207,13 @@
                         <div id="exitoGeometria" class="alert alert-success mt-3" style="display: none;">
                             <i class="fas fa-check-circle me-2"></i>
                             ¡Parcela dibujada correctamente! Área aproximada: <span id="areaTexto"></span>
+                        </div>
+                        
+                        <div id="errorAreaExcedida" class="alert alert-danger mt-3" style="display: none;">
+                            <i class="fas fa-times-circle me-2"></i>
+                            <strong>Área excedida:</strong> El polígono dibujado tiene <span id="areaExcedidaTexto"></span>, 
+                            pero el límite acordado es de <span id="limiteTexto"></span> hectáreas.
+                            <br><small>Por favor elimina el polígono y dibuja uno más pequeño.</small>
                         </div>
                         
                         <!-- Coordenadas del polígono -->
@@ -226,15 +261,32 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar mapa
+    // ===== CONFIGURACIÓN DE LÍMITE DE ÁREA =====
+    // Se inyecta desde el backend; 0 = sin límite
+    const AREA_MAX_HA = {{ invitacion.area_max_hectareas|default:"0" }};
+    const tieneLimit = AREA_MAX_HA > 0;
+    const AREA_MAX_M2 = AREA_MAX_HA * 10000;  // Convertir a m² para comparar
+    
+    // Referencias UI del límite
+    const areaEnTiempoReal = document.getElementById('areaEnTiempoReal');
+    const barraArea = document.getElementById('barraArea');
+    const labelMaxArea = document.getElementById('labelMaxArea');
+    const errorAreaExcedida = document.getElementById('errorAreaExcedida');
+    const areaExcedidaTexto = document.getElementById('areaExcedidaTexto');
+    const limiteTexto = document.getElementById('limiteTexto');
+    const btnSubmit = document.querySelector('button[type="submit"]');
+    
+    if (tieneLimit && labelMaxArea) {
+        labelMaxArea.textContent = AREA_MAX_HA + ' ha (máx.)';
+    }
+    
+    // ===== INICIALIZAR MAPA =====
     const mapa = L.map('mapa-registro').setView([4.5709, -74.2973], 6);
     
-    // Capa base satelital
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles © Esri'
     }).addTo(mapa);
     
-    // Capa de etiquetas
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors, © CartoDB'
     }).addTo(mapa);
@@ -265,7 +317,82 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     mapa.addControl(drawControl);
     
-    // Guardar geometría al dibujar
+    // ===== FUNCIÓN: Actualizar UI de área =====
+    function actualizarAreaUI(areaM2) {
+        const hectareas = (areaM2 / 10000).toFixed(2);
+        const excede = tieneLimit && (parseFloat(hectareas) > AREA_MAX_HA);
+        
+        // Actualizar texto de área
+        document.getElementById('areaTexto').textContent = hectareas + ' hectáreas';
+        
+        if (tieneLimit) {
+            // Mostrar barra de progreso
+            areaEnTiempoReal.style.display = 'block';
+            
+            const porcentaje = Math.min((parseFloat(hectareas) / AREA_MAX_HA) * 100, 100);
+            barraArea.style.width = porcentaje + '%';
+            barraArea.textContent = hectareas + ' ha';
+            barraArea.setAttribute('aria-valuenow', porcentaje);
+            
+            if (excede) {
+                // EXCEDE: rojo, bloquear submit
+                barraArea.className = 'progress-bar bg-danger';
+                barraArea.style.width = '100%';
+                barraArea.textContent = hectareas + ' ha ⚠️ EXCEDE LÍMITE';
+                
+                document.getElementById('exitoGeometria').style.display = 'none';
+                errorAreaExcedida.style.display = 'block';
+                areaExcedidaTexto.textContent = hectareas + ' hectáreas';
+                limiteTexto.textContent = AREA_MAX_HA;
+                
+                // Bloquear botón de envío
+                btnSubmit.disabled = true;
+                btnSubmit.classList.remove('btn-success');
+                btnSubmit.classList.add('btn-secondary');
+                btnSubmit.innerHTML = '<i class="fas fa-ban me-2"></i>Área excede el límite acordado';
+                
+                document.getElementById('infoGeometria').style.display = 'none';
+            } else {
+                // DENTRO DEL LÍMITE: verde
+                if (porcentaje > 85) {
+                    barraArea.className = 'progress-bar bg-warning';
+                } else {
+                    barraArea.className = 'progress-bar bg-success';
+                }
+                
+                errorAreaExcedida.style.display = 'none';
+                document.getElementById('exitoGeometria').style.display = 'block';
+                document.getElementById('infoGeometria').style.display = 'none';
+                
+                // Habilitar botón
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('btn-secondary');
+                btnSubmit.classList.add('btn-success');
+                btnSubmit.innerHTML = '<i class="fas fa-check me-2"></i>Registrar Parcela';
+            }
+        } else {
+            // Sin límite: mostrar éxito normal
+            document.getElementById('exitoGeometria').style.display = 'block';
+            document.getElementById('infoGeometria').style.display = 'none';
+            errorAreaExcedida.style.display = 'none';
+            btnSubmit.disabled = false;
+        }
+    }
+    
+    // ===== FUNCIÓN: Actualizar tabla de coordenadas =====
+    function actualizarCoordenadas(coords) {
+        const tablaCoordenadas = document.getElementById('tablaCoordenadas');
+        tablaCoordenadas.innerHTML = '';
+        coords.forEach((coord, index) => {
+            const row = tablaCoordenadas.insertRow();
+            row.innerHTML = '<td>' + (index + 1) + '</td><td>' + coord.lat.toFixed(6) + '</td><td>' + coord.lng.toFixed(6) + '</td>';
+        });
+        document.getElementById('coordenadasInfo').style.display = 'block';
+    }
+    
+    // ===== EVENTOS DE DIBUJO =====
+    
+    // Al crear un polígono
     mapa.on('draw:created', function (e) {
         drawnItems.clearLayers();
         const layer = e.layer;
@@ -274,55 +401,90 @@ document.addEventListener('DOMContentLoaded', function() {
         const geojson = layer.toGeoJSON();
         document.getElementById('geometria').value = JSON.stringify(geojson);
         
-        // Calcular área
-        const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-        const hectareas = (area / 10000).toFixed(2);
+        // Calcular área geodésica (en m²)
+        const areaM2 = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
         
-        document.getElementById('areaTexto').textContent = hectareas + ' hectáreas';
-        document.getElementById('infoGeometria').style.display = 'none';
-        document.getElementById('exitoGeometria').style.display = 'block';
+        // Actualizar UI con validación
+        actualizarAreaUI(areaM2);
         
         // Mostrar coordenadas
-        const coords = layer.getLatLngs()[0];
-        const tablaCoordenadas = document.getElementById('tablaCoordenadas');
-        tablaCoordenadas.innerHTML = '';
-        
-        coords.forEach((coord, index) => {
-            const row = tablaCoordenadas.insertRow();
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${coord.lat.toFixed(6)}</td>
-                <td>${coord.lng.toFixed(6)}</td>
-            `;
-        });
-        
-        document.getElementById('coordenadasInfo').style.display = 'block';
+        actualizarCoordenadas(layer.getLatLngs()[0]);
     });
     
+    // Al editar un polígono existente
     mapa.on('draw:edited', function (e) {
         const layers = e.layers;
         layers.eachLayer(function (layer) {
             const geojson = layer.toGeoJSON();
             document.getElementById('geometria').value = JSON.stringify(geojson);
             
-            const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-            const hectareas = (area / 10000).toFixed(2);
-            document.getElementById('areaTexto').textContent = hectareas + ' hectáreas';
+            const areaM2 = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+            actualizarAreaUI(areaM2);
+            actualizarCoordenadas(layer.getLatLngs()[0]);
         });
     });
     
+    // Al eliminar el polígono
     mapa.on('draw:deleted', function () {
         document.getElementById('geometria').value = '';
         document.getElementById('exitoGeometria').style.display = 'none';
         document.getElementById('infoGeometria').style.display = 'block';
+        errorAreaExcedida.style.display = 'none';
+        document.getElementById('coordenadasInfo').style.display = 'none';
+        
+        if (tieneLimit) {
+            areaEnTiempoReal.style.display = 'none';
+            barraArea.style.width = '0%';
+            barraArea.textContent = '0 ha';
+        }
+        
+        // Restaurar botón
+        btnSubmit.disabled = false;
+        btnSubmit.classList.remove('btn-secondary');
+        btnSubmit.classList.add('btn-success');
+        btnSubmit.innerHTML = '<i class="fas fa-check me-2"></i>Registrar Parcela';
     });
     
-    // Búsqueda de dirección usando Nominatim
+    // ===== Validación en tiempo real MIENTRAS se dibuja (vertex a vertex) =====
+    if (tieneLimit) {
+        mapa.on('draw:drawvertex', function (e) {
+            // Obtener los vértices dibujados hasta ahora
+            const layers = e.layers.getLayers();
+            if (layers.length < 3) return;  // Necesita al menos 3 puntos para un polígono
+            
+            const latlngs = layers.map(function(l) { return l.getLatLng(); });
+            
+            // Calcular área parcial (del polígono formado hasta ahora)
+            try {
+                const areaParcial = L.GeometryUtil.geodesicArea(latlngs);
+                const haParcial = (areaParcial / 10000).toFixed(2);
+                
+                areaEnTiempoReal.style.display = 'block';
+                const porcentaje = Math.min((parseFloat(haParcial) / AREA_MAX_HA) * 100, 100);
+                barraArea.style.width = porcentaje + '%';
+                barraArea.textContent = haParcial + ' ha (dibujando...)';
+                
+                if (parseFloat(haParcial) > AREA_MAX_HA) {
+                    barraArea.className = 'progress-bar bg-danger';
+                    barraArea.style.width = '100%';
+                    barraArea.textContent = haParcial + ' ha ⚠️ EXCEDE';
+                } else if (porcentaje > 85) {
+                    barraArea.className = 'progress-bar bg-warning';
+                } else {
+                    barraArea.className = 'progress-bar bg-success';
+                }
+            } catch(err) {
+                // Ignorar errores de cálculo con pocos puntos
+            }
+        });
+    }
+    
+    // ===== BÚSQUEDA DE DIRECCIÓN =====
     document.getElementById('btnBuscar').addEventListener('click', function() {
         const direccion = document.getElementById('buscarDireccion').value;
         if (!direccion) return;
         
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccion)}`)
+        fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(direccion))
             .then(response => response.json())
             .then(data => {
                 if (data && data.length > 0) {
@@ -337,19 +499,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('No se encontró la ubicación. Intenta con otra búsqueda.');
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error en búsqueda:', error);
                 alert('Error al buscar la ubicación.');
             });
     });
     
-    // Validación del formulario
+    // Buscar al presionar Enter
+    document.getElementById('buscarDireccion').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('btnBuscar').click();
+        }
+    });
+    
+    // ===== VALIDACIÓN DEL FORMULARIO =====
     document.getElementById('formRegistro').addEventListener('submit', function(e) {
         const geometria = document.getElementById('geometria').value;
         if (!geometria) {
             e.preventDefault();
             document.getElementById('infoGeometria').style.display = 'block';
             document.getElementById('mapa-registro').scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        
+        // Doble validación: verificar área antes de enviar
+        if (tieneLimit) {
+            try {
+                const layers = drawnItems.getLayers();
+                if (layers.length > 0) {
+                    const layer = layers[0];
+                    const areaM2 = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+                    const ha = areaM2 / 10000;
+                    if (ha > AREA_MAX_HA) {
+                        e.preventDefault();
+                        actualizarAreaUI(areaM2);
+                        errorAreaExcedida.scrollIntoView({ behavior: 'smooth' });
+                        return;
+                    }
+                }
+            } catch(err) {
+                console.error('Error validando área:', err);
+            }
         }
     });
 });

@@ -209,7 +209,29 @@
                     <i class="fas fa-chart-area" style="font-size: 40px; color: #2e7d32; margin-bottom: 10px;"></i>
                     <span class="numero">{{ area_hectareas }}</span>
                     <span class="label">hectáreas</span>
+                    {% if area_max_hectareas %}
+                    <div style="margin-top: 8px;">
+                        <small style="color: #777;">Límite acordado: <strong>{{ area_max_hectareas }} ha</strong></small>
+                    </div>
+                    {% endif %}
                 </div>
+                
+                {% if excede_area %}
+                <!-- Alerta de área excedida -->
+                <div style="background: #ffebee; border: 2px solid #f44336; padding: 20px; border-radius: 12px; margin: 20px 0;">
+                    <h5 style="color: #d32f2f; margin-bottom: 10px;">
+                        <i class="fas fa-exclamation-circle"></i> 
+                        Área excede el límite acordado
+                    </h5>
+                    <p style="color: #666; margin-bottom: 10px;">
+                        El polígono dibujado tiene <strong>{{ area_hectareas }} hectáreas</strong>, 
+                        pero el límite acordado con AgroTech es de <strong>{{ area_max_hectareas }} hectáreas</strong>.
+                    </p>
+                    <p style="color: #666; margin-bottom: 0;">
+                        Por favor vuelva a dibujar la parcela con un área dentro del límite acordado.
+                    </p>
+                </div>
+                {% endif %}
                 
                 <!-- Advertencia -->
                 <div class="advertencia-box">
@@ -237,12 +259,19 @@
                     
                     <!-- Botones de acción -->
                     <div class="acciones-confirmacion">
-                        <button type="button" class="btn btn-volver" onclick="history.back()">
+                        <a href="{% url 'informes:registro_invitacion' token=invitacion.token %}" class="btn btn-volver">
                             <i class="fas fa-arrow-left"></i> Volver a Editar
+                        </a>
+                        {% if excede_area %}
+                        <button type="button" class="btn btn-confirmar" disabled 
+                                style="background: #ccc; cursor: not-allowed; opacity: 0.6;">
+                            <i class="fas fa-ban"></i> Área excede el límite
                         </button>
-                        <button type="submit" class="btn btn-confirmar">
+                        {% else %}
+                        <button type="submit" class="btn btn-confirmar" id="btnConfirmar">
                             <i class="fas fa-check-double"></i> Confirmar y Crear Parcela
                         </button>
+                        {% endif %}
                     </div>
                 </form>
                 
@@ -254,7 +283,7 @@
 
 {% block extra_js %}
 <script>
-    // Prevenir doble envío
+    // Prevenir doble envío y deshabilitar "Volver" durante procesamiento
     const form = document.getElementById('form-confirmacion');
     let enviando = false;
     
@@ -266,10 +295,17 @@
         
         enviando = true;
         
-        // Deshabilitar botón y mostrar loading
-        const btnConfirmar = form.querySelector('.btn-confirmar');
+        // Deshabilitar botón confirmar y mostrar loading
+        const btnConfirmar = document.getElementById('btnConfirmar');
         btnConfirmar.disabled = true;
         btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando parcela...';
+        
+        // Ocultar botón "Volver a Editar" para evitar confusión
+        const btnVolver = form.parentElement.querySelector('.btn-volver');
+        if (btnVolver) {
+            btnVolver.style.pointerEvents = 'none';
+            btnVolver.style.opacity = '0.4';
+        }
     });
 </script>
 {% endblock %}

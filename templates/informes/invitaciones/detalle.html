@@ -163,6 +163,13 @@
                         <strong>Precio:</strong><br>
                         <span class="h5 text-success">${{ invitacion.costo_servicio|floatformat:2 }}</span>
                     </div>
+                    
+                    {% if invitacion.area_max_hectareas and invitacion.area_max_hectareas > 0 %}
+                    <div class="info-item">
+                        <strong><i class="fas fa-ruler-combined me-1"></i>Área máxima acordada:</strong><br>
+                        <span class="h5 text-primary">{{ invitacion.area_max_hectareas }} ha</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 

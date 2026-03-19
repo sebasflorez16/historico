@@ -35,6 +35,13 @@ class ClienteInvitacion(models.Model):
     # Datos económicos
     moneda = models.CharField(max_length=3, default='COP', choices=[('COP', 'Pesos Colombianos'), ('USD', 'Dólares USD')])
     costo_servicio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Límite de área acordada con el cliente (hectáreas)
+    area_max_hectareas = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Área máxima acordada en hectáreas. 0 = sin límite.'
+    )
+    
     pagado = models.BooleanField(default=False)
     fecha_pago = models.DateTimeField(blank=True, null=True)
     notas_pago = models.TextField(blank=True, null=True)

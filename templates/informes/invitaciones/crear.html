@@ -157,6 +157,29 @@
                                     <div class="help-text">Tiempo que el cliente tendrá para completar el registro</div>
                                 </div>
 
+                                <div class="form-group">
+                                    <label for="area_max_hectareas" class="form-label">
+                                        <i class="fas fa-ruler-combined me-1"></i>
+                                        Área Máxima Acordada (hectáreas)
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="area_max_hectareas" 
+                                               name="area_max_hectareas" 
+                                               step="0.01" 
+                                               min="0" 
+                                               placeholder="0 = sin límite"
+                                               value="0">
+                                        <span class="input-group-text">ha</span>
+                                    </div>
+                                    <div class="help-text">
+                                        Límite de área que el cliente puede dibujar. 
+                                        <strong>0 = sin límite</strong>. 
+                                        El mapa bloqueará el dibujo si se excede.
+                                    </div>
+                                </div>
+
                                 <div class="d-grid gap-2">
                                     <button type="submit" class="btn btn-success btn-lg">
                                         <i class="fas fa-paper-plane me-2"></i>
@@ -199,6 +222,10 @@
                                     <strong>Precio:</strong> <span id="preview-moneda">$</span><span id="preview-precio">0.00</span> <span id="preview-codigo-moneda">COP</span>
                                 </p>
                                 
+                                <p class="small mb-3" id="preview-area-container" style="display: none;">
+                                    <strong>Área máx:</strong> <span id="preview-area">0</span> ha
+                                </p>
+                                
                                 <div class="text-center">
                                     <button class="btn btn-success btn-sm" disabled>
                                         Registrar Parcela
@@ -232,6 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const precioInput = document.getElementById('precio_servicio');
     const diasInput = document.getElementById('dias_vigencia');
     const monedaInput = document.getElementById('moneda');
+    const areaMaxInput = document.getElementById('area_max_hectareas');
     
     const previewNombre = document.getElementById('preview-nombre');
     const previewServicio = document.getElementById('preview-servicio');
@@ -239,6 +267,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewDias = document.getElementById('preview-dias');
     const previewMoneda = document.getElementById('preview-moneda');
     const previewCodigoMoneda = document.getElementById('preview-codigo-moneda');
+    const previewArea = document.getElementById('preview-area');
+    const previewAreaContainer = document.getElementById('preview-area-container');
     
     const simboloMoneda = document.getElementById('simbolo-moneda');
     const codigoMoneda = document.getElementById('codigo-moneda');
@@ -248,6 +278,14 @@ document.addEventListener('DOMContentLoaded', function() {
         previewServicio.textContent = servicioInput.value || '[Descripción del servicio]';
         previewPrecio.textContent = precioInput.value || '0.00';
         previewDias.textContent = diasInput.value || '15';
+        
+        const areaMax = parseFloat(areaMaxInput.value) || 0;
+        if (areaMax > 0) {
+            previewArea.textContent = areaMax;
+            previewAreaContainer.style.display = 'block';
+        } else {
+            previewAreaContainer.style.display = 'none';
+        }
     }
     
     function updateMoneda() {
@@ -265,6 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
     precioInput.addEventListener('input', updatePreview);
     diasInput.addEventListener('change', updatePreview);
     monedaInput.addEventListener('change', updateMoneda);
+    areaMaxInput.addEventListener('input', updatePreview);
 });
 </script>
 {% endblock %}

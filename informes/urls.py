@@ -31,6 +31,7 @@ urlpatterns = [
     path('invitaciones/crear/', views.crear_invitacion, name='crear_invitacion'),
     path('invitaciones/<int:invitacion_id>/', views.detalle_invitacion, name='detalle_invitacion'),
     path('cliente/<str:token>/', views.registro_invitacion, name='registro_invitacion'),
+    path('cliente/<str:token>/exito/', views.registro_invitacion_exito, name='registro_invitacion_exito'),
     
     # Análisis de datos
     path('parcelas/<int:parcela_id>/analisis/', views.analisis_tendencias, name='analisis_tendencias'),
