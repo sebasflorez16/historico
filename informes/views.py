@@ -1183,6 +1183,13 @@ def registro_invitacion(request, token):
         
         # Verificar estado de la invitación
         if invitacion.estado != 'pendiente':
+            # Si ya fue utilizada y tiene parcela → mostrar éxito (no error)
+            if invitacion.estado == 'utilizada' and invitacion.parcela:
+                return render(request, 'informes/invitaciones/exito.html', {
+                    'invitacion': invitacion,
+                    'parcela': invitacion.parcela,
+                    'mostrar_mensaje_final': True
+                })
             messages.error(request, 'Esta invitación ya ha sido utilizada o ha expirado.')
             return render(request, 'informes/invitaciones/error.html', {
                 'error': 'Invitación no válida',
@@ -1245,10 +1252,17 @@ def registro_invitacion(request, token):
                 
                 # PASO 1: Si no hay confirmación, mostrar pantalla de confirmación
                 if confirmacion != 'true':
-                    # Calcular área temporal para mostrar en confirmación
-                    from django.contrib.gis.measure import Area
-                    area_m2 = geometria_postgis.area
-                    area_ha = area_m2 / 10000
+                    # Calcular área en hectáreas con reproyección UTM (Colombia)
+                    try:
+                        geom_utm = geometria_postgis.clone()
+                        geom_utm.transform(32618)  # UTM zona 18N — Colombia
+                        area_ha = geom_utm.area / 10000
+                    except Exception:
+                        # Fallback: aproximación para latitudes tropicales
+                        import math
+                        lat_center = geometria_postgis.centroid.y
+                        m_per_deg = 111320 * math.cos(math.radians(lat_center))
+                        area_ha = geometria_postgis.area * (m_per_deg ** 2) / 10000
                     
                     return render(request, 'informes/invitaciones/confirmar.html', {
                         'invitacion': invitacion,

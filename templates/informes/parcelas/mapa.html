@@ -1,0 +1,192 @@
+{% extends 'informes/base.html' %}
+{% load static %}
+
+{% block title %}Mapa - {{ parcela.nombre }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #mapa-parcela {
+        height: calc(100vh - 200px);
+        min-height: 500px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .info-parcela-mapa {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .badge-cultivo {
+        background: linear-gradient(135deg, #2d5a27, #4a8234);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .stat-box .valor {
+        font-size: 24px;
+        font-weight: 700;
+        color: #2d5a27;
+    }
+    
+    .stat-box .label {
+        font-size: 12px;
+        color: #888;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-1">
+                <i class="fas fa-map-marked-alt text-success me-2"></i>
+                {{ parcela.nombre }}
+            </h4>
+            <p class="text-muted mb-0">
+                {{ parcela.propietario }}
+                {% if parcela.tipo_cultivo %}
+                    <span class="badge badge-cultivo ms-2">🌱 {{ parcela.tipo_cultivo }}</span>
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'informes:detalle_parcela' parcela.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Volver al detalle
+        </a>
+    </div>
+    
+    <!-- Info rápida -->
+    <div class="info-parcela-mapa">
+        <div class="row g-3">
+            <div class="col-4 col-md-3">
+                <div class="stat-box">
+                    <div class="valor">{{ parcela.area_hectareas|floatformat:1|default:"—" }}</div>
+                    <div class="label">Hectáreas</div>
+                </div>
+            </div>
+            {% if parcela.perimetro_metros %}
+            <div class="col-4 col-md-3">
+                <div class="stat-box">
+                    <div class="valor">{{ parcela.perimetro_metros|floatformat:0 }}</div>
+                    <div class="label">Perímetro (m)</div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-4 col-md-3">
+                <div class="stat-box">
+                    <div class="valor">
+                        {% if parcela.eosda_sincronizada %}
+                            <i class="fas fa-satellite text-success"></i>
+                        {% else %}
+                            <i class="fas fa-clock text-warning"></i>
+                        {% endif %}
+                    </div>
+                    <div class="label">EOSDA</div>
+                </div>
+            </div>
+            <div class="col-4 col-md-3">
+                <div class="stat-box">
+                    <div class="valor">{{ parcela.fecha_inicio_monitoreo|date:"d/m/Y" }}</div>
+                    <div class="label">Monitoreo desde</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapa -->
+    <div id="mapa-parcela"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Datos de la parcela
+    const geojsonData = {{ geojson_data|safe }};
+    const centro = {{ centro_mapa|safe }};
+    
+    // Inicializar mapa
+    const defaultCenter = centro ? [centro.lat, centro.lng] : [4.57, -74.30];
+    const mapa = L.map('mapa-parcela').setView(defaultCenter, 15);
+    
+    // Capas base
+    const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri',
+        maxZoom: 19
+    });
+    
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    });
+    
+    const labels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+        attribution: '© CartoDB',
+        maxZoom: 19
+    });
+    
+    // Satelital + etiquetas por defecto
+    satelite.addTo(mapa);
+    labels.addTo(mapa);
+    
+    // Control de capas
+    L.control.layers({
+        'Satelital': satelite,
+        'Mapa': osm
+    }, {
+        'Etiquetas': labels
+    }).addTo(mapa);
+    
+    // Dibujar parcela
+    if (geojsonData) {
+        try {
+            const geojson = typeof geojsonData === 'string' ? JSON.parse(geojsonData) : geojsonData;
+            
+            const parcelaLayer = L.geoJSON(geojson, {
+                style: {
+                    color: '#2d5a27',
+                    weight: 3,
+                    opacity: 0.9,
+                    fillColor: '#4caf50',
+                    fillOpacity: 0.2,
+                    dashArray: '5, 5'
+                }
+            }).addTo(mapa);
+            
+            // Ajustar vista al polígono
+            mapa.fitBounds(parcelaLayer.getBounds(), { padding: [50, 50] });
+            
+            // Popup con info
+            parcelaLayer.bindPopup(`
+                <strong>{{ parcela.nombre }}</strong><br>
+                {{ parcela.propietario }}<br>
+                {% if parcela.area_hectareas %}{{ parcela.area_hectareas|floatformat:1 }} ha{% endif %}
+                {% if parcela.tipo_cultivo %}<br>🌱 {{ parcela.tipo_cultivo }}{% endif %}
+            `);
+            
+        } catch (e) {
+            console.error('Error cargando geometría:', e);
+        }
+    } else {
+        // Sin geometría — centrar en Colombia
+        mapa.setView([4.57, -74.30], 6);
+    }
+});
+</script>
+{% endblock %}

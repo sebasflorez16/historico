@@ -202,13 +202,19 @@ class Parcela(gis_models.Model):
         Override save para calcular automáticamente área, perímetro y centroide
         """
         if self.geometria:
-            # Calcular área en hectáreas (PostGIS en metros cuadrados)
-            # Usar proyección apropiada para cálculos precisos
-            geom_utm = self.geometria.transform(3857, clone=True)  # Web Mercator para cálculos
-            self.area_hectareas = geom_utm.area / 10000  # m² a hectáreas
-            
-            # Calcular perímetro en metros
-            self.perimetro_metros = geom_utm.length
+            # Calcular área y perímetro con UTM zona 18N (Colombia)
+            # EPSG:32618 es métrica real, a diferencia de Web Mercator (3857) que distorsiona áreas
+            try:
+                geom_utm = self.geometria.transform(32618, clone=True)
+                self.area_hectareas = geom_utm.area / 10000  # m² a hectáreas
+                self.perimetro_metros = geom_utm.length
+            except Exception:
+                # Fallback: aproximación para latitudes tropicales
+                import math
+                lat_center = self.geometria.centroid.y
+                m_per_deg = 111320 * math.cos(math.radians(lat_center))
+                self.area_hectareas = self.geometria.area * (m_per_deg ** 2) / 10000
+                self.perimetro_metros = None
             
             # Calcular centroide
             self.centroide = self.geometria.centroid
