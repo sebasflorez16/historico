@@ -263,7 +263,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // ===== CONFIGURACIÓN DE LÍMITE DE ÁREA =====
     // Se inyecta desde el backend; 0 = sin límite
-    const AREA_MAX_HA = {{ invitacion.area_max_hectareas|default:"0" }};
+    const AREA_MAX_HA = parseFloat("{{ invitacion.area_max_hectareas|default:'0' }}") || 0;
     const tieneLimit = AREA_MAX_HA > 0;
     const AREA_MAX_M2 = AREA_MAX_HA * 10000;  // Convertir a m² para comparar
     
