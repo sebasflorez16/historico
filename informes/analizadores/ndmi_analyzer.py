@@ -10,19 +10,20 @@ class AnalizadorNDMI:
     """
     Analiza datos de NDMI para evaluar estado hídrico de la vegetación
     
-    Umbrales NDMI:
-    - < -0.4: Estrés hídrico severo
-    - -0.4 a -0.1: Estrés hídrico moderado
-    - -0.1 a 0.2: Humedad normal-baja
-    - 0.2 a 0.4: Humedad óptima
-    - > 0.4: Humedad muy alta / saturación
+    Umbrales NDMI (alineados con la infografía de interpretación):
+    - < -0.2: Estrés hídrico fuerte (ROJO)
+    - -0.2 a 0.0: Baja humedad (NARANJA)
+    - 0.0 a 0.2: Estrés leve / humedad limitada (AMARILLO)
+    - 0.2 a 0.4: Humedad adecuada (VERDE CLARO)
+    - 0.4 a 0.8: Buena humedad (VERDE)
     """
     
-    UMBRAL_ESTRES_SEVERO = -0.2
-    UMBRAL_ESTRES_MODERADO = 0.1
-    UMBRAL_NORMAL = 0.2
-    UMBRAL_OPTIMO = 0.35
-    UMBRAL_SATURACION = 0.5
+    # Umbrales alineados con la infografía que ve el agricultor
+    UMBRAL_ESTRES_SEVERO = -0.2    # < -0.2 = Estrés hídrico fuerte
+    UMBRAL_BAJA_HUMEDAD = 0.0      # -0.2 a 0.0 = Baja humedad
+    UMBRAL_ESTRES_LEVE = 0.2       # 0.0 a 0.2 = Estrés leve
+    UMBRAL_HUMEDAD_ADECUADA = 0.4  # 0.2 a 0.4 = Humedad adecuada
+    UMBRAL_BUENA_HUMEDAD = 0.8     # 0.4 a 0.8 = Buena humedad
     
     def __init__(self, tipo_cultivo: str = "General"):
         self.tipo_cultivo = tipo_cultivo
@@ -110,67 +111,86 @@ class AnalizadorNDMI:
         }
     
     def _clasificar_estado(self, promedio: float) -> Dict[str, str]:
-        """Clasifica estado hídrico"""
+        """Clasifica estado hídrico - alineado con la infografía de índices"""
         if promedio < self.UMBRAL_ESTRES_SEVERO:
             return {
                 'nivel': 'critico',
-                'etiqueta': 'Estrés Hídrico Severo',
+                'etiqueta': 'Estrés Hídrico Fuerte',
                 'color': '#dc3545',
-                'icono': '🚨'
+                'icono': ''
             }
-        elif promedio < self.UMBRAL_ESTRES_MODERADO:
+        elif promedio < self.UMBRAL_BAJA_HUMEDAD:
             return {
                 'nivel': 'bajo',
-                'etiqueta': 'Estrés Hídrico',
+                'etiqueta': 'Baja Humedad',
                 'color': '#fd7e14',
-                'icono': '⚠️'
+                'icono': ''
             }
-        elif promedio < self.UMBRAL_NORMAL:
+        elif promedio < self.UMBRAL_ESTRES_LEVE:
             return {
                 'nivel': 'moderado',
-                'etiqueta': 'Humedad Normal-Baja',
+                'etiqueta': 'Estrés Leve (Humedad Limitada)',
                 'color': '#ffc107',
-                'icono': '💧'
+                'icono': ''
             }
-        elif promedio < self.UMBRAL_OPTIMO:
+        elif promedio < self.UMBRAL_HUMEDAD_ADECUADA:
             return {
                 'nivel': 'bueno',
-                'etiqueta': 'Humedad Óptima',
+                'etiqueta': 'Humedad Adecuada',
                 'color': '#28a745',
-                'icono': '✅'
+                'icono': ''
             }
-        elif promedio < self.UMBRAL_SATURACION:
+        elif promedio < self.UMBRAL_BUENA_HUMEDAD:
             return {
                 'nivel': 'muy_bueno',
-                'etiqueta': 'Humedad Alta',
+                'etiqueta': 'Buena Humedad',
                 'color': '#17a2b8',
-                'icono': '💦'
+                'icono': ''
             }
         else:
             return {
                 'nivel': 'saturacion',
-                'etiqueta': 'Saturación',
+                'etiqueta': 'Humedad Muy Alta',
                 'color': '#6c757d',
-                'icono': '🌊'
+                'icono': ''
             }
     
     def _generar_interpretacion_tecnica(self, promedio: float, desv_std: float,
                                        tendencia: Dict, estado: Dict,
                                        minimo: float, maximo: float) -> str:
         """Interpretación técnica"""
+        # Describir variabilidad en lenguaje claro
+        if desv_std < 0.05:
+            variabilidad_desc = "La humedad es muy pareja en toda la parcela."
+        elif desv_std < 0.10:
+            variabilidad_desc = "La humedad es bastante uniforme, con diferencias menores entre zonas."
+        elif desv_std < 0.15:
+            variabilidad_desc = "Hay algunas zonas con más humedad que otras dentro de la parcela."
+        else:
+            variabilidad_desc = "La humedad varía bastante entre diferentes zonas de la parcela."
+        
+        # Describir rango en lenguaje claro
+        rango = maximo - minimo
+        if rango < 0.1:
+            rango_desc = "Los niveles de humedad fueron muy estables durante todo el período."
+        elif rango < 0.25:
+            rango_desc = "Hubo variaciones moderadas de humedad entre los meses analizados."
+        else:
+            rango_desc = "Hubo cambios importantes en la humedad entre los mejores y peores meses."
+        
         interpretacion = f"""
 <strong>Análisis NDMI - Contenido de Humedad</strong><br><br>
 
 El NDMI promedio de <strong>{promedio:.3f}</strong> indica un estado <strong>{estado['etiqueta'].lower()}</strong> 
-del contenido de agua en la vegetación.<br><br>
+del contenido de agua en la vegetación. Este valor es el promedio de todo el período analizado.<br><br>
 
-<strong>Parámetros Hídricos:</strong><br>
-• Estado hídrico: <strong>{self._interpretar_estado_hidrico(promedio)}</strong><br>
-• Rango observado: {minimo:.3f} - {maximo:.3f}<br>
-• Variabilidad: σ={desv_std:.3f}<br><br>
+<strong>Estado del Agua:</strong><br>
+• <strong>Estado hídrico: {self._interpretar_estado_hidrico(promedio)}</strong> - Nivel general de agua disponible para las plantas.<br>
+• <strong>Rango en el período: {minimo:.3f} a {maximo:.3f}</strong> - {rango_desc}<br>
+• <strong>Uniformidad:</strong> {variabilidad_desc}<br><br>
 
 <strong>Tendencia Temporal:</strong><br>
-{tendencia['descripcion']} ({tendencia['cambio_porcentual']:+.1f}%). 
+{tendencia['descripcion']}. 
 {self._interpretar_tendencia_tecnica(tendencia, promedio)}<br><br>
 
 <strong>Recomendación Hídrica:</strong><br>
@@ -179,11 +199,14 @@ del contenido de agua en la vegetación.<br><br>
         return interpretacion.strip()
     
     def _generar_interpretacion_simple(self, promedio: float, tendencia: Dict, estado: Dict) -> str:
-        """Interpretación simple"""
+        """Interpretación simple - coherente con el estado real"""
+        # CLAVE: La explicación simple debe ser COHERENTE con el estado hídrico real
+        nivel = estado.get('nivel', '')
+        
         interpretacion = f"""
 <strong>¿Tienen agua suficiente mis plantas?</strong><br><br>
 
-{estado['icono']} El contenido de agua en sus plantas es <strong>{estado['etiqueta'].lower()}</strong>. 
+El contenido de agua en sus plantas es <strong>{estado['etiqueta'].lower()}</strong>. 
 {self._explicar_simple(promedio)}<br><br>
 
 <strong>Tendencia:</strong><br>
@@ -196,14 +219,14 @@ del contenido de agua en la vegetación.<br><br>
         """Genera alertas hídricas"""
         alertas = []
         
-        # Estrés hídrico
-        if promedio < self.UMBRAL_ESTRES_MODERADO:
+        # Alerta solo si hay estrés real (baja humedad o peor, según infografía)
+        if promedio < self.UMBRAL_BAJA_HUMEDAD:
             alertas.append({
                 'tipo': 'critico' if promedio < self.UMBRAL_ESTRES_SEVERO else 'advertencia',
                 'prioridad': 'alta',
-                'icono': '💧',
-                'titulo': 'Estrés Hídrico Detectado',
-                'mensaje': f'NDMI promedio ({promedio:.2f}) indica déficit hídrico.',
+                'icono': '',
+                'titulo': 'Baja Humedad Detectada',
+                'mensaje': f'NDMI promedio ({promedio:.3f}) indica humedad insuficiente para las plantas.',
                 'accion': 'Aumentar frecuencia/volumen de riego'
             })
         
@@ -212,20 +235,20 @@ del contenido de agua en la vegetación.<br><br>
             alertas.append({
                 'tipo': 'advertencia',
                 'prioridad': 'alta',
-                'icono': '📉',
+                'icono': '',
                 'titulo': 'Pérdida de Humedad',
                 'mensaje': f"El contenido de humedad ha bajado {abs(tendencia['cambio_porcentual']):.1f}%.",
                 'accion': 'Monitorear y ajustar plan de riego'
             })
         
         # Saturación
-        if promedio > self.UMBRAL_SATURACION:
+        if promedio > self.UMBRAL_BUENA_HUMEDAD:
             alertas.append({
                 'tipo': 'info',
                 'prioridad': 'media',
-                'icono': '🌊',
-                'titulo': 'Alta Humedad / Saturación',
-                'mensaje': f'NDMI muy alto ({promedio:.2f}). Posible exceso hídrico o período lluvioso.',
+                'icono': '',
+                'titulo': 'Humedad Muy Alta',
+                'mensaje': f'NDMI muy alto ({promedio:.3f}). Posible exceso hídrico o período lluvioso.',
                 'accion': 'Verificar drenaje, evitar riego excesivo'
             })
         
@@ -240,24 +263,24 @@ del contenido de agua en la vegetación.<br><br>
             'nombre': 'Índice de Humedad Normalizado',
             'error': 'No hay datos disponibles',
             'estadisticas': {},
-            'estado': {'nivel': 'sin_datos', 'etiqueta': 'Sin Datos', 'icono': '❓'},
+            'estado': {'nivel': 'sin_datos', 'etiqueta': 'Sin Datos', 'icono': ''},
             'interpretacion_tecnica': 'No hay datos NDMI disponibles.',
             'interpretacion_simple': 'Aún no tenemos información sobre humedad.',
             'alertas': []
         }
     
     def _interpretar_estado_hidrico(self, ndmi: float) -> str:
-        """Interpretación del estado hídrico"""
+        """Interpretación del estado hídrico - alineada con infografía"""
         if ndmi < self.UMBRAL_ESTRES_SEVERO:
-            return "Déficit hídrico severo"
-        elif ndmi < self.UMBRAL_ESTRES_MODERADO:
-            return "Estrés hídrico moderado"
-        elif ndmi < self.UMBRAL_NORMAL:
-            return "Contenido hídrico normal-bajo"
-        elif ndmi < self.UMBRAL_OPTIMO:
-            return "Contenido hídrico óptimo"
+            return "Estrés hídrico fuerte"
+        elif ndmi < self.UMBRAL_BAJA_HUMEDAD:
+            return "Baja humedad"
+        elif ndmi < self.UMBRAL_ESTRES_LEVE:
+            return "Estrés leve (humedad limitada)"
+        elif ndmi < self.UMBRAL_HUMEDAD_ADECUADA:
+            return "Humedad adecuada"
         else:
-            return "Contenido hídrico alto/saturación"
+            return "Buena humedad"
     
     def _interpretar_tendencia_tecnica(self, tendencia: Dict, promedio: float) -> str:
         """Interpretación técnica de tendencia"""
@@ -269,46 +292,61 @@ del contenido de agua en la vegetación.<br><br>
             return "Estabilidad en contenido hídrico, acorde con manejo actual."
     
     def _generar_recomendacion_tecnica(self, promedio: float, tendencia: Dict) -> str:
-        """Recomendación técnica de manejo"""
-        if promedio < self.UMBRAL_ESTRES_MODERADO:
-            return "Aumentar lámina de riego en 20-30%. Considerar riego más frecuente o sistema tecnificado."
-        elif promedio < self.UMBRAL_NORMAL and 'descendente' in tendencia['direccion']:
-            return "Monitorear evolución. Preparar plan de contingencia para temporada seca."
-        elif promedio > self.UMBRAL_SATURACION:
-            return "Reducir frecuencia de riego. Verificar sistema de drenaje para evitar anegamiento."
+        """Recomendación técnica de manejo - alineada con infografía"""
+        if promedio < self.UMBRAL_ESTRES_SEVERO:
+            return "Estrés hídrico fuerte detectado. Aumentar riego de forma urgente y verificar el sistema de suministro de agua."
+        elif promedio < self.UMBRAL_BAJA_HUMEDAD:
+            return "Humedad baja. Aumentar lámina de riego en 20-30%. Considerar riego más frecuente."
+        elif promedio < self.UMBRAL_ESTRES_LEVE:
+            if 'descendente' in tendencia['direccion']:
+                return "Humedad limitada con tendencia a la baja. Monitorear de cerca y preparar plan de riego adicional."
+            else:
+                return "Humedad limitada pero estable. Monitorear evolución y considerar incrementar riego si el cultivo lo requiere."
+        elif promedio < self.UMBRAL_HUMEDAD_ADECUADA:
+            return "Humedad adecuada. Mantener régimen hídrico actual."
         else:
-            return "Mantener régimen hídrico actual. Estado óptimo para el cultivo."
+            return "Buena humedad. Si es muy alta, verificar drenaje para evitar exceso."
     
     def _explicar_simple(self, promedio: float) -> str:
-        """Explicación simple"""
-        if promedio < self.UMBRAL_ESTRES_MODERADO:
-            return "Sus plantas tienen poca agua, como si usted tuviera mucha sed. Necesitan más riego pronto."
-        elif promedio < self.UMBRAL_NORMAL:
-            return "El agua es suficiente pero podría ser mejor. Como cuando toma agua pero podría tomar más."
-        elif promedio < self.UMBRAL_OPTIMO:
-            return "¡Perfecto! Sus plantas tienen el agua que necesitan, están bien hidratadas."
+        """Explicación simple - alineada con infografía"""
+        if promedio < self.UMBRAL_ESTRES_SEVERO:
+            return "Sus plantas están sufriendo por falta de agua. Necesitan riego urgente."
+        elif promedio < self.UMBRAL_BAJA_HUMEDAD:
+            return "La humedad está baja. Sus plantas necesitan más agua de la que están recibiendo."
+        elif promedio < self.UMBRAL_ESTRES_LEVE:
+            return "La humedad es limitada pero no crítica. Las plantas tienen algo de agua, aunque podrían necesitar más. Mantenga vigilancia."
+        elif promedio < self.UMBRAL_HUMEDAD_ADECUADA:
+            return "La humedad es adecuada. Sus plantas tienen el agua que necesitan para desarrollarse bien."
         else:
-            return "Hay mucha agua, tal vez demasiada. Como tomar mucho líquido, no siempre es necesario."
+            return "Hay buena humedad disponible. Las condiciones de agua son muy favorables para sus plantas."
     
     def _explicar_tendencia_simple(self, tendencia: Dict, promedio: float) -> str:
-        """Explicación simple de tendencia"""
+        """Explicación simple de tendencia - coherente con el estado hídrico real"""
         if 'descendente' in tendencia['direccion']:
-            return f"📉 El agua está bajando ({abs(tendencia['cambio_porcentual']):.0f}% menos). Sus plantas están usando el agua o no están recibiendo suficiente. Momento de regar más."
+            return f"El agua está bajando ({abs(tendencia['cambio_porcentual']):.0f}% menos). Sus plantas están usando el agua o no están recibiendo suficiente. Momento de regar más."
         elif 'ascendente' in tendencia['direccion']:
-            return f"📈 El agua está subiendo ({tendencia['cambio_porcentual']:.0f}% más). Buena señal, las plantas están recibiendo agua de lluvia o riego."
+            return f"El agua está subiendo ({tendencia['cambio_porcentual']:.0f}% más). Buena señal, las plantas están recibiendo agua de lluvia o riego."
         else:
-            return "➡️ El nivel de agua se mantiene estable. Todo normal."
+            # Coherente con el estado real
+            if promedio < self.UMBRAL_BAJA_HUMEDAD:
+                return "El nivel de agua se ha mantenido bajo de forma constante durante el período. Es necesario revisar el riego."
+            elif promedio < self.UMBRAL_ESTRES_LEVE:
+                return "El nivel de agua se mantiene estable pero limitado. Monitoree el riego para evitar que baje más."
+            else:
+                return "El nivel de agua se mantiene estable durante el período analizado. Las condiciones son adecuadas."
     
     def _evaluar_riesgo_hidrico(self, promedio: float, minimo: float) -> str:
-        """Evalúa riesgo hídrico"""
+        """Evalúa riesgo hídrico - alineado con infografía"""
         if minimo < self.UMBRAL_ESTRES_SEVERO:
             return "Alto"
-        elif promedio < self.UMBRAL_ESTRES_MODERADO:
+        elif promedio < self.UMBRAL_BAJA_HUMEDAD:
             return "Medio-Alto"
-        elif promedio < self.UMBRAL_NORMAL:
+        elif promedio < self.UMBRAL_ESTRES_LEVE:
             return "Medio"
-        else:
+        elif promedio < self.UMBRAL_HUMEDAD_ADECUADA:
             return "Bajo"
+        else:
+            return "Muy Bajo"
     
     def _calcular_puntuacion(self, promedio: float, tendencia: Dict) -> float:
         """Calcula puntuación 0-10"""

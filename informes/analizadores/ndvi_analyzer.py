@@ -184,42 +184,42 @@ class AnalizadorNDVI:
                 'nivel': 'critico',
                 'etiqueta': 'Crítico',
                 'color': '#dc3545',
-                'icono': '🚨'
+                'icono': ''
             }
         elif promedio < self.UMBRAL_BAJO:
             return {
                 'nivel': 'bajo',
                 'etiqueta': 'Bajo',
                 'color': '#fd7e14',
-                'icono': '⚠️'
+                'icono': ''
             }
         elif promedio < self.UMBRAL_MODERADO:
             return {
                 'nivel': 'moderado',
                 'etiqueta': 'Moderado',
                 'color': '#ffc107',
-                'icono': '📊'
+                'icono': ''
             }
         elif promedio < self.UMBRAL_BUENO:
             return {
                 'nivel': 'bueno',
                 'etiqueta': 'Bueno',
                 'color': '#28a745',
-                'icono': '✅'
+                'icono': ''
             }
         elif promedio < self.UMBRAL_EXCELENTE:
             return {
                 'nivel': 'muy_bueno',
                 'etiqueta': 'Muy Bueno',
                 'color': '#20c997',
-                'icono': '🌟'
+                'icono': ''
             }
         else:
             return {
                 'nivel': 'excelente',
                 'etiqueta': 'Excelente',
                 'color': '#17a2b8',
-                'icono': '💚'
+                'icono': ''
             }
     
     def _generar_interpretacion_tecnica(self, promedio: float, desv_std: float, 
@@ -230,18 +230,37 @@ class AnalizadorNDVI:
         # Estimar LAI y cobertura
         lai_estimado = self._estimar_lai(promedio)
         cobertura = self._estimar_cobertura(promedio)
+        variabilidad_texto = self._clasificar_variabilidad(desv_std)
+        
+        # Describir la variabilidad en lenguaje claro
+        if desv_std < 0.05:
+            variabilidad_desc = "El cultivo se ve muy parejo en toda la parcela."
+        elif desv_std < 0.10:
+            variabilidad_desc = "El cultivo se ve bastante parejo, con diferencias menores entre zonas."
+        elif desv_std < 0.15:
+            variabilidad_desc = "Hay algunas zonas con mejor salud que otras dentro de la parcela."
+        else:
+            variabilidad_desc = "Hay diferencias notables entre zonas de la parcela. Algunas áreas están mejor que otras."
+        
+        # Describir el rango en lenguaje claro
+        rango = maximo - minimo
+        if rango < 0.1:
+            rango_desc = "Los valores fueron muy estables durante todo el período."
+        elif rango < 0.25:
+            rango_desc = "Hubo variaciones moderadas entre los meses analizados."
+        else:
+            rango_desc = "Hubo cambios importantes entre los mejores y peores meses."
         
         interpretacion = f"""
 <strong>Análisis NDVI - {self.tipo_cultivo}</strong><br><br>
 
 El índice NDVI promedio de <strong>{promedio:.3f}</strong> indica un estado <strong>{estado['etiqueta'].lower()}</strong> 
-de la vegetación, clasificado como <em>"{self._obtener_clasificacion_tecnica(promedio)}"</em>.<br><br>
+de la vegetación, clasificado como <em>"{self._obtener_clasificacion_tecnica(promedio)}"</em>. 
+Este valor es el promedio de todo el período analizado.<br><br>
 
-<strong>Parámetros Biofísicos:</strong><br>
-• Cobertura vegetal estimada: <strong>{cobertura}%</strong><br>
-• LAI (Leaf Area Index) aproximado: <strong>{lai_estimado:.1f} m²/m²</strong><br>
-• Variabilidad espacial: <strong>{self._clasificar_variabilidad(desv_std)}</strong> (σ={desv_std:.3f})<br>
-• Rango observado: {minimo:.3f} - {maximo:.3f}<br><br>
+<strong>Salud del Cultivo:</strong><br>
+• <strong>Uniformidad:</strong> {variabilidad_desc}<br>
+• <strong>Rango en el período: {minimo:.3f} a {maximo:.3f}</strong> - {rango_desc}<br><br>
 
 <strong>Tendencia Temporal:</strong><br>
 {tendencia['descripcion']} con cambio de <strong>{tendencia['cambio_porcentual']:+.1f}%</strong> 
@@ -262,7 +281,7 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
         interpretacion = f"""
 <strong>¿Cómo está mi cultivo?</strong><br><br>
 
-{estado['icono']} Su cultivo está en estado <strong>{estado['etiqueta'].lower()}</strong>. {analogia}<br><br>
+Su cultivo está en estado <strong>{estado['etiqueta'].lower()}</strong>. {analogia}<br><br>
 
 <strong>En palabras sencillas:</strong><br>
 {self._explicar_simple(promedio, tendencia)}<br><br>
@@ -283,7 +302,7 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
             alertas.append({
                 'tipo': 'critico',
                 'prioridad': 'alta',
-                'icono': '🚨',
+                'icono': '',
                 'titulo': 'Salud Vegetal Crítica',
                 'mensaje': f'El NDVI promedio ({promedio:.2f}) está por debajo del umbral saludable.',
                 'accion': 'Requiere intervención inmediata'
@@ -294,7 +313,7 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
             alertas.append({
                 'tipo': 'advertencia',
                 'prioridad': 'alta',
-                'icono': '⚠️',
+                'icono': '',
                 'titulo': 'Tendencia Negativa Detectada',
                 'mensaje': f"El NDVI ha disminuido {abs(tendencia['cambio_porcentual']):.1f}% en el período analizado.",
                 'accion': 'Analizar causas: sequía, plagas, nutrientes'
@@ -305,7 +324,7 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
             alertas.append({
                 'tipo': 'advertencia',
                 'prioridad': 'media',
-                'icono': '📉',
+                'icono': '',
                 'titulo': 'Valor Mínimo Bajo Detectado',
                 'mensaje': f'Se registró un valor mínimo de {minimo:.2f}, indicando posible estrés temporal.',
                 'accion': 'Revisar condiciones en ese período'
@@ -316,7 +335,7 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
             alertas.append({
                 'tipo': 'info',
                 'prioridad': 'media',
-                'icono': '📊',
+                'icono': '',
                 'titulo': f'{len(anomalias)} Anomalía(s) Detectada(s)',
                 'mensaje': 'Se detectaron valores fuera del patrón normal.',
                 'accion': 'Revisar períodos anómalos en el informe'
@@ -333,7 +352,7 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
             'nombre': 'Índice de Vegetación Normalizado',
             'error': 'No hay datos disponibles para analizar',
             'estadisticas': {},
-            'estado': {'nivel': 'sin_datos', 'etiqueta': 'Sin Datos', 'icono': '❓'},
+            'estado': {'nivel': 'sin_datos', 'etiqueta': 'Sin Datos', 'icono': ''},
             'interpretacion_tecnica': 'No hay datos NDVI disponibles para el período seleccionado.',
             'interpretacion_simple': 'Aún no tenemos información sobre tu cultivo.',
             'alertas': []
@@ -438,11 +457,11 @@ en el período analizado. {self._interpretar_tendencia_tecnica(tendencia)}<br><b
         cambio = abs(tendencia['cambio_porcentual'])
         
         if 'ascendente' in direccion:
-            return f"📈 ¡Buenas noticias! Su cultivo está mejorando ({cambio:.0f}% mejor). Las plantas están creciendo más fuertes y saludables con el tiempo."
+            return f"Buenas noticias: Su cultivo está mejorando ({cambio:.0f}% mejor). Las plantas están creciendo más fuertes y saludables con el tiempo."
         elif 'descendente' in direccion:
-            return f"📉 Cuidado: Su cultivo está empeorando ({cambio:.0f}% peor). Las plantas están perdiendo fuerza. Es momento de revisar qué está pasando."
+            return f"Cuidado: Su cultivo está empeorando ({cambio:.0f}% peor). Las plantas están perdiendo fuerza. Es momento de revisar qué está pasando."
         else:
-            return f"➡️ Su cultivo se mantiene estable. No hay grandes cambios, las plantas siguen igual que antes."
+            return f"Su cultivo se mantiene estable. No hay grandes cambios, las plantas siguen igual que antes."
     
     def _evaluar_salud(self, promedio: float) -> str:
         """Evaluación textual de salud"""

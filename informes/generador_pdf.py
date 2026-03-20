@@ -105,6 +105,20 @@ def limpiar_html_completo(texto: str) -> str:
     texto = texto.replace('**ITALIC_END**', '</i>')
     texto = texto.replace('**LINEBREAK**', '<br/>')
     
+    # PASO 3.5: Eliminar TODOS los emojis — ReportLab no soporta Unicode emoji
+    # y los renderiza como cuadrados negros ■ que confunden al lector
+    texto = re.sub(
+        r'[\U0001F300-\U0001F9FF'   # Emoticons, símbolos, banderas
+        r'\U00002702-\U000027B0'     # Dingbats
+        r'\U0000FE00-\U0000FE0F'     # Variation selectors (invisible)
+        r'\U0000200D'                # Zero width joiner
+        r'\U000025A0-\U000025FF'     # Geometric shapes (■ ▪ etc)
+        r'\U00002600-\U000026FF'     # Misc symbols (⚠ etc)
+        r'\U00002B05-\U00002B55'     # Arrows (➡ etc)
+        r'\U0000203C-\U00003299'     # CJK symbols, enclosed chars
+        r']+', '', texto
+    )
+    
     # PASO 4: Limpiar saltos de línea
     texto = texto.replace('\n\n', '<br/><br/>')
     texto = texto.replace('\n', ' ')
@@ -409,16 +423,17 @@ class GeneradorPDFProfesional:
         # ========================================
         
         # Anexo A: Información de la parcela + Metodología (compactar en una página si es posible)
-        story.append(Paragraph(
+        banner_anexos = Paragraph(
             '<para alignment="center" backColor="#34495E" '
             'leftIndent="10" rightIndent="10" spaceBefore="10" spaceAfter="10">'
             '<font size="14" color="white"><b>📎 ANEXOS TÉCNICOS</b></font>'
             '</para>',
             self.estilos['TituloSeccion']
-        ))
-        story.append(Spacer(1, 0.5*cm))
+        )
         
-        story.extend(self._crear_info_parcela(parcela))
+        # Obtener los elementos de info parcela para agrupar con el banner
+        info_parcela_elements = self._crear_info_parcela(parcela)
+        story.append(KeepTogether([banner_anexos, Spacer(1, 0.5*cm)] + info_parcela_elements))
         story.append(Spacer(1, 0.8*cm))  # Usar Spacer en vez de PageBreak
         
         # Anexo B: Metodología de Análisis
@@ -440,20 +455,29 @@ class GeneradorPDFProfesional:
         story.extend(self._crear_seccion_tendencias(analisis_completo['tendencias'], graficos))
         story.append(PageBreak())
         
-        # Anexo E: Tabla de datos (compacta)
-        story.extend(self._crear_tabla_datos(datos_analisis))
-        story.append(Spacer(1, 1*cm))  # Spacer en vez de PageBreak
+        # NOTA: La tabla de datos mensuales se omite porque no aporta valor 
+        # interpretativo al agricultor y puede generar confusión.
         
-        # Anexo F: Galería de imágenes satelitales
+        # Anexo E: Galería de imágenes satelitales
         story.extend(self._crear_galeria_imagenes_satelitales(parcela, indices))
         story.append(PageBreak())
         
         # ========================================
         # SECCIÓN FINAL: DIAGNÓSTICO DETALLADO Y PLAN DE ACCIÓN
+        # Solo incluir si hay zonas afectadas reales que mostrar
         # ========================================
         if diagnostico_unificado:
-            story.extend(self._crear_seccion_guia_intervencion(diagnostico_unificado, parcela))
-            # NO PageBreak al final - es la última sección
+            # Verificar si hay zonas afectadas reales
+            kpis = diagnostico_unificado.get('kpis')
+            area_afectada = 0
+            if kpis:
+                area_afectada = kpis.area_afectada_ha
+            else:
+                area_afectada = diagnostico_unificado.get('area_afectada_total', 0)
+            
+            # Solo mostrar esta sección si hay zonas reales que requieren intervención
+            if area_afectada > 0:
+                story.extend(self._crear_seccion_guia_intervencion(diagnostico_unificado, parcela))
         
         # Página de créditos (opcional - solo si hay espacio)
         story.append(Spacer(1, 2*cm))
@@ -709,12 +733,9 @@ class GeneradorPDFProfesional:
         # Decoración superior
         elements.extend(self._decorar_seccion('5.png', height=1*cm))
         
-        # Título de la sección
+        # Título + intro siempre juntos (evitar título huérfano)
         titulo = Paragraph("Metodología de Análisis", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
         
-        # Introducción
         intro = Paragraph(
             """
             <strong>El presente informe se basa en el Motor de Análisis Automatizado AgroTech, un sistema 
@@ -724,13 +745,11 @@ class GeneradorPDFProfesional:
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(intro)
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), intro]))
         elements.append(Spacer(1, 0.4*cm))
         
-        # 1. Fuentes de Datos
+        # 1. Fuentes de Datos (subtítulo + contenido juntos)
         subtitulo1 = Paragraph("<strong>1. Fuentes de Datos Satelitales</strong>", self.estilos['SubtituloSeccion'])
-        elements.append(subtitulo1)
-        elements.append(Spacer(1, 0.2*cm))
         
         texto_fuentes = Paragraph(
             """
@@ -742,13 +761,13 @@ class GeneradorPDFProfesional:
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(texto_fuentes)
+        elements.append(KeepTogether([subtitulo1, Spacer(1, 0.2*cm), texto_fuentes]))
         elements.append(Spacer(1, 0.4*cm))
         
-        # 2. Índices Espectrales Calculados
+        # 2. Índices Espectrales Calculados (subtítulo + tabla juntos)
         subtitulo2 = Paragraph("<strong>2. Índices Espectrales Calculados</strong>", self.estilos['SubtituloSeccion'])
-        elements.append(subtitulo2)
-        elements.append(Spacer(1, 0.2*cm))
+        # La tabla de índices es grande, usamos KeepTogether solo con subtítulo + header
+        elements.append(KeepTogether([subtitulo2, Spacer(1, 0.2*cm)]))
         
         # Tabla de índices
         datos_indices = [
@@ -800,8 +819,6 @@ class GeneradorPDFProfesional:
         
         # 3. Procesamiento y Análisis
         subtitulo3 = Paragraph("<strong>3. Procesamiento y Análisis de Datos</strong>", self.estilos['SubtituloSeccion'])
-        elements.append(subtitulo3)
-        elements.append(Spacer(1, 0.2*cm))
         
         texto_procesamiento = Paragraph(
             """
@@ -823,13 +840,11 @@ class GeneradorPDFProfesional:
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(texto_procesamiento)
+        elements.append(KeepTogether([subtitulo3, Spacer(1, 0.2*cm), texto_procesamiento]))
         elements.append(Spacer(1, 0.4*cm))
         
         # 4. Generación de Recomendaciones
         subtitulo4 = Paragraph("<strong>4. Generación de Recomendaciones Agronómicas</strong>", self.estilos['SubtituloSeccion'])
-        elements.append(subtitulo4)
-        elements.append(Spacer(1, 0.2*cm))
         
         texto_recomendaciones = Paragraph(
             """
@@ -843,13 +858,11 @@ class GeneradorPDFProfesional:
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(texto_recomendaciones)
+        elements.append(KeepTogether([subtitulo4, Spacer(1, 0.2*cm), texto_recomendaciones]))
         elements.append(Spacer(1, 0.4*cm))
         
         # 5. Resumen del Período Analizado
         subtitulo5 = Paragraph("<strong>5. Datos del Período Analizado</strong>", self.estilos['SubtituloSeccion'])
-        elements.append(subtitulo5)
-        elements.append(Spacer(1, 0.2*cm))
         
         # Calcular estadísticas del período
         total_imagenes = len(indices)
@@ -888,7 +901,8 @@ class GeneradorPDFProfesional:
             ('RIGHTPADDING', (0, 0), (0, -1), 10),
             ('LEFTPADDING', (1, 0), (1, -1), 15),
         ]))
-        elements.append(tabla_periodo)
+        # Subtítulo5 + tabla_periodo juntos para evitar huérfano
+        elements.append(KeepTogether([subtitulo5, Spacer(1, 0.2*cm), tabla_periodo]))
         elements.append(Spacer(1, 0.4*cm))
         
         # Nota sobre configuración actual de umbrales
@@ -1266,8 +1280,6 @@ class GeneradorPDFProfesional:
         """Crea sección de análisis de precipitación con aclaración explícita"""
         elements = []
         titulo = Paragraph("Análisis de Precipitación", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
 
         # Aclaración explícita sobre cómo interpretar los datos
         aclaracion = Paragraph(
@@ -1278,7 +1290,9 @@ class GeneradorPDFProfesional:
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(aclaracion)
+        
+        # Título + aclaración juntos (evitar título huérfano)
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), aclaracion]))
         elements.append(Spacer(1, 0.5*cm))
 
         # Gráfico de precipitación
@@ -1291,8 +1305,6 @@ class GeneradorPDFProfesional:
         """Crea sección de análisis LAI con interpretación ajustada"""
         elements = []
         titulo = Paragraph("Análisis LAI (Índice de Área Foliar)", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
 
         # Interpretación ajustada y suavizada
         interpretacion = Paragraph(
@@ -1304,7 +1316,9 @@ class GeneradorPDFProfesional:
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(interpretacion)
+        
+        # Título + interpretación juntos (evitar título huérfano)
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), interpretacion]))
         elements.append(Spacer(1, 0.5*cm))
 
         # Datos del análisis
@@ -1324,7 +1338,6 @@ class GeneradorPDFProfesional:
         elements = []
         
         titulo = Paragraph("Información de la Parcela", self.estilos['TituloSeccion'])
-        elements.append(titulo)
         
         # Coordenadas del centroide
         if parcela.centroide:
@@ -1344,7 +1357,9 @@ class GeneradorPDFProfesional:
 """
         
         info = Paragraph(info_texto, self.estilos['TextoNormal'])
-        elements.append(info)
+        
+        # Título + info siempre juntos (evitar título huérfano)
+        elements.append(KeepTogether([titulo, info]))
         
         return elements
     
@@ -1352,16 +1367,15 @@ class GeneradorPDFProfesional:
         """Crea tabla con datos mensuales"""
         elements = []
         titulo = Paragraph("Tabla de Datos Mensuales", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
         
         # Nota aclaratoria sobre precipitación
         nota_precip = Paragraph(
             '<strong>Nota:</strong> La precipitación corresponde al total acumulado mensual estimado para la zona de la parcela.',
             self.estilos['TextoNormal']
         )
-        elements.append(nota_precip)
-        elements.append(Spacer(1, 0.3*cm))
+        
+        # Agrupar título + nota para que no quede huérfano
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), nota_precip, Spacer(1, 0.3*cm)]))
         
         # Preparar datos para la tabla
         tabla_data = [['Período', 'NDVI', 'NDMI', 'SAVI', 'Temp (°C)', 'Precip (mm)']]
@@ -1395,8 +1409,6 @@ class GeneradorPDFProfesional:
         """Crea página de créditos"""
         elements = []
         titulo = Paragraph("Créditos", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
         
         creditos_texto = """
 <strong>Sistema AgroTech - Análisis Satelital Agrícola</strong><br/><br/>
@@ -1408,49 +1420,84 @@ class GeneradorPDFProfesional:
 y algoritmos científicamente validados para el análisis de vegetación.</i>
 """
         creditos = Paragraph(creditos_texto, self.estilos['TextoNormal'])
-        elements.append(creditos)
+        
+        # Título + créditos siempre juntos
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), creditos]))
         
         return elements
     
     def _crear_seccion_ndvi(self, analisis_ndvi: Dict, graficos: Dict) -> List:
         """Crea sección de análisis NDVI"""
         elements = []
-        # Título
+        # Título + Estado siempre juntos (evitar título huérfano)
         titulo = Paragraph("Análisis NDVI", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
 
-        # Estado
         estado = analisis_ndvi['estado']
         estado_texto = f"""
-<strong>Estado General:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
-<strong>NDVI Promedio:</strong> {analisis_ndvi['estadisticas']['promedio']:.3f}<br/>
+<strong>Estado General:</strong> {estado['etiqueta']}<br/>
+<strong>NDVI Promedio del Período:</strong> {analisis_ndvi['estadisticas']['promedio']:.3f}
+<i>(promedio de todos los meses analizados)</i><br/>
 <strong>Puntuación:</strong> {analisis_ndvi.get('puntuacion', 0)}/10 
 <i>(métrica relativa interna AgroTech basada en umbrales históricos del índice)</i><br/>
 """
-        elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
+        estado_para = Paragraph(estado_texto, self.estilos['TextoNormal'])
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), estado_para]))
         elements.append(Spacer(1, 0.5*cm))
         
-        # Interpretación técnica - LIMPIADO
-        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
+        # Interpretación técnica - LIMPIADO (título + contenido juntos)
+        tecnico_titulo = Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal'])
         interpretacion_limpia = limpiar_html_completo(analisis_ndvi['interpretacion_tecnica'])
-        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
+        tecnico_contenido = Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico'])
+        elements.append(KeepTogether([tecnico_titulo, tecnico_contenido]))
         elements.append(Spacer(1, 0.5*cm))
         
-        # Interpretación simple - LIMPIADO
-        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        # Interpretación simple - LIMPIADO (título + contenido juntos)
+        simple_titulo = Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal'])
         simple_limpia = limpiar_html_completo(analisis_ndvi['interpretacion_simple'])
-        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
+        simple_contenido = Paragraph(simple_limpia, self.estilos['AnalisisTecnico'])
+        elements.append(KeepTogether([simple_titulo, simple_contenido]))
         elements.append(Spacer(1, 0.5*cm))
         
-        # Interpretación práctica para el productor
+        # Interpretación práctica COHERENTE con el estado real del análisis
+        # Usar el estado clasificado por el analizador para evitar contradicciones
         ndvi_prom = analisis_ndvi['estadisticas']['promedio']
-        if ndvi_prom >= 0.6:
-            interpretacion_practica = "Para su campo: Esta condición sugiere buena cobertura vegetal. Considere mantener las prácticas actuales y monitorear posibles necesidades nutricionales específicas."
-        elif ndvi_prom >= 0.4:
-            interpretacion_practica = "Para su campo: Condición moderada. Evalúe si el cultivo requiere ajustes en fertilización o manejo hídrico para optimizar el desarrollo vegetal."
+        nivel_ndvi = estado.get('nivel', '')
+        
+        if nivel_ndvi in ('critico',):
+            interpretacion_practica = (
+                f"Para su campo: El análisis detectó <b>vegetación en estado crítico</b> "
+                f"(NDVI promedio: {ndvi_prom:.3f}). Se recomienda evaluar de inmediato las condiciones "
+                f"del terreno: disponibilidad de agua, estado del suelo y posibles plagas o enfermedades."
+            )
+        elif nivel_ndvi in ('bajo',):
+            interpretacion_practica = (
+                f"Para su campo: Se detectó <b>vegetación escasa o bajo estrés</b> "
+                f"(NDVI promedio: {ndvi_prom:.3f}). Esto puede indicar suelo con poca cobertura, "
+                f"cultivo en etapa temprana, o condiciones limitantes. Considere revisar nutrición y riego."
+            )
+        elif nivel_ndvi in ('moderado',):
+            interpretacion_practica = (
+                f"Para su campo: La vegetación presenta <b>condiciones moderadas</b> "
+                f"(NDVI promedio: {ndvi_prom:.3f}). Hay margen de mejora. Evalúe si el cultivo requiere "
+                f"ajustes en fertilización o manejo hídrico para optimizar el desarrollo vegetal."
+            )
+        elif nivel_ndvi in ('bueno', 'muy_bueno'):
+            interpretacion_practica = (
+                f"Para su campo: La vegetación se encuentra en <b>buen estado</b> "
+                f"(NDVI promedio: {ndvi_prom:.3f}). Las condiciones son favorables. "
+                f"Mantenga las prácticas actuales y monitoree posibles necesidades nutricionales específicas."
+            )
+        elif nivel_ndvi in ('excelente',):
+            interpretacion_practica = (
+                f"Para su campo: La vegetación presenta <b>condiciones excelentes</b> "
+                f"(NDVI promedio: {ndvi_prom:.3f}). Las plantas muestran alto vigor y buena cobertura. "
+                f"Continue con el manejo actual."
+            )
         else:
-            interpretacion_practica = "Para su campo: Esta situación puede indicar cobertura limitada. Se sugiere revisar condiciones de suelo, disponibilidad de agua y salud del cultivo para identificar acciones correctivas."
+            interpretacion_practica = (
+                f"Para su campo: El NDVI promedio registrado fue de {ndvi_prom:.3f}. "
+                f"Consulte el estado indicado arriba para evaluar las condiciones de su terreno."
+            )
         
         elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
         
@@ -1475,43 +1522,77 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         """Crea sección de análisis NDMI"""
         elements = []
 
-        # Título
+        # Título + Estado siempre juntos (evitar título huérfano)
         titulo = Paragraph("Análisis NDMI - Contenido de Humedad", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
 
-        # Estado
         estado = analisis['estado']
+        ndmi_prom = analisis['estadisticas']['promedio']
         estado_texto = f"""
 <strong>Estado Hídrico:</strong> {estado['etiqueta']}<br/>
-<strong>NDMI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
+<strong>NDMI Promedio del Período:</strong> {ndmi_prom:.3f} 
+<i>(promedio de todos los meses analizados)</i><br/>
 <strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10 
 <i>(métrica relativa interna AgroTech basada en umbrales históricos del índice)</i><br/>
 <strong>Riesgo Hídrico:</strong> {analisis.get('riesgo_hidrico', 'No determinado')}<br/>
 """
-        elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
+        estado_para = Paragraph(estado_texto, self.estilos['TextoNormal'])
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), estado_para]))
         elements.append(Spacer(1, 0.5*cm))
 
-        # Interpretación técnica - LIMPIADO
-        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
+        # Interpretación técnica - LIMPIADO (título + contenido juntos)
+        tecnico_titulo = Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal'])
         interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
-        elements.append(Paragraph(interpretacion_limpia, self.estilos['TextoNormal']))
+        tecnico_contenido = Paragraph(interpretacion_limpia, self.estilos['TextoNormal'])
+        elements.append(KeepTogether([tecnico_titulo, tecnico_contenido]))
         elements.append(Spacer(1, 0.5*cm))
 
-        # Interpretación simple - LIMPIADO
-        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        # Interpretación simple - LIMPIADO (título + contenido juntos)
+        simple_titulo = Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal'])
         simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
-        elements.append(Paragraph(simple_limpia, self.estilos['TextoNormal']))
+        simple_contenido = Paragraph(simple_limpia, self.estilos['TextoNormal'])
+        elements.append(KeepTogether([simple_titulo, simple_contenido]))
         elements.append(Spacer(1, 0.5*cm))
         
-        # Interpretación práctica para el productor
-        ndmi_prom = analisis['estadisticas']['promedio']
-        if ndmi_prom >= 0.3:
-            interpretacion_practica = "Para su campo: La humedad relativa de la vegetación parece adecuada. Mantenga el seguimiento para asegurar disponibilidad hídrica continua."
-        elif ndmi_prom >= 0.0:
-            interpretacion_practica = "Para su campo: Humedad moderada. Considere verificar el estado del riego o las condiciones de lluvia para prevenir posibles déficits hídricos."
+        # Interpretación práctica COHERENTE con el estado real del análisis
+        # Usar el estado clasificado por el analizador (alineado con infografía)
+        nivel_estado = estado.get('nivel', '')
+        etiqueta_estado = estado.get('etiqueta', '')
+        
+        if nivel_estado in ('critico',):
+            interpretacion_practica = (
+                f"Para su campo: El análisis detectó <b>estrés hídrico fuerte</b> "
+                f"(NDMI promedio: {ndmi_prom:.3f}). Sus plantas no están recibiendo suficiente agua. "
+                f"Se recomienda aumentar el riego de forma urgente."
+            )
+        elif nivel_estado in ('bajo',):
+            interpretacion_practica = (
+                f"Para su campo: Se detectó <b>baja humedad</b> "
+                f"(NDMI promedio: {ndmi_prom:.3f}). Las plantas necesitan más agua. "
+                f"Considere incrementar la frecuencia o volumen de riego."
+            )
+        elif nivel_estado in ('moderado',):
+            interpretacion_practica = (
+                f"Para su campo: La humedad es <b>limitada pero no crítica</b> "
+                f"(NDMI promedio: {ndmi_prom:.3f}). Las plantas tienen algo de agua pero podrían necesitar más. "
+                f"Monitoree la evolución y considere ajustar el riego si la tendencia es descendente."
+            )
+        elif nivel_estado in ('bueno',):
+            interpretacion_practica = (
+                f"Para su campo: La humedad es <b>adecuada</b> "
+                f"(NDMI promedio: {ndmi_prom:.3f}). Las condiciones hídricas son favorables. "
+                f"Mantenga las prácticas actuales de riego."
+            )
+        elif nivel_estado in ('muy_bueno',):
+            interpretacion_practica = (
+                f"Para su campo: Hay <b>buena humedad</b> "
+                f"(NDMI promedio: {ndmi_prom:.3f}). Las condiciones de agua son muy favorables. "
+                f"Mantenga las prácticas actuales."
+            )
         else:
-            interpretacion_practica = "Para su campo: Posible déficit hídrico indicativo. Se recomienda revisar sistemas de riego y disponibilidad de agua para ajustar el manejo."
+            interpretacion_practica = (
+                f"Para su campo: El contenido hídrico registrado fue de {ndmi_prom:.3f}. "
+                f"Consulte el estado hídrico indicado arriba para evaluar si requiere ajustes en el manejo del agua."
+            )
         
         elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
 
@@ -1535,42 +1616,70 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
     def _crear_seccion_savi(self, analisis: Dict, graficos: Dict) -> List:
         """Crea sección de análisis SAVI"""
         elements = []
-        # Título
+        # Título + Estado siempre juntos (evitar título huérfano)
         titulo = Paragraph("Análisis SAVI", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
 
-        # Estado
         estado = analisis['estado']
         estado_texto = f"""
-<strong>Estado General:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
-<strong>SAVI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
+<strong>Estado General:</strong> {estado['etiqueta']}<br/>
+<strong>SAVI Promedio del Período:</strong> {analisis['estadisticas']['promedio']:.3f}
+<i>(promedio de todos los meses analizados)</i><br/>
 <strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10 
 <i>(métrica relativa interna AgroTech basada en umbrales históricos del índice)</i><br/>
 """
-        elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
+        estado_para = Paragraph(estado_texto, self.estilos['TextoNormal'])
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), estado_para]))
         elements.append(Spacer(1, 0.5*cm))
 
-        # Interpretación técnica - LIMPIADO
-        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
+        # Interpretación técnica - LIMPIADO (título + contenido juntos)
+        tecnico_titulo = Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal'])
         interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
-        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
+        tecnico_contenido = Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico'])
+        elements.append(KeepTogether([tecnico_titulo, tecnico_contenido]))
         elements.append(Spacer(1, 0.5*cm))
 
-        # Interpretación simple - LIMPIADO
-        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        # Interpretación simple - LIMPIADO (título + contenido juntos)
+        simple_titulo = Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal'])
         simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
-        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
+        simple_contenido = Paragraph(simple_limpia, self.estilos['AnalisisTecnico'])
+        elements.append(KeepTogether([simple_titulo, simple_contenido]))
         elements.append(Spacer(1, 0.5*cm))
         
-        # Interpretación práctica para el productor
+        # Interpretación práctica COHERENTE con el estado real del análisis
+        # Usar el estado clasificado por el analizador para evitar contradicciones
         savi_prom = analisis['estadisticas']['promedio']
-        if savi_prom >= 0.4:
-            interpretacion_practica = "Para su campo: Este índice sugiere buena cobertura vegetal ajustada por suelo. Útil para evaluar áreas con exposición variable del terreno."
-        elif savi_prom >= 0.2:
-            interpretacion_practica = "Para su campo: Cobertura moderada. Observe si hay zonas con suelo expuesto que puedan requerir acciones específicas de manejo o siembra."
+        nivel_savi = estado.get('nivel', '')
+        
+        if nivel_savi in ('bajo',):
+            interpretacion_practica = (
+                f"Para su campo: Se detectó <b>cobertura vegetal baja</b> "
+                f"(SAVI promedio: {savi_prom:.3f}). El suelo está bastante expuesto. "
+                f"Esto puede ser normal en terrenos sin cultivo o en etapas tempranas de siembra; "
+                f"de lo contrario, considere evaluar la densidad de siembra o el desarrollo del cultivo."
+            )
+        elif nivel_savi in ('moderado',):
+            interpretacion_practica = (
+                f"Para su campo: La cobertura vegetal es <b>moderada</b> "
+                f"(SAVI promedio: {savi_prom:.3f}). Hay un balance entre vegetación y suelo visible. "
+                f"Observe si hay zonas con suelo expuesto que puedan requerir acciones de manejo."
+            )
+        elif nivel_savi in ('bueno',):
+            interpretacion_practica = (
+                f"Para su campo: La cobertura vegetal es <b>buena</b> "
+                f"(SAVI promedio: {savi_prom:.3f}). Las plantas cubren adecuadamente el terreno. "
+                f"Mantenga las prácticas actuales."
+            )
+        elif nivel_savi in ('excelente',):
+            interpretacion_practica = (
+                f"Para su campo: La cobertura vegetal es <b>excelente</b> "
+                f"(SAVI promedio: {savi_prom:.3f}). Las plantas cubren casi todo el suelo, "
+                f"con muy poco espacio expuesto. Condiciones ideales."
+            )
         else:
-            interpretacion_practica = "Para su campo: Cobertura limitada detectada. Esto puede ser normal en terrenos sin cultivo establecido o puede indicar necesidad de intervención en áreas cultivadas."
+            interpretacion_practica = (
+                f"Para su campo: El SAVI promedio registrado fue de {savi_prom:.3f}. "
+                f"Consulte el estado indicado arriba para evaluar la cobertura de su terreno."
+            )
         
         elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
 
@@ -1585,54 +1694,36 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         return elements
     
     def _crear_seccion_tendencias(self, tendencias: Dict, graficos: Dict) -> List:
-        """Crea sección de análisis de tendencias"""
+        """Crea sección de análisis de tendencias - Solo el gráfico y resumen narrativo"""
         elements = []
         
         titulo = Paragraph("Análisis de Tendencias Temporales", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
+        
+        # Agrupar título con el gráfico o primer contenido para evitar huérfanos
+        primer_contenido = []
+        primer_contenido.append(titulo)
+        primer_contenido.append(Spacer(1, 0.5*cm))
         
         # Gráfico de evolución
         if 'evolucion_temporal' in graficos:
             img = Image(graficos['evolucion_temporal'], width=16*cm, height=8*cm)
-            elements.append(img)
-            elements.append(Spacer(1, 0.3*cm))
+            primer_contenido.append(img)
+            primer_contenido.append(Spacer(1, 0.3*cm))
             pie = Paragraph(
-                "<strong>Figura 1:</strong> Evolución temporal de índices de vegetación durante el período analizado.",
+                "<strong>Figura 1:</strong> Evolución temporal de índices de vegetación durante el período analizado. "
+                "NDVI mide salud/vigor de las plantas, NDMI mide humedad, SAVI mide cobertura del suelo.",
                 self.estilos['PieImagen']
             )
-            elements.append(pie)
-            elements.append(Spacer(1, 1*cm))
+            primer_contenido.append(pie)
         
-        # Resumen de tendencias
+        elements.append(KeepTogether(primer_contenido))
+        elements.append(Spacer(1, 1*cm))
+        
+        # Resumen narrativo (solo si hay contenido útil)
         if tendencias.get('resumen'):
             resumen_limpio = limpiar_html_completo(tendencias['resumen'])
-            elements.append(Paragraph(resumen_limpio, self.estilos['TextoNormal']))
-        
-        # Tendencia lineal
-        if 'tendencia_lineal' in tendencias:
-            tl = tendencias['tendencia_lineal']
-            cambio = tl.get('cambio_porcentual', 0)
-            confianza = tl.get('confianza', '').lower()
-            
-            # Descripción clara y coherente según el signo del cambio
-            if cambio > 5:
-                descripcion_tendencia = f"Tendencia al alza ({cambio:+.1f}%) con confiabilidad {confianza}"
-            elif cambio < -5:
-                descripcion_tendencia = f"Tendencia a la baja ({cambio:+.1f}%) con confiabilidad {confianza}"
-            elif cambio > 0:
-                descripcion_tendencia = f"Tendencia ligeramente ascendente ({cambio:+.1f}%) con confiabilidad {confianza}"
-            elif cambio < 0:
-                descripcion_tendencia = f"Tendencia ligeramente descendente ({cambio:+.1f}%) con confiabilidad {confianza}"
-            else:
-                descripcion_tendencia = f"Tendencia estable (cambio {cambio:+.1f}%) con confiabilidad {confianza}"
-            
-            tendencia_texto = f"""
-<strong>{descripcion_tendencia}</strong><br/>
-<strong>Coeficiente de determinación (R²):</strong> {tl.get('r_cuadrado', 0):.3f}<br/>
-"""
-            elements.append(Spacer(1, 0.5*cm))
-            elements.append(Paragraph(tendencia_texto, self.estilos['TextoNormal']))
+            if resumen_limpio.strip():
+                elements.append(Paragraph(resumen_limpio, self.estilos['TextoNormal']))
         
         return elements
     
@@ -1641,15 +1732,15 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         elements = []
         
         titulo = Paragraph("Recomendaciones Agronómicas", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
         
         intro = Paragraph(
             "A continuación se presentan las recomendaciones priorizadas para el manejo del cultivo, "
             "ordenadas por nivel de prioridad (Alta, Media, Baja).",
             self.estilos['TextoNormal']
         )
-        elements.append(intro)
+        
+        # Título + intro siempre juntos (evitar título huérfano)
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), intro]))
         elements.append(Spacer(1, 0.5*cm))
         
         # Agrupar por prioridad
@@ -1706,7 +1797,8 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                         ('LEFTPADDING', (0, 0), (-1, -1), 6),
                         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
                     ]))
-                    elements.append(tabla_rec)
+                    # Cada recomendación como bloque indivisible
+                    elements.append(KeepTogether([tabla_rec]))
                     elements.append(Spacer(1, 0.5*cm))
                     contador += 1
         return elements
@@ -1719,8 +1811,6 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         elements.extend(self._decorar_seccion('3.png', height=0.8*cm))
         
         titulo = Paragraph("Uso de Este Análisis en la Toma de Decisiones", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
         
         texto_cierre = """
         Los datos y análisis presentados en este informe constituyen una herramienta de apoyo para la 
@@ -1756,7 +1846,8 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             ('RIGHTPADDING', (0, 0), (-1, -1), 15),
         ]))
         
-        elements.append(tabla_cierre)
+        # Título + tabla juntos (evitar título huérfano)
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), tabla_cierre]))
         elements.append(Spacer(1, 1*cm))
         
         return elements
@@ -1768,12 +1859,9 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         # Decoración superior
         elements.extend(self._decorar_seccion('6.png', height=1*cm))
         
-        # Título
+        # Título + intro siempre juntos (evitar título huérfano)
         titulo = Paragraph("Imágenes Satelitales - Análisis Visual", self.estilos['TituloSeccion'])
-        elements.append(titulo)
-        elements.append(Spacer(1, 0.5*cm))
         
-        # Introducción
         intro = Paragraph(
             """
             A continuación se presentan las imágenes satelitales capturadas mes a mes para el terreno analizado. 
@@ -1782,7 +1870,7 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             """,
             self.estilos['TextoNormal']
         )
-        elements.append(intro)
+        elements.append(KeepTogether([titulo, Spacer(1, 0.5*cm), intro]))
         elements.append(Spacer(1, 0.5*cm))
         
         # Contador de imágenes
@@ -1812,13 +1900,11 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                         spaceBefore=0.3*cm
                     ))
                 
-                # Título del mes
+                # Título del mes + metadatos juntos (evitar título huérfano)
                 titulo_mes = Paragraph(
                     f'<strong>{idx.periodo_texto}</strong>',
                     self.estilos['SubtituloSeccion']
                 )
-                elements.append(titulo_mes)
-                elements.append(Spacer(1, 0.3*cm))
                 
                 # Metadatos del mes
                 coord_texto = 'N/A'
@@ -1833,7 +1919,7 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                     """,
                     self.estilos['TextoNormal']
                 )
-                elements.append(metadatos)
+                elements.append(KeepTogether([titulo_mes, Spacer(1, 0.3*cm), metadatos]))
                 elements.append(Spacer(1, 0.3*cm))
                 
                 # Crear tabla de 3 imágenes
@@ -1847,9 +1933,11 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                     try:
                         img_ndvi = Image(path_ndvi, width=5*cm, height=5*cm, kind='proportional')
                         imagenes_fila.append(img_ndvi)
-                        labels_fila.append(Paragraph('<strong>NDVI</strong>', self.estilos['TextoNormal']))
+                        labels_fila.append(Paragraph('<strong>NDVI (Vigor)</strong>', self.estilos['TextoNormal']))
                         stats = Paragraph(
-                            f'Prom: {idx.ndvi_promedio:.3f}<br/>Min: {idx.ndvi_minimo:.3f} | Max: {idx.ndvi_maximo:.3f}',
+                            f'Valor promedio: {idx.ndvi_promedio:.3f}<br/>'
+                            f'Zona más baja: {idx.ndvi_minimo:.3f}<br/>'
+                            f'Zona más alta: {idx.ndvi_maximo:.3f}',
                             self.estilos['PieImagen']
                         )
                         stats_fila.append(stats)
@@ -1866,9 +1954,11 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                     try:
                         img_ndmi = Image(path_ndmi, width=5*cm, height=5*cm, kind='proportional')
                         imagenes_fila.append(img_ndmi)
-                        labels_fila.append(Paragraph('<strong>NDMI</strong>', self.estilos['TextoNormal']))
+                        labels_fila.append(Paragraph('<strong>NDMI (Humedad)</strong>', self.estilos['TextoNormal']))
                         stats = Paragraph(
-                            f'Prom: {idx.ndmi_promedio:.3f}<br/>Min: {idx.ndmi_minimo:.3f} | Max: {idx.ndmi_maximo:.3f}',
+                            f'Valor promedio: {idx.ndmi_promedio:.3f}<br/>'
+                            f'Zona más seca: {idx.ndmi_minimo:.3f}<br/>'
+                            f'Zona más húmeda: {idx.ndmi_maximo:.3f}',
                             self.estilos['PieImagen']
                         )
                         stats_fila.append(stats)
@@ -1885,9 +1975,11 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                     try:
                         img_savi = Image(path_savi, width=5*cm, height=5*cm, kind='proportional')
                         imagenes_fila.append(img_savi)
-                        labels_fila.append(Paragraph('<strong>SAVI</strong>', self.estilos['TextoNormal']))
+                        labels_fila.append(Paragraph('<strong>SAVI (Cobertura)</strong>', self.estilos['TextoNormal']))
                         stats = Paragraph(
-                            f'Prom: {idx.savi_promedio:.3f}<br/>Min: {idx.savi_minimo:.3f} | Max: {idx.savi_maximo:.3f}',
+                            f'Valor promedio: {idx.savi_promedio:.3f}<br/>'
+                            f'Zona menos cubierta: {idx.savi_minimo:.3f}<br/>'
+                            f'Zona más cubierta: {idx.savi_maximo:.3f}',
                             self.estilos['PieImagen']
                         )
                         stats_fila.append(stats)
@@ -1963,7 +2055,9 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
     def _crear_analisis_integrado_mes(self, indice: IndiceMensual, imagenes_mes: List[Dict], parcela: Parcela) -> List:
         """
         Análisis integrado histórico de las 3 imágenes satelitales del mes (NDVI, NDMI, SAVI).
-        Genera una narrativa dinámica que cambia según los valores específicos de cada mes.
+        Genera una narrativa dinámica basada en datos REALES del IndiceMensual.
+        Los valores Min/Max representan la variación DENTRO del terreno (diferentes zonas),
+        NO entre meses diferentes.
         """
         elements = []
         
@@ -1982,127 +2076,181 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
             analisis = []
             analisis.append(f"<b>Análisis Integrado de {periodo}</b><br/><br/>")
             
-            # 1. VALORES REGISTRADOS
+            # 1. VALORES REGISTRADOS - con explicación clara
             analisis.append("<b>Valores de los Índices Satelitales:</b><br/>")
+            analisis.append("<i>(Estos valores son el promedio de todo el terreno para este mes. "
+                          "Consulte la infografía de índices para interpretar los rangos.)</i><br/>")
             if 'NDVI' in vals:
-                analisis.append(f"• <b>NDVI</b> (vigor vegetal): {vals['NDVI']['prom']:.3f}<br/>")
-            if 'NDMI' in vals:
-                analisis.append(f"• <b>NDMI</b> (contenido de humedad): {vals['NDMI']['prom']:.3f}<br/>")
-            if 'SAVI' in vals:
-                analisis.append(f"• <b>SAVI</b> (cobertura vegetal): {vals['SAVI']['prom']:.3f}<br/><br/>")
+                ndvi_v = vals['NDVI']['prom']
+                # Interpretar NDVI según rangos de la infografía
+                if ndvi_v >= 0.6:
+                    ndvi_estado = "vegetación muy saludable"
+                elif ndvi_v >= 0.4:
+                    ndvi_estado = "buen desarrollo"
+                elif ndvi_v >= 0.2:
+                    ndvi_estado = "desarrollo medio"
+                elif ndvi_v >= 0.0:
+                    ndvi_estado = "bajo desarrollo"
+                else:
+                    ndvi_estado = "sin vegetación"
+                analisis.append(f"• <b>NDVI</b> (vigor vegetal): <b>{ndvi_v:.3f}</b> - {ndvi_estado}<br/>")
             
-            # 2. CONDICIÓN DEL CULTIVO (Narrativa dinámica según valores)
+            if 'NDMI' in vals:
+                ndmi_v = vals['NDMI']['prom']
+                # Interpretar NDMI según rangos de la infografía
+                if ndmi_v >= 0.4:
+                    ndmi_estado = "buena humedad"
+                elif ndmi_v >= 0.2:
+                    ndmi_estado = "humedad adecuada"
+                elif ndmi_v >= 0.0:
+                    ndmi_estado = "estrés leve (humedad limitada)"
+                elif ndmi_v >= -0.2:
+                    ndmi_estado = "baja humedad"
+                else:
+                    ndmi_estado = "estrés hídrico fuerte"
+                analisis.append(f"• <b>NDMI</b> (humedad): <b>{ndmi_v:.3f}</b> - {ndmi_estado}<br/>")
+            
+            if 'SAVI' in vals:
+                savi_v = vals['SAVI']['prom']
+                # Interpretar SAVI según rangos de la infografía
+                if savi_v >= 0.5:
+                    savi_estado = "vegetación densa"
+                elif savi_v >= 0.3:
+                    savi_estado = "buen desarrollo"
+                elif savi_v >= 0.1:
+                    savi_estado = "vegetación media"
+                elif savi_v >= 0.0:
+                    savi_estado = "poca cobertura"
+                else:
+                    savi_estado = "suelo expuesto"
+                analisis.append(f"• <b>SAVI</b> (cobertura): <b>{savi_v:.3f}</b> - {savi_estado}<br/>")
+            
+            analisis.append("<br/>")
+            
+            # 2. CONDICIÓN DEL TERRENO (Narrativa dinámica según valores)
             if 'NDVI' in vals and 'NDMI' in vals:
                 ndvi = vals['NDVI']['prom']
                 ndmi = vals['NDMI']['prom']
                 
                 analisis.append(f"<b>Condición del Terreno en {periodo}:</b> ")
                 
-                # Narrativa cambia dinámicamente según combinación de valores
-                if ndvi > 0.6 and ndmi > 0.1:
+                if ndvi > 0.6 and ndmi > 0.2:
                     analisis.append(
-                        f"Durante este mes se registraron condiciones excelentes con alto vigor vegetal "
-                        f"(NDVI {ndvi:.3f}) y buena disponibilidad hídrica (NDMI {ndmi:.3f}). "
-                        f"Esto indica desarrollo saludable con acceso adecuado al agua."
+                        f"Excelentes condiciones. La vegetación está saludable y con buena "
+                        f"disponibilidad de agua. El terreno muestra desarrollo activo y vigoroso."
                     )
-                elif ndvi > 0.6 and ndmi <= 0.1:
+                elif ndvi > 0.6 and ndmi >= 0.0:
                     analisis.append(
-                        f"Se observó alto vigor vegetal (NDVI {ndvi:.3f}) pero con humedad moderada a baja "
-                        f"(NDMI {ndmi:.3f}). Esto puede sugerir que el cultivo estaba en una fase donde "
-                        f"la biomasa era abundante pero podría beneficiarse de mayor disponibilidad hídrica."
+                        f"La vegetación está saludable pero la humedad es limitada. "
+                        f"Las plantas tienen buen vigor, aunque podrían beneficiarse de más agua. "
+                        f"Esto es común en épocas de menor lluvia."
+                    )
+                elif ndvi > 0.6 and ndmi < 0.0:
+                    analisis.append(
+                        f"Aunque la vegetación muestra buen vigor, hay señales de estrés hídrico. "
+                        f"La humedad negativa indica que las plantas están consumiendo más agua de la disponible. "
+                        f"Se recomienda evaluar el riego."
                     )
                 elif ndvi >= 0.4 and ndvi <= 0.6:
-                    if ndmi > 0.1:
+                    if ndmi >= 0.0:
                         analisis.append(
-                            f"Los índices mostraron condiciones moderadas con vigor vegetal en desarrollo "
-                            f"(NDVI {ndvi:.3f}) y humedad adecuada (NDMI {ndmi:.3f}). "
-                            f"Representa un estado de crecimiento activo del cultivo o vegetación en el terreno."
+                            f"Condiciones moderadas. La vegetación está en desarrollo con humedad aceptable. "
+                            f"Es un estado de crecimiento activo que puede mejorar con buen manejo."
                         )
                     else:
                         analisis.append(
-                            f"Se registró vigor moderado (NDVI {ndvi:.3f}) con humedad limitada "
-                            f"(NDMI {ndmi:.3f}). Esto puede indicar un período de transición o la necesidad "
-                            f"de monitorear la disponibilidad de agua para optimizar el desarrollo."
+                            f"Vigor moderado con humedad insuficiente. "
+                            f"La vegetación tiene desarrollo medio y la falta de agua puede estar limitando "
+                            f"su crecimiento. Considere aumentar el riego si es posible."
                         )
                 elif ndvi < 0.4:
-                    if ndmi > 0.1:
+                    if ndmi >= 0.0:
                         analisis.append(
-                            f"El vigor vegetal fue bajo (NDVI {ndvi:.3f}) a pesar de contar con humedad "
-                            f"(NDMI {ndmi:.3f}). Esto puede reflejar terreno sin cultivo establecido, "
-                            f"fase temprana de siembra, o condiciones que limitaron el desarrollo vegetativo."
+                            f"Bajo vigor vegetal a pesar de contar con algo de humedad. "
+                            f"Esto puede indicar terreno sin cultivo establecido, etapa temprana de siembra, "
+                            f"o condiciones del suelo que limitan el desarrollo."
                         )
                     else:
                         analisis.append(
-                            f"Se detectaron valores bajos tanto en vigor (NDVI {ndvi:.3f}) como en humedad "
-                            f"(NDMI {ndmi:.3f}). Esto es típico de períodos secos, suelo desnudo, o terreno "
-                            f"en evaluación sin cobertura vegetal significativa."
+                            f"Condiciones desfavorables: bajo vigor vegetal y poca humedad. "
+                            f"Esto es típico de períodos secos, suelo sin cultivar o terreno "
+                            f"en preparación. Requiere atención si hay cultivo establecido."
                         )
-                else:
-                    analisis.append(
-                        f"Los valores registrados fueron NDVI {ndvi:.3f} y NDMI {ndmi:.3f}, "
-                        f"representando las condiciones específicas del terreno durante {periodo}."
-                    )
                 analisis.append("<br/><br/>")
             
-            # 3. ANÁLISIS DE COBERTURA
+            # 3. ANÁLISIS DE COBERTURA - mejorado
             if 'SAVI' in vals and 'NDVI' in vals:
                 savi = vals['SAVI']['prom']
                 ndvi = vals['NDVI']['prom']
                 dif = abs(ndvi - savi)
                 
-                analisis.append("<b>Análisis de Cobertura del Suelo:</b> ")
+                analisis.append("<b>Cobertura del Suelo:</b> ")
                 if dif > 0.15:
-                    cobertura_pct = int(savi * 100)
                     analisis.append(
-                        f"El SAVI ({savi:.3f}) fue notablemente menor que el NDVI ({ndvi:.3f}), "
-                        f"indicando presencia de suelo expuesto. La cobertura vegetal estimada fue "
-                        f"aproximadamente {cobertura_pct}%, sugiriendo vegetación dispersa o áreas con "
-                        f"exposición directa del terreno."
+                        f"La diferencia entre NDVI ({ndvi:.3f}) y SAVI ({savi:.3f}) indica que "
+                        f"hay una cantidad significativa de suelo visible entre las plantas. "
+                        f"Esto significa que la vegetación no cubre todo el terreno y hay zonas "
+                        f"donde el suelo está directamente expuesto al sol y la lluvia."
                     )
                 elif dif > 0.05:
-                    cobertura_pct = int(savi * 100)
                     analisis.append(
-                        f"El SAVI ({savi:.3f}) mostró una ligera diferencia con el NDVI ({ndvi:.3f}), "
-                        f"estimando aproximadamente {cobertura_pct}% de cobertura vegetal con zonas mixtas "
-                        f"de vegetación y suelo visible."
+                        f"NDVI ({ndvi:.3f}) y SAVI ({savi:.3f}) muestran una diferencia moderada, "
+                        f"indicando que hay algunas zonas donde se ve el suelo entre las plantas. "
+                        f"Esto es normal en cultivos en crecimiento o con espaciamiento amplio."
                     )
                 else:
-                    cobertura_pct = int(savi * 100)
                     analisis.append(
-                        f"El SAVI ({savi:.3f}) y NDVI ({ndvi:.3f}) fueron muy similares, indicando "
-                        f"aproximadamente {cobertura_pct} de cobertura con desarrollo homogéneo del dosel "
-                        f"vegetal y mínima exposición de suelo."
+                        f"NDVI ({ndvi:.3f}) y SAVI ({savi:.3f}) son muy similares, lo que indica "
+                        f"que las plantas cubren bien el terreno con poca exposición de suelo. "
+                        f"Buena cobertura vegetal."
                     )
                 analisis.append("<br/><br/>")
             
-            # 4. VARIABILIDAD ESPACIAL
-            max_var = 0
-            idx_var = None
+            # 4. VARIABILIDAD DENTRO DEL TERRENO - explicada claramente
+            # Encontrar el índice con mayor variación interna
+            variaciones = []
             for tipo, v in vals.items():
                 var = v['max'] - v['min']
-                if var > max_var:
-                    max_var = var
-                    idx_var = tipo
+                if var > 0.05:
+                    variaciones.append((tipo, v, var))
             
-            if idx_var and max_var > 0.05:
-                analisis.append(
-                    f"<b>Heterogeneidad Espacial:</b> "
-                    f"El índice {idx_var} presentó un rango de {vals[idx_var]['min']:.3f} a "
-                    f"{vals[idx_var]['max']:.3f} dentro del lote (variación de {max_var:.3f}). "
-                )
-                if max_var > 0.3:
+            if variaciones:
+                # Ordenar por mayor variación
+                variaciones.sort(key=lambda x: x[2], reverse=True)
+                tipo_max, v_max, var_max = variaciones[0]
+                
+                analisis.append("<b>Uniformidad del Terreno:</b> ")
+                
+                # Nombres descriptivos
+                nombres_indices = {
+                    'NDVI': 'vigor vegetal',
+                    'NDMI': 'humedad',
+                    'SAVI': 'cobertura'
+                }
+                nombre_desc = nombres_indices.get(tipo_max, tipo_max)
+                
+                if var_max > 0.4:
                     analisis.append(
-                        "Esta alta variabilidad evidencia zonas con condiciones muy diferentes dentro "
-                        "del terreno, posiblemente debido a variabilidad del suelo, topografía o manejo."
+                        f"Se detectaron diferencias <b>muy grandes</b> de {nombre_desc} dentro del terreno. "
+                        f"La zona con peor valor registró {v_max['min']:.3f} mientras que la mejor "
+                        f"zona alcanzó {v_max['max']:.3f}. "
+                        f"Esto significa que hay partes del terreno con condiciones muy diferentes "
+                        f"entre sí. Puede deberse a diferencias en el suelo, la topografía, "
+                        f"el acceso al agua o el estado del cultivo en diferentes zonas."
                     )
-                elif max_var > 0.15:
+                elif var_max > 0.2:
                     analisis.append(
-                        "Esta variabilidad moderada es común en terrenos agrícolas y puede reflejar "
-                        "diferencias naturales o en las etapas de desarrollo."
+                        f"Hay diferencias <b>moderadas</b> de {nombre_desc} dentro del terreno. "
+                        f"Los valores van de {v_max['min']:.3f} (zona más baja) a {v_max['max']:.3f} "
+                        f"(zona más alta). "
+                        f"Esto es común en terrenos agrícolas y puede reflejar diferencias naturales "
+                        f"del suelo o distintas etapas de desarrollo en el cultivo."
                     )
                 else:
                     analisis.append(
-                        "Esta variación moderada sugiere condiciones relativamente homogéneas en el lote."
+                        f"Las condiciones son relativamente <b>parejas</b> en todo el terreno. "
+                        f"Los valores de {nombre_desc} varían entre {v_max['min']:.3f} y {v_max['max']:.3f}, "
+                        f"lo cual indica un manejo uniforme."
                     )
                 analisis.append("<br/>")
             
@@ -2119,7 +2267,7 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
                 titulo_analisis = Paragraph(
                     '<para alignment="center" backColor="#2E7D32" '
                     'leftIndent="5" rightIndent="5" spaceBefore="5" spaceAfter="5">'
-                    '<font size="10" color="white"><b>ANÁLISIS HISTÓRICO DEL MES</b></font>'
+                    '<font size="10" color="white"><b>ANÁLISIS DEL MES</b></font>'
                     '</para>',
                     self.estilos['TituloSeccion']
                 )

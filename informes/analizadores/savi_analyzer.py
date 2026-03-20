@@ -112,50 +112,82 @@ class AnalizadorSAVI:
                 'nivel': 'bajo',
                 'etiqueta': 'Cobertura Baja',
                 'color': '#fd7e14',
-                'icono': '⚠️'
+                'icono': ''
             }
         elif promedio < self.UMBRAL_MODERADO:
             return {
                 'nivel': 'moderado',
                 'etiqueta': 'Cobertura Moderada',
                 'color': '#ffc107',
-                'icono': '📊'
+                'icono': ''
             }
         elif promedio < self.UMBRAL_BUENO:
             return {
                 'nivel': 'bueno',
                 'etiqueta': 'Buena Cobertura',
                 'color': '#28a745',
-                'icono': '✅'
+                'icono': ''
             }
         else:
             return {
                 'nivel': 'excelente',
                 'etiqueta': 'Cobertura Excelente',
                 'color': '#20c997',
-                'icono': '🌟'
+                'icono': ''
             }
     
     def _generar_interpretacion_tecnica(self, promedio: float, desv_std: float,
                                        tendencia: Dict, estado: Dict) -> str:
         """Interpretación técnica"""
+        exposicion = self._estimar_exposicion_suelo(promedio)
+        cobertura = 100 - exposicion
+        
+        # Describir cobertura en lenguaje claro
+        if cobertura >= 80:
+            cobertura_desc = "Las plantas cubren casi todo el terreno, con muy poco suelo visible."
+        elif cobertura >= 60:
+            cobertura_desc = "La mayor parte del terreno está cubierto por plantas, con algunas zonas de suelo visible."
+        elif cobertura >= 40:
+            cobertura_desc = "Hay un balance entre plantas y suelo. Se ven ambos de forma clara."
+        else:
+            cobertura_desc = "Se ve más suelo que plantas. La cobertura vegetal es limitada."
+        
+        # Describir variabilidad en lenguaje claro
+        if desv_std < 0.05:
+            variabilidad_desc = "La cobertura es muy pareja en toda la parcela."
+        elif desv_std < 0.10:
+            variabilidad_desc = "La cobertura es bastante uniforme, con diferencias menores entre zonas."
+        elif desv_std < 0.15:
+            variabilidad_desc = "Hay algunas zonas con más cobertura que otras."
+        else:
+            variabilidad_desc = "La cobertura varía bastante entre diferentes zonas de la parcela."
+        
+        # Describir tendencia en lenguaje claro
+        if 'ascendente' in tendencia['direccion']:
+            tendencia_desc = "La cobertura vegetal está aumentando. Las plantas están cubriendo más terreno con el tiempo."
+        elif 'descendente' in tendencia['direccion']:
+            tendencia_desc = "La cobertura vegetal está disminuyendo. Se está viendo más suelo con el tiempo, lo cual requiere atención."
+        else:
+            tendencia_desc = "La cobertura se ha mantenido estable durante el período analizado. No hay cambios significativos."
+        
         interpretacion = f"""
-<strong>Análisis SAVI - Vegetación Ajustada al Suelo</strong><br><br>
+<strong>Análisis SAVI - Cobertura del Suelo</strong><br><br>
 
-El SAVI promedio de <strong>{promedio:.3f}</strong> (ajustado por influencia de suelo) indica 
-<strong>{estado['etiqueta'].lower()}</strong>.<br><br>
+El SAVI promedio de <strong>{promedio:.3f}</strong> indica 
+<strong>{estado['etiqueta'].lower()}</strong>. Este valor es el promedio de todo el período analizado.<br><br>
 
-<strong>Parámetros de Cobertura:</strong><br>
-• Exposición de suelo estimada: <strong>{self._estimar_exposicion_suelo(promedio)}%</strong><br>
-• Cobertura vegetal efectiva: <strong>{100 - self._estimar_exposicion_suelo(promedio)}%</strong><br>
-• Variabilidad espacial: σ={desv_std:.3f}<br><br>
+<strong>Estado de la Cobertura:</strong><br>
+• <strong>Suelo visible estimado: {exposicion}%</strong> - Porcentaje del terreno donde se ve el suelo directamente.<br>
+• <strong>Cobertura vegetal: {cobertura}%</strong> - Porcentaje del terreno cubierto por plantas.<br>
+• {cobertura_desc}<br>
+• <strong>Uniformidad:</strong> {variabilidad_desc}<br><br>
 
 <strong>Interpretación Agronómica:</strong><br>
-SAVI es especialmente útil en cultivos jóvenes o con baja densidad, donde el suelo influye 
-significativamente en la reflectancia. {self._interpretar_savi_tecnica(promedio)}<br><br>
+SAVI mide qué tanto del terreno está cubierto por vegetación, corrigiendo el efecto del suelo. 
+Es especialmente útil en cultivos jóvenes o con baja densidad. {self._interpretar_savi_tecnica(promedio)}<br><br>
 
-<strong>Tendencia:</strong><br>
-{tendencia['descripcion']} ({tendencia['cambio_porcentual']:+.1f}%).
+<strong>Tendencia en el Período:</strong><br>
+{tendencia_desc}
 """
         return interpretacion.strip()
     
@@ -164,7 +196,7 @@ significativamente en la reflectancia. {self._interpretar_savi_tecnica(promedio)
         interpretacion = f"""
 <strong>¿Qué tan cubierto está el suelo?</strong><br><br>
 
-{estado['icono']} La cobertura de su parcela es <strong>{estado['etiqueta'].lower()}</strong>. 
+La cobertura de su parcela es <strong>{estado['etiqueta'].lower()}</strong>. 
 {self._explicar_simple(promedio)}<br><br>
 
 <strong>Tendencia:</strong><br>
@@ -181,7 +213,7 @@ significativamente en la reflectancia. {self._interpretar_savi_tecnica(promedio)
             alertas.append({
                 'tipo': 'advertencia',
                 'prioridad': 'media',
-                'icono': '🌱',
+                'icono': '',
                 'titulo': 'Baja Cobertura Vegetal',
                 'mensaje': f'SAVI de {promedio:.2f} indica mucho suelo expuesto.',
                 'accion': 'Evaluar densidad de siembra o desarrollo del cultivo'
@@ -192,7 +224,7 @@ significativamente en la reflectancia. {self._interpretar_savi_tecnica(promedio)
             alertas.append({
                 'tipo': 'info',
                 'prioridad': 'media',
-                'icono': '📉',
+                'icono': '',
                 'titulo': 'Reducción de Cobertura',
                 'mensaje': f"La cobertura ha disminuido {abs(tendencia['cambio_porcentual']):.1f}%.",
                 'accion': 'Monitorear desarrollo del cultivo'
@@ -209,7 +241,7 @@ significativamente en la reflectancia. {self._interpretar_savi_tecnica(promedio)
             'nombre': 'Índice de Vegetación Ajustado al Suelo',
             'error': 'No hay datos disponibles',
             'estadisticas': {},
-            'estado': {'nivel': 'sin_datos', 'etiqueta': 'Sin Datos', 'icono': '❓'},
+            'estado': {'nivel': 'sin_datos', 'etiqueta': 'Sin Datos', 'icono': ''},
             'interpretacion_tecnica': 'No hay datos SAVI disponibles.',
             'interpretacion_simple': 'Aún no tenemos información sobre cobertura.',
             'alertas': []
@@ -251,11 +283,11 @@ significativamente en la reflectancia. {self._interpretar_savi_tecnica(promedio)
     def _explicar_tendencia_simple(self, tendencia: Dict) -> str:
         """Explicación simple de tendencia"""
         if 'ascendente' in tendencia['direccion']:
-            return f"📈 Las plantas están cubriendo más terreno ({tendencia['cambio_porcentual']:.0f}% más). ¡Están creciendo bien!"
+            return f"Las plantas están cubriendo más terreno ({tendencia['cambio_porcentual']:.0f}% más). Están creciendo bien."
         elif 'descendente' in tendencia['direccion']:
-            return f"📉 Se está viendo más suelo ({abs(tendencia['cambio_porcentual']):.0f}% menos plantas). Revisar qué está pasando."
+            return f"Se está viendo más suelo ({abs(tendencia['cambio_porcentual']):.0f}% menos plantas). Revisar qué está pasando."
         else:
-            return "➡️ La cobertura se mantiene igual. Sin cambios importantes."
+            return "La cobertura se mantiene igual. Sin cambios importantes."
     
     def _calcular_puntuacion(self, promedio: float, tendencia: Dict) -> float:
         """Calcula puntuación 0-10"""
