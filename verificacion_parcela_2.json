@@ -1,0 +1,23 @@
+{
+  "parcela_id": 2,
+  "area_total_ha": 61.95,
+  "area_cultivable_ha": 0,
+  "area_restringida_ha": 61.95,
+  "porcentaje_restringido": 100.0,
+  "cumple_normativa": false,
+  "restricciones_encontradas": [
+    {
+      "tipo": "retiro_hidrico",
+      "subtipo": "quebrada",
+      "retiro_minimo_m": 30,
+      "area_afectada_ha": 61.948,
+      "nombre": "Sin nombre",
+      "normativa": "Decreto 1541/1978 Art. 83",
+      "severidad": "ALTA"
+    }
+  ],
+  "fecha_verificacion": "2026-01-26T09:47:37.911601",
+  "advertencias": [
+    "Áreas protegidas no cargadas - verificación incompleta"
+  ]
+}

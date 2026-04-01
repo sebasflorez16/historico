@@ -219,7 +219,9 @@ class CerebroDiagnosticoUnificado:
         output_dir: Path,
         tipo_informe: str = 'produccion',
         crisis_historicas: Optional[list] = None,
-        data_cubes_temporales: Optional[Dict] = None
+        data_cubes_temporales: Optional[Dict] = None,
+        ndre_array: Optional[np.ndarray] = None,
+        evi_array: Optional[np.ndarray] = None
     ) -> DiagnosticoUnificado:
         """
         Ejecuta triangulación completa y genera diagnóstico unificado
@@ -233,6 +235,8 @@ class CerebroDiagnosticoUnificado:
             tipo_informe: 'produccion' o 'evaluacion' (cambia lenguaje)
             crisis_historicas: Lista de crisis detectadas en análisis temporal (NUEVO)
             data_cubes_temporales: Data Cubes 3D para extraer dimensión temporal real (NUEVO)
+            ndre_array: Matriz NDRE opcional (valores -1.0 a 1.0) - borde rojo/nitrógeno
+            evi_array: Matriz EVI opcional (valores -1.0 a 1.0) - biomasa mejorada
         
         Returns:
             DiagnosticoUnificado con zonas críticas, visualizaciones y narrativas
@@ -242,6 +246,16 @@ class CerebroDiagnosticoUnificado:
         # Validar inputs
         assert ndvi_array.shape == ndmi_array.shape == savi_array.shape, \
             "Los arrays de índices deben tener las mismas dimensiones"
+        
+        if ndre_array is not None:
+            assert ndre_array.shape == ndvi_array.shape, \
+                "NDRE array debe tener las mismas dimensiones que NDVI"
+            logger.info("📊 NDRE incluido en triangulación (nitrógeno/clorofila)")
+        
+        if evi_array is not None:
+            assert evi_array.shape == ndvi_array.shape, \
+                "EVI array debe tener las mismas dimensiones que NDVI"
+            logger.info("📊 EVI incluido en triangulación (biomasa mejorada)")
         
         # 1. DETECCIÓN DE ZONAS CRÍTICAS
         zonas_criticas = self._detectar_zonas_criticas(
@@ -379,7 +393,8 @@ class CerebroDiagnosticoUnificado:
                 'tipo_informe': tipo_informe,
                 'resolucion_m': self.resolucion_pixel_m,
                 'area_parcela_ha': self.area_parcela_ha,
-                'evidencias_tecnicas': evidencias_tecnicas,  # NUEVO: Evidencias para tabla PDF
+                'evidencias_tecnicas': evidencias_tecnicas,
+                'indices_utilizados': self._listar_indices_utilizados(ndre_array, evi_array),
                 'validacion_pixel_ha': {
                     'area_pixel_ha': self.area_pixel_ha,
                     'es_sentinel2': abs(self.area_pixel_ha - 0.01) < 0.001,
@@ -392,6 +407,15 @@ class CerebroDiagnosticoUnificado:
         
         logger.info("✅ Diagnóstico unificado completado")
         return diagnostico
+    
+    def _listar_indices_utilizados(self, ndre_array, evi_array) -> List[str]:
+        """Lista los índices efectivamente utilizados en la triangulación"""
+        indices = ['NDVI', 'NDMI', 'SAVI']
+        if ndre_array is not None:
+            indices.append('NDRE')
+        if evi_array is not None:
+            indices.append('EVI')
+        return indices
     
     def _detectar_zonas_criticas(
         self,

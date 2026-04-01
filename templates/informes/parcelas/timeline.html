@@ -287,6 +287,154 @@
         box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
     }
     
+    /* Botón info "?" junto al selector */
+    .index-info-toggle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        background: var(--timeline-bg);
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        color: #6c757d;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .index-info-toggle:hover,
+    .index-info-toggle.active {
+        color: var(--timeline-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--neuro-shadow-hover-light), var(--neuro-shadow-hover-dark);
+    }
+
+    .index-info-toggle.active {
+        background: var(--timeline-primary);
+        color: white;
+    }
+
+    /* Panel informativo de índices */
+    .index-info-panel {
+        margin-top: 16px;
+        background: var(--timeline-card-bg);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: var(--neuro-shadow-light), var(--neuro-shadow-dark);
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .index-info-header {
+        display: flex;
+        align-items: center;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--timeline-primary);
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(46, 139, 87, 0.15);
+    }
+
+    .index-info-close {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: #adb5bd;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .index-info-close:hover {
+        color: #dc3545;
+        background: rgba(220, 53, 69, 0.1);
+    }
+
+    .index-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    .index-info-card {
+        display: flex;
+        gap: 12px;
+        padding: 14px;
+        border-radius: 12px;
+        background: var(--timeline-bg);
+        box-shadow: inset -1px -1px 3px rgba(255, 255, 255, 0.6),
+                    inset 1px 1px 3px rgba(46, 139, 87, 0.06);
+        transition: transform 0.2s ease;
+    }
+
+    .index-info-card:hover {
+        transform: translateX(4px);
+    }
+
+    .index-info-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .index-info-body strong {
+        font-size: 0.95rem;
+        color: #2c3e50;
+    }
+
+    .index-info-body p {
+        margin: 4px 0 0;
+        font-size: 0.82rem;
+        color: #6c757d;
+        line-height: 1.45;
+    }
+
+    .index-info-tag {
+        display: inline-block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: rgba(46, 139, 87, 0.12);
+        color: #2e8b57;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+
+    .index-info-tag-pro {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    /* Responsive info panel */
+    @media (max-width: 768px) {
+        .index-info-grid {
+            grid-template-columns: 1fr;
+        }
+        .index-info-panel {
+            padding: 14px;
+        }
+        .index-info-card {
+            padding: 10px;
+        }
+    }
+
     /* Contador de frames */
     .frame-counter {
         padding: 12px 24px;
@@ -682,6 +830,73 @@
             <button class="index-btn" data-index="savi">
                 <i class="fas fa-seedling me-2"></i>SAVI
             </button>
+            <button class="index-btn" data-index="ndre" id="btn-ndre" style="display:none;">
+                <i class="fas fa-atom me-2"></i>NDRE
+            </button>
+            <button class="index-btn" data-index="evi" id="btn-evi" style="display:none;">
+                <i class="fas fa-tree me-2"></i>EVI
+            </button>
+            <!-- Botón info índices -->
+            <button class="index-info-toggle" id="btn-toggle-index-info" title="¿Qué mide cada índice?">
+                <i class="fas fa-question-circle"></i>
+            </button>
+        </div>
+
+        <!-- Panel informativo de índices -->
+        <div class="index-info-panel" id="index-info-panel" style="display: none;">
+            <div class="index-info-header">
+                <i class="fas fa-satellite me-2"></i>¿Qué mide cada índice?
+                <button class="index-info-close" id="btn-close-index-info">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="index-info-grid">
+                <div class="index-info-card" data-for="ndvi">
+                    <div class="index-info-icon" style="background: rgba(46, 139, 87, 0.15); color: #2e8b57;">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <div class="index-info-body">
+                        <strong>NDVI</strong> <span class="index-info-tag">Índice base</span>
+                        <p>Salud general del cultivo. Mide qué tan verde y fotosintéticamente activa está la vegetación. Es el más usado en agricultura de precisión.</p>
+                    </div>
+                </div>
+                <div class="index-info-card" data-for="ndmi">
+                    <div class="index-info-icon" style="background: rgba(23, 162, 184, 0.15); color: #17a2b8;">
+                        <i class="fas fa-tint"></i>
+                    </div>
+                    <div class="index-info-body">
+                        <strong>NDMI</strong> <span class="index-info-tag">Estrés hídrico</span>
+                        <p>Contenido de agua en las hojas. Detecta sequía o exceso de riego antes de que el daño sea visible a simple vista.</p>
+                    </div>
+                </div>
+                <div class="index-info-card" data-for="savi">
+                    <div class="index-info-icon" style="background: rgba(255, 193, 7, 0.15); color: #d4a017;">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <div class="index-info-body">
+                        <strong>SAVI</strong> <span class="index-info-tag">Suelo expuesto</span>
+                        <p>Similar a NDVI pero descuenta la influencia del suelo. Ideal para cultivos jóvenes, recién sembrados o con baja cobertura vegetal.</p>
+                    </div>
+                </div>
+                <div class="index-info-card" data-for="ndre" id="info-card-ndre" style="display: none;">
+                    <div class="index-info-icon" style="background: rgba(220, 53, 69, 0.15); color: #dc3545;">
+                        <i class="fas fa-atom"></i>
+                    </div>
+                    <div class="index-info-body">
+                        <strong>NDRE</strong> <span class="index-info-tag index-info-tag-pro">Nitrógeno</span>
+                        <p>Detecta nitrógeno y clorofila en capas profundas de las hojas con 88% de precisión. Identifica problemas nutricionales <strong>2-3 semanas antes</strong> que NDVI. Se usa en lugar de NDVI cuando se necesita monitoreo nutricional avanzado.</p>
+                    </div>
+                </div>
+                <div class="index-info-card" data-for="evi" id="info-card-evi" style="display: none;">
+                    <div class="index-info-icon" style="background: rgba(108, 117, 125, 0.15); color: #495057;">
+                        <i class="fas fa-tree"></i>
+                    </div>
+                    <div class="index-info-body">
+                        <strong>EVI</strong> <span class="index-info-tag index-info-tag-pro">Biomasa real</span>
+                        <p>Mide biomasa sin saturarse en doseles densos (donde NDVI pierde precisión al superar 0.8). Incluye corrección atmosférica, clave en zonas tropicales húmedas como los Llanos o el Pacífico.</p>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Botones de Descarga de Video -->
@@ -698,6 +913,12 @@
                 </button>
                 <button class="btn btn-warning" id="btn-download-savi" style="border-radius: 12px; padding: 12px 24px; font-weight: 700;">
                     <i class="fas fa-seedling me-2"></i>Descargar SAVI
+                </button>
+                <button class="btn btn-danger" id="btn-download-ndre" style="border-radius: 12px; padding: 12px 24px; font-weight: 700; display:none;">
+                    <i class="fas fa-atom me-2"></i>Descargar NDRE
+                </button>
+                <button class="btn btn-secondary" id="btn-download-evi" style="border-radius: 12px; padding: 12px 24px; font-weight: 700; display:none;">
+                    <i class="fas fa-tree me-2"></i>Descargar EVI
                 </button>
             </div>
             <p class="text-muted mt-2" style="font-size: 0.9rem;">
@@ -747,7 +968,8 @@
                 <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">Espacio</kbd> Play/Pause |
                 <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">←→</kbd> Navegar |
                 <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">↑↓</kbd> Cambiar índice |
-                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">1-2-3</kbd> NDVI/NDMI/SAVI
+                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">1-2-3</kbd> NDVI/NDMI/SAVI |
+                <kbd style="background: var(--timeline-bg); padding: 4px 8px; border-radius: 4px; margin: 0 3px; font-family: monospace;">4-5</kbd> NDRE/EVI
             </p>
         </div>
     </div>
@@ -788,6 +1010,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Inicializar
     player.init();
+    
+    // Toggle panel informativo de índices
+    const btnToggle = document.getElementById('btn-toggle-index-info');
+    const btnClose = document.getElementById('btn-close-index-info');
+    const infoPanel = document.getElementById('index-info-panel');
+    
+    if (btnToggle && infoPanel) {
+        btnToggle.addEventListener('click', function() {
+            const visible = infoPanel.style.display !== 'none';
+            infoPanel.style.display = visible ? 'none' : 'block';
+            btnToggle.classList.toggle('active', !visible);
+        });
+    }
+    if (btnClose && infoPanel && btnToggle) {
+        btnClose.addEventListener('click', function() {
+            infoPanel.style.display = 'none';
+            btnToggle.classList.remove('active');
+        });
+    }
 });
 </script>
 {% endblock %}

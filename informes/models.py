@@ -39,6 +39,14 @@ def upload_to_savi(instance, filename):
     """Genera ruta para imagen SAVI usando año/mes del registro"""
     return f'imagenes_satelitales/{instance.año}/{instance.mes:02d}/savi/{filename}'
 
+def upload_to_ndre(instance, filename):
+    """Genera ruta para imagen NDRE usando año/mes del registro"""
+    return f'imagenes_satelitales/{instance.año}/{instance.mes:02d}/ndre/{filename}'
+
+def upload_to_evi(instance, filename):
+    """Genera ruta para imagen EVI usando año/mes del registro"""
+    return f'imagenes_satelitales/{instance.año}/{instance.mes:02d}/evi/{filename}'
+
 
 class Parcela(gis_models.Model):
     """
@@ -347,6 +355,23 @@ class IndiceMensual(models.Model):
     savi_maximo = models.FloatField(null=True, blank=True, verbose_name="SAVI Máximo")
     savi_minimo = models.FloatField(null=True, blank=True, verbose_name="SAVI Mínimo")
     
+    # Índices avanzados opcionales (activados por tipo de cultivo)
+    ndre_promedio = models.FloatField(
+        null=True, blank=True,
+        verbose_name="NDRE Promedio",
+        help_text="Índice de Borde Rojo - Clorofila/Nitrógeno en dosel denso (-1 a 1)"
+    )
+    ndre_maximo = models.FloatField(null=True, blank=True, verbose_name="NDRE Máximo")
+    ndre_minimo = models.FloatField(null=True, blank=True, verbose_name="NDRE Mínimo")
+    
+    evi_promedio = models.FloatField(
+        null=True, blank=True,
+        verbose_name="EVI Promedio",
+        help_text="Índice de Vegetación Mejorado - Estructura del dosel sin saturación (-1 a 1)"
+    )
+    evi_maximo = models.FloatField(null=True, blank=True, verbose_name="EVI Máximo")
+    evi_minimo = models.FloatField(null=True, blank=True, verbose_name="EVI Mínimo")
+    
     # Datos climatológicos y condiciones
     temperatura_promedio = models.FloatField(
         null=True, blank=True,
@@ -385,6 +410,18 @@ class IndiceMensual(models.Model):
         null=True, blank=True,
         verbose_name="Imagen SAVI",
         help_text="Imagen satelital del índice SAVI"
+    )
+    imagen_ndre = models.ImageField(
+        upload_to=upload_to_ndre,
+        null=True, blank=True,
+        verbose_name="Imagen NDRE",
+        help_text="Imagen satelital del índice NDRE"
+    )
+    imagen_evi = models.ImageField(
+        upload_to=upload_to_evi,
+        null=True, blank=True,
+        verbose_name="Imagen EVI",
+        help_text="Imagen satelital del índice EVI"
     )
     
     # Metadatos de las imágenes
@@ -497,6 +534,16 @@ class IndiceMensual(models.Model):
     def savi(self):
         """Alias para savi_promedio, para compatibilidad con analizadores"""
         return self.savi_promedio or 0.0
+    
+    @property
+    def ndre(self):
+        """Alias para ndre_promedio, para compatibilidad con analizadores"""
+        return self.ndre_promedio or 0.0
+    
+    @property
+    def evi(self):
+        """Alias para evi_promedio, para compatibilidad con analizadores"""
+        return self.evi_promedio or 0.0
     
     @property
     def salud_vegetacion(self):

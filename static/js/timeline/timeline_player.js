@@ -218,6 +218,8 @@ class TimelinePlayer {
             btnDownloadNdvi: document.getElementById('btn-download-ndvi'),
             btnDownloadNdmi: document.getElementById('btn-download-ndmi'),
             btnDownloadSavi: document.getElementById('btn-download-savi'),
+            btnDownloadNdre: document.getElementById('btn-download-ndre'),
+            btnDownloadEvi: document.getElementById('btn-download-evi'),
             
             // 🆕 Loading mejorado
             loadingOverlay: document.getElementById('loading-overlay'),
@@ -283,6 +285,18 @@ class TimelinePlayer {
         this.elements.btnDownloadSavi.addEventListener('click', () => {
             this.downloadVideo('savi');
         });
+        
+        // Botones NDRE/EVI (solo si existen en el DOM)
+        if (this.elements.btnDownloadNdre) {
+            this.elements.btnDownloadNdre.addEventListener('click', () => {
+                this.downloadVideo('ndre');
+            });
+        }
+        if (this.elements.btnDownloadEvi) {
+            this.elements.btnDownloadEvi.addEventListener('click', () => {
+                this.downloadVideo('evi');
+            });
+        }
         
         // Click en canvas para pausar/reanudar
         this.canvas.addEventListener('click', () => {
@@ -350,6 +364,14 @@ class TimelinePlayer {
                     e.preventDefault();
                     this.changeIndice('savi');
                     break;
+                case '4':
+                    e.preventDefault();
+                    this.changeIndice('ndre');
+                    break;
+                case '5':
+                    e.preventDefault();
+                    this.changeIndice('evi');
+                    break;
             }
         });
     }
@@ -383,6 +405,9 @@ class TimelinePlayer {
             if (this.frames.length === 0) {
                 throw new Error('No hay datos disponibles para mostrar');
             }
+            
+            // Activar botones NDRE/EVI si hay datos disponibles
+            this._activarIndicesOpcionales();
             
             this.updateLoadingProgress(3, 5, `${this.frames.length} frames listos`);
             
@@ -1035,10 +1060,59 @@ class TimelinePlayer {
      * Cambia al siguiente o anterior índice (para flechas arriba/abajo)
      */
     cycleIndice(direction) {
-        const indices = ['ndvi', 'ndmi', 'savi'];
+        const indices = this._getActiveIndices();
         const currentIdx = indices.indexOf(this.currentIndice);
         const newIdx = (currentIdx + direction + indices.length) % indices.length;
         this.changeIndice(indices[newIdx]);
+    }
+    
+    /**
+     * Retorna lista de índices activos (con datos disponibles)
+     */
+    _getActiveIndices() {
+        const base = ['ndvi', 'ndmi', 'savi'];
+        if (this._hasNdreData) base.push('ndre');
+        if (this._hasEviData) base.push('evi');
+        return base;
+    }
+    
+    /**
+     * Detecta si hay datos NDRE/EVI y activa botones correspondientes
+     */
+    _activarIndicesOpcionales() {
+        this._hasNdreData = false;
+        this._hasEviData = false;
+        
+        for (const frame of this.frames) {
+            if (frame.ndre && frame.ndre.promedio !== null) {
+                this._hasNdreData = true;
+            }
+            if (frame.evi && frame.evi.promedio !== null) {
+                this._hasEviData = true;
+            }
+            if (this._hasNdreData && this._hasEviData) break;
+        }
+        
+        // Mostrar/ocultar botones según disponibilidad de datos
+        const btnNdre = document.getElementById('btn-ndre');
+        const btnEvi = document.getElementById('btn-evi');
+        const btnDownloadNdre = document.getElementById('btn-download-ndre');
+        const btnDownloadEvi = document.getElementById('btn-download-evi');
+        
+        if (this._hasNdreData) {
+            if (btnNdre) btnNdre.style.display = '';
+            if (btnDownloadNdre) btnDownloadNdre.style.display = '';
+            const infoCardNdre = document.getElementById('info-card-ndre');
+            if (infoCardNdre) infoCardNdre.style.display = '';
+            console.log('📊 NDRE activado - datos disponibles');
+        }
+        if (this._hasEviData) {
+            if (btnEvi) btnEvi.style.display = '';
+            if (btnDownloadEvi) btnDownloadEvi.style.display = '';
+            const infoCardEvi = document.getElementById('info-card-evi');
+            if (infoCardEvi) infoCardEvi.style.display = '';
+            console.log('📊 EVI activado - datos disponibles');
+        }
     }
     
     /**

@@ -514,7 +514,9 @@ class EosdaAPIService:
             index_mapping = {
                 'NDVI': 'ndvi',
                 'NDMI': 'ndmi', 
-                'SAVI': 'savi'
+                'SAVI': 'savi',
+                'NDRE': 'ndre',
+                'EVI': 'evi'
             }
             
             if indice not in index_mapping:
@@ -709,7 +711,9 @@ class EosdaAPIService:
             index_mapping = {
                 'NDVI': 'ndvi',
                 'NDMI': 'ndmi', 
-                'SAVI': 'savi'
+                'SAVI': 'savi',
+                'NDRE': 'ndre',
+                'EVI': 'evi'
             }
             
             if indice not in index_mapping:
@@ -1345,73 +1349,114 @@ class EosdaAPIService:
             return datos_cache
         
         # 2. NO HAY CACHÉ - USAR STATISTICS API CON GEOMETRÍA
-        logger.info(f"🔍 No hay caché, usando Statistics API - {len(indices)} índices en 1 petición")
+        # EOSDA limita a máximo 3 índices por petición bm_type
+        # Si hay más de 3, dividir en lotes y fusionar resultados
+        MAX_INDICES_POR_PETICION = 3
         
         try:
-            # UNA petición con TODOS los índices usando geometría
             url = f"{self.base_url}/api/gdw/api"
             
             # Convertir índices a mayúsculas (requerido por EOSDA)
             indices_mayusculas = [idx.upper() for idx in indices]
             
-            payload = {
-                'type': 'mt_stats',
-                'params': {
-                    'bm_type': indices_mayusculas,  # NDVI, NDMI, SAVI en mayúsculas
-                    'date_start': fecha_inicio.isoformat(),
-                    'date_end': fecha_fin.isoformat(),
-                    'geometry': geometria,  # Usar geometría
-                    'sensors': ['S2L2A'],  # Sentinel-2 Level 2A
-                    'reference': f'stats_{field_id}_{datetime.now().strftime("%Y%m%d_%H%M")}',
-                    'limit': 50,
-                    'max_cloud_cover_in_aoi': max_nubosidad,
-                    'exclude_cover_pixels': True,
-                    'cloud_masking_level': 3
+            # Dividir en lotes de máximo 3
+            lotes = [indices_mayusculas[i:i + MAX_INDICES_POR_PETICION]
+                     for i in range(0, len(indices_mayusculas), MAX_INDICES_POR_PETICION)]
+            
+            logger.info(f"🔍 No hay caché, usando Statistics API - {len(indices)} índices en {len(lotes)} petición(es)")
+            
+            todos_resultados = []  # Lista de resultados por lote
+            requests_consumidos = 0
+            
+            for num_lote, lote in enumerate(lotes, 1):
+                payload = {
+                    'type': 'mt_stats',
+                    'params': {
+                        'bm_type': lote,
+                        'date_start': fecha_inicio.isoformat(),
+                        'date_end': fecha_fin.isoformat(),
+                        'geometry': geometria,
+                        'sensors': ['S2L2A'],
+                        'reference': f'stats_{field_id}_lote{num_lote}_{datetime.now().strftime("%Y%m%d_%H%M")}',
+                        'limit': 50,
+                        'max_cloud_cover_in_aoi': max_nubosidad,
+                        'exclude_cover_pixels': True,
+                        'cloud_masking_level': 3
+                    }
                 }
-            }
-            
-            logger.info(f"📡 Enviando petición Statistics API: {len(indices)} índices")
-            logger.info(f"   Índices: {', '.join(indices_mayusculas)}")
-            logger.info(f"   Geometría: {geometria['type']} con {len(geometria.get('coordinates', [[]])[0])} puntos")
-            
-            response = self.session.post(url, json=payload, timeout=60)
-            tiempo_respuesta = time.time() - tiempo_inicio
-            
-            if response.status_code not in [200, 201, 202]:
-                logger.error(f"❌ Error EOSDA: {response.status_code}")
-                logger.error(f"   Respuesta: {response.text[:500]}")
                 
-                # Registrar fallo
-                EstadisticaUsoEOSDA.registrar_uso(
-                    usuario=usuario,
-                    parcela=parcela,
-                    tipo_operacion='statistics',
-                    endpoint=url,
-                    exitoso=False,
-                    tiempo_respuesta=tiempo_respuesta,
-                    requests_consumidos=1,
-                    codigo_respuesta=response.status_code,
-                    mensaje_error=response.text[:500]
-                )
+                logger.info(f"📡 Lote {num_lote}/{len(lotes)}: {', '.join(lote)}")
+                logger.info(f"   Geometría: {geometria['type']} con {len(geometria.get('coordinates', [[]])[0])} puntos")
                 
-                return {'error': f'Error HTTP {response.status_code}', 'resultados': []}
+                response = self.session.post(url, json=payload, timeout=60)
+                requests_consumidos += 1
+                tiempo_respuesta = time.time() - tiempo_inicio
+                
+                if response.status_code not in [200, 201, 202]:
+                    logger.error(f"❌ Error EOSDA lote {num_lote}: {response.status_code}")
+                    logger.error(f"   Respuesta: {response.text[:500]}")
+                    
+                    EstadisticaUsoEOSDA.registrar_uso(
+                        usuario=usuario,
+                        parcela=parcela,
+                        tipo_operacion='statistics',
+                        endpoint=url,
+                        exitoso=False,
+                        tiempo_respuesta=tiempo_respuesta,
+                        requests_consumidos=requests_consumidos,
+                        codigo_respuesta=response.status_code,
+                        mensaje_error=response.text[:500]
+                    )
+                    
+                    return {'error': f'Error HTTP {response.status_code} en lote {num_lote}', 'resultados': []}
+                
+                task_data = response.json()
+                task_id = task_data.get('task_id')
+                
+                if not task_id:
+                    logger.error(f"❌ No se obtuvo task_id para lote {num_lote}")
+                    return {'error': f'No task_id lote {num_lote}', 'resultados': []}
+                
+                logger.info(f"✅ Tarea lote {num_lote}: {task_id}")
+                
+                # Esperar resultados de este lote
+                logger.info(f"⏳ Esperando resultados lote {num_lote}...")
+                resultados_lote = self._obtener_resultados_tarea_lento(task_id)
+                
+                if resultados_lote:
+                    todos_resultados.append(resultados_lote)
+                else:
+                    logger.warning(f"⚠️ Sin resultados para lote {num_lote}")
+                
+                # Pausa entre lotes para evitar rate limits
+                if num_lote < len(lotes):
+                    logger.info(f"⏳ Pausa de 5s entre lotes...")
+                    time.sleep(5)
             
-            # Obtener task_id
-            task_data = response.json()
-            task_id = task_data.get('task_id')
+            # Fusionar resultados de todos los lotes por fecha (date + view_id)
+            if not todos_resultados:
+                return {'error': 'Sin resultados', 'resultados': []}
             
-            if not task_id:
-                logger.error("❌ No se obtuvo task_id de EOSDA")
-                return {'error': 'No task_id', 'resultados': []}
-            
-            logger.info(f"✅ Tarea creada: {task_id}")
-            
-            # 3. ESPERAR RESULTADOS CON DELAYS MÁS LARGOS
-            logger.info(f"⏳ Esperando resultados (delays de 10s para evitar rate limits)...")
-            resultados = self._obtener_resultados_tarea_lento(task_id)
+            if len(todos_resultados) == 1:
+                resultados = todos_resultados[0]
+            else:
+                # Fusionar: combinar indexes de escenas con misma fecha
+                base = {escena['date']: escena for escena in todos_resultados[0]}
+                for lote_extra in todos_resultados[1:]:
+                    for escena in lote_extra:
+                        fecha = escena.get('date')
+                        if fecha in base:
+                            # Combinar indexes
+                            base[fecha].setdefault('indexes', {}).update(
+                                escena.get('indexes', {})
+                            )
+                        else:
+                            base[fecha] = escena
+                resultados = list(base.values())
+                logger.info(f"✅ Fusionados {len(resultados)} escenas de {len(todos_resultados)} lotes")
             
             if not resultados:
-                logger.warning(f"⚠️ No se obtuvieron resultados para tarea {task_id}")
+                logger.warning(f"⚠️ No se obtuvieron resultados después de fusionar")
                 return {'error': 'Sin resultados', 'resultados': []}
             
             # 4. DATOS CLIMÁTICOS - DESHABILITADO
@@ -1437,7 +1482,7 @@ class EosdaAPIService:
                 fecha_fin=fecha_fin,
                 indices=indices,
                 datos=datos_formateados,
-                task_id=task_id
+                task_id=f'batch_{len(lotes)}_lotes'
             )
             
             # 6. REGISTRAR ESTADÍSTICAS
@@ -1449,11 +1494,10 @@ class EosdaAPIService:
                 endpoint=url,
                 exitoso=True,
                 tiempo_respuesta=tiempo_total,
-                requests_consumidos=1,  # 1 request inicial + polling
-                codigo_respuesta=response.status_code
+                requests_consumidos=requests_consumidos,
             )
             
-            logger.info(f"✅ Datos obtenidos - 1 petición, {len(resultados)} escenas, {len(datos_clima)} clima, {tiempo_total:.1f}s")
+            logger.info(f"✅ Datos obtenidos - {len(lotes)} petición(es), {len(resultados)} escenas, {len(datos_clima)} clima, {tiempo_total:.1f}s")
             return datos_formateados
             
         except requests.exceptions.Timeout:
@@ -1510,11 +1554,13 @@ class EosdaAPIService:
             index_mapping = {
                 'NDVI': 'ndvi',
                 'NDMI': 'ndmi',
-                'SAVI': 'savi'
+                'SAVI': 'savi',
+                'NDRE': 'ndre',
+                'EVI': 'evi'
             }
             
             if indice not in index_mapping:
-                logger.error(f"   ❌ Índice '{indice}' no soportado. Usar: NDVI, NDMI, SAVI")
+                logger.error(f"   ❌ Índice '{indice}' no soportado. Usar: NDVI, NDMI, SAVI, NDRE, EVI")
                 return None
             
             eosda_index = index_mapping[indice]

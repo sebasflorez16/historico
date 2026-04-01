@@ -16,8 +16,8 @@ Características:
 - NDVI (Normalized Difference Vegetation Index)
 - NDMI (Normalized Difference Moisture Index)
 - SAVI (Soil-Adjusted Vegetation Index)
-- EVI (Enhanced Vegetation Index) - futuro
-- NDRE (Normalized Difference Red Edge) - futuro
+- EVI (Enhanced Vegetation Index)
+- NDRE (Normalized Difference Red Edge)
 - Cualquier índice personalizado
 """
 
@@ -194,6 +194,66 @@ class RegistroIndices:
             referencias=[
                 'Huete (1988) - A soil-adjusted vegetation index (SAVI)',
                 'Qi et al. (1994) - Modified SAVI'
+            ]
+        ))
+        
+        # NDRE
+        self.registrar(DefinicionIndice(
+            tipo=TipoIndice.NDRE,
+            nombre_completo="Normalized Difference Red Edge",
+            descripcion="Mide contenido de clorofila y nitrógeno foliar usando banda de borde rojo",
+            rango_valido=(-1.0, 1.0),
+            rango_tipico=(0.1, 0.7),
+            umbrales=UmbralesIndice(
+                muy_bajo=0.1,
+                bajo=0.2,
+                medio=0.35,
+                alto=0.5,
+                muy_alto=0.65
+            ),
+            interpretacion={
+                'muy_bajo': 'Deficiencia severa de nitrógeno/clorofila',
+                'bajo': 'Contenido bajo de clorofila, posible estrés nutricional',
+                'medio': 'Contenido moderado de clorofila',
+                'alto': 'Buen contenido de clorofila y nitrógeno',
+                'muy_alto': 'Contenido óptimo de clorofila, dosel muy productivo'
+            },
+            bandas_requeridas=['NIR', 'RedEdge'],
+            formula='(NIR - RedEdge) / (NIR + RedEdge)',
+            referencias=[
+                'Gitelson & Merzlyak (1994) - Spectral reflectance changes',
+                'Barnes et al. (2000) - Coincident detection of crop water stress',
+                'Correlación 88% con nitrógeno foliar en palma aceitera'
+            ]
+        ))
+        
+        # EVI
+        self.registrar(DefinicionIndice(
+            tipo=TipoIndice.EVI,
+            nombre_completo="Enhanced Vegetation Index",
+            descripcion="Índice mejorado resistente a saturación en biomasa alta, con corrección atmosférica",
+            rango_valido=(-1.0, 1.0),
+            rango_tipico=(0.1, 0.8),
+            umbrales=UmbralesIndice(
+                muy_bajo=0.15,
+                bajo=0.3,
+                medio=0.45,
+                alto=0.6,
+                muy_alto=0.75
+            ),
+            interpretacion={
+                'muy_bajo': 'Biomasa muy baja o suelo expuesto',
+                'bajo': 'Biomasa baja, dosel poco denso',
+                'medio': 'Biomasa moderada, dosel en desarrollo',
+                'alto': 'Alta biomasa, dosel denso y productivo',
+                'muy_alto': 'Biomasa máxima, dosel cerrado óptimo'
+            },
+            bandas_requeridas=['NIR', 'Red', 'Blue'],
+            formula='2.5 × (NIR − Red) / (NIR + 6×Red − 7.5×Blue + 1)',
+            referencias=[
+                'Huete et al. (2002) - Overview of the radiometric performance of MODIS',
+                'Liu & Huete (1995) - A feedback based modification of the NDVI',
+                'No satura en biomasa alta (LAI > 3), ideal para palma aceitera'
             ]
         ))
     

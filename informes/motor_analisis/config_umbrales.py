@@ -131,6 +131,94 @@ UMBRALES_SAVI = UmbralesIndice(
 
 
 # ===========================
+# UMBRALES NDRE (Borde Rojo)
+# ===========================
+# Basados en Gitelson & Merzlyak (1994), Barnes et al. (2000)
+# Sensible a clorofila/nitrógeno en capas profundas del dosel
+
+UMBRALES_NDRE = UmbralesIndice(
+    muy_bajo=0.1,    # Deficiencia severa de nitrógeno
+    bajo=0.2,        # Contenido bajo de clorofila
+    medio=0.35,      # Contenido moderado de clorofila
+    alto=0.5,        # Buen contenido de clorofila y nitrógeno
+    muy_alto=0.65    # Contenido óptimo, dosel muy productivo
+)
+
+# Umbrales NDRE específicos para palma aceitera
+UMBRALES_NDRE_PALMA = UmbralesIndice(
+    muy_bajo=0.12,
+    bajo=0.22,
+    medio=0.35,
+    alto=0.48,
+    muy_alto=0.60
+)
+
+
+# ===========================
+# UMBRALES EVI (Vegetación Mejorada)
+# ===========================
+# Basados en Huete et al. (2002), Liu & Huete (1995)
+# No satura en biomasa alta (LAI > 3), ideal para cultivos densos
+
+UMBRALES_EVI = UmbralesIndice(
+    muy_bajo=0.15,   # Biomasa muy baja o suelo expuesto
+    bajo=0.3,        # Biomasa baja, dosel poco denso
+    medio=0.45,      # Biomasa moderada
+    alto=0.6,        # Alta biomasa, dosel denso
+    muy_alto=0.75    # Biomasa máxima, dosel cerrado
+)
+
+# Umbrales EVI específicos para palma aceitera
+UMBRALES_EVI_PALMA = UmbralesIndice(
+    muy_bajo=0.2,
+    bajo=0.35,
+    medio=0.5,
+    alto=0.65,
+    muy_alto=0.8
+)
+
+
+# ===========================
+# ÍNDICES RECOMENDADOS POR CULTIVO
+# ===========================
+
+INDICES_RECOMENDADOS_POR_CULTIVO = {
+    'palma_aceitera': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'palma': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'palma africana': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'oil_palm': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'maíz': ['NDVI', 'NDMI', 'SAVI'],
+    'maiz': ['NDVI', 'NDMI', 'SAVI'],
+    'trigo': ['NDVI', 'NDMI', 'SAVI'],
+    'soja': ['NDVI', 'NDMI', 'SAVI'],
+    'arroz': ['NDVI', 'NDMI', 'SAVI', 'EVI'],
+    'caña': ['NDVI', 'NDMI', 'SAVI', 'EVI'],
+    'cafe': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'café': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'cacao': ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI'],
+    'default': ['NDVI', 'NDMI', 'SAVI'],
+}
+
+
+def obtener_indices_recomendados(tipo_cultivo: str = None) -> list:
+    """
+    Obtiene los índices recomendados para un tipo de cultivo.
+    
+    Args:
+        tipo_cultivo: Tipo de cultivo (opcional)
+        
+    Returns:
+        Lista de índices recomendados
+    """
+    if tipo_cultivo:
+        cultivo_lower = tipo_cultivo.lower().strip()
+        return INDICES_RECOMENDADOS_POR_CULTIVO.get(
+            cultivo_lower, INDICES_RECOMENDADOS_POR_CULTIVO['default']
+        )
+    return INDICES_RECOMENDADOS_POR_CULTIVO['default']
+
+
+# ===========================
 # ZONIFICACIÓN PRODUCTIVA
 # ===========================
 

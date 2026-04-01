@@ -133,6 +133,378 @@
         margin-bottom: 20px;
         opacity: 0.3;
     }
+    
+    /* Modal Mapa */
+    .map-modal-overlay {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.85);
+        align-items: center;
+        justify-content: center;
+    }
+    .map-modal-overlay.active {
+        display: flex;
+    }
+    .map-modal-container {
+        width: 96%;
+        max-width: 1400px;
+        height: 82vh;
+        background: #1a1a2e;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        display: flex;
+        flex-direction: column;
+    }
+    .map-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #0f3443, #34e89e);
+        color: white;
+        flex-shrink: 0;
+    }
+    .map-modal-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    .map-modal-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        font-size: 20px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .map-modal-close:hover {
+        background: rgba(255,255,255,0.4);
+    }
+    .map-modal-body {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+    .map-sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        background: rgba(15, 15, 30, 0.95);
+        padding: 16px;
+        overflow-y: auto;
+        color: white;
+        font-size: 0.76rem;
+        line-height: 1.5;
+        border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    .map-sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .map-sidebar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.15);
+        border-radius: 4px;
+    }
+    .map-sidebar-right {
+        border-right: none;
+        border-left: 1px solid rgba(255,255,255,0.06);
+        width: 230px;
+    }
+    #mapa-overlay-container {
+        flex: 1;
+        position: relative;
+    }
+    .opacity-control {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background: rgba(26,26,46,0.9);
+        padding: 10px 20px;
+        border-radius: 30px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: white;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .opacity-control label {
+        margin: 0;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .opacity-control input[type=range] {
+        width: 160px;
+        accent-color: #34e89e;
+    }
+    .opacity-control .opacity-val {
+        font-weight: 700;
+        min-width: 38px;
+        text-align: center;
+        color: #34e89e;
+    }
+    .btn-ver-mapa {
+        background: linear-gradient(135deg, #0f3443, #34e89e);
+        color: white;
+        border: none;
+        font-size: 0.82rem;
+        padding: 5px 12px;
+        border-radius: 20px;
+        transition: all 0.3s;
+    }
+    .btn-ver-mapa:hover {
+        transform: scale(1.05);
+        box-shadow: 0 3px 10px rgba(52,232,158,0.4);
+        color: white;
+    }
+    
+    /* Leyenda de índice (ahora en sidebar derecho) */
+    .index-legend {
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+    .index-legend-title {
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .legend-gradient {
+        height: 14px;
+        border-radius: 7px;
+        margin: 6px 0 4px 0;
+        border: 1px solid rgba(255,255,255,0.15);
+    }
+    .legend-scale {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.6);
+        margin-bottom: 10px;
+    }
+    .legend-items {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    .legend-item-text {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.85);
+    }
+    .legend-item-label {
+        font-weight: 600;
+        color: white;
+    }
+    .legend-avg {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        text-align: center;
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.5);
+    }
+    .legend-avg strong {
+        color: #34e89e;
+        font-size: 0.85rem;
+    }
+    
+    /* Tooltip de pixel */
+    .pixel-tooltip {
+        position: absolute;
+        z-index: 1001;
+        pointer-events: none;
+        background: rgba(10, 10, 25, 0.92);
+        backdrop-filter: blur(8px);
+        border-radius: 10px;
+        padding: 8px 12px;
+        color: white;
+        font-size: 0.78rem;
+        white-space: nowrap;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.1);
+        transform: translate(14px, -50%);
+        transition: opacity 0.15s;
+        display: none;
+    }
+    .pixel-tooltip.visible {
+        display: block;
+    }
+    .pixel-tooltip-color {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        vertical-align: middle;
+        margin-right: 6px;
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+    .pixel-tooltip-val {
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    .pixel-tooltip-label {
+        display: block;
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.6);
+        margin-top: 2px;
+    }
+    
+    /* Panel informativo del índice (ahora en sidebar izquierdo) */
+    .index-info-panel {
+        font-size: 0.76rem;
+        line-height: 1.5;
+    }
+    .info-panel-title {
+        font-weight: 700;
+        font-size: 0.88rem;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .info-panel-subtitle {
+        font-weight: 600;
+        font-size: 0.78rem;
+        color: #34e89e;
+        margin: 10px 0 4px 0;
+    }
+    .info-panel-text {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.73rem;
+    }
+    .info-panel-tip {
+        margin-top: 10px;
+        padding: 8px 10px;
+        background: rgba(52,232,158,0.1);
+        border-left: 3px solid #34e89e;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.85);
+    }
+    .info-panel-vs {
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 8px;
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.7);
+    }
+    .info-panel-vs strong {
+        color: #ffc107;
+    }
+    
+    /* Modo Comparación */
+    .compare-bar {
+        display: none;
+        background: rgba(15, 15, 30, 0.95);
+        padding: 8px 16px;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .compare-bar.active {
+        display: flex;
+    }
+    .compare-bar label {
+        color: rgba(255,255,255,0.7);
+        font-size: 0.78rem;
+        margin: 0 4px 0 0;
+        white-space: nowrap;
+    }
+    .compare-bar select {
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 0.78rem;
+        outline: none;
+        cursor: pointer;
+    }
+    .compare-bar select option {
+        background: #1a1a2e;
+        color: white;
+    }
+    .compare-divider {
+        width: 1px;
+        height: 24px;
+        background: rgba(255,255,255,0.15);
+        margin: 0 8px;
+    }
+    .map-split-container {
+        display: none;
+        flex: 1;
+        overflow: hidden;
+    }
+    .map-split-container.active {
+        display: flex;
+    }
+    .map-split-half {
+        flex: 1;
+        position: relative;
+    }
+    .map-split-half:first-child {
+        border-right: 2px solid #34e89e;
+    }
+    .split-label {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background: rgba(10, 10, 25, 0.85);
+        backdrop-filter: blur(6px);
+        color: white;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        pointer-events: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .btn-compare {
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.25);
+        color: white;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-left: 12px;
+    }
+    .btn-compare:hover {
+        background: rgba(52,232,158,0.25);
+        border-color: #34e89e;
+    }
+    .btn-compare.active {
+        background: rgba(52,232,158,0.3);
+        border-color: #34e89e;
+        color: #34e89e;
+    }
 </style>
 {% endblock %}
 
@@ -201,6 +573,26 @@
                 </div>
             </div>
         </div>
+        {% if tiene_ndre %}
+        <div class="col-md-3 mt-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <h5 class="card-title">NDRE</h5>
+                    <h2 class="mb-0">{{ imagenes_por_tipo.NDRE }}</h2>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if tiene_evi %}
+        <div class="col-md-3 mt-3">
+            <div class="card text-white bg-dark">
+                <div class="card-body">
+                    <h5 class="card-title">EVI</h5>
+                    <h2 class="mb-0">{{ imagenes_por_tipo.EVI }}</h2>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
     
     <!-- Tooltip informativo sobre selección de imágenes (Colapsable) -->
@@ -300,6 +692,11 @@
                                         <i class="fas fa-download"></i> Descargar
                                     </a>
                                 </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-ver-mapa w-100" onclick="openMapOverlay('{{ registro.imagen_ndvi.url }}', 'NDVI', '{{ registro.periodo_texto }}')">
+                                        🗺️ Ver en Mapa
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     {% endif %}
@@ -322,6 +719,11 @@
                                         <i class="fas fa-download"></i> Descargar
                                     </a>
                                 </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-ver-mapa w-100" onclick="openMapOverlay('{{ registro.imagen_ndmi.url }}', 'NDMI', '{{ registro.periodo_texto }}')">
+                                        🗺️ Ver en Mapa
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     {% endif %}
@@ -343,6 +745,65 @@
                                     <a href="{{ registro.imagen_savi_url }}" download="SAVI_{{ registro.periodo_texto }}.png" class="btn btn-sm btn-outline-warning w-100">
                                         <i class="fas fa-download"></i> Descargar
                                     </a>
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-ver-mapa w-100" onclick="openMapOverlay('{{ registro.imagen_savi.url }}', 'SAVI', '{{ registro.periodo_texto }}')">
+                                        🗺️ Ver en Mapa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if registro.imagen_ndre %}
+                        <div class="col-md-4">
+                            <div class="imagen-card">
+                                <span class="indice-badge" style="background: #dc3545; color: white;">NDRE</span>
+                                <img src="{{ registro.imagen_ndre.url }}" 
+                                     class="imagen-thumbnail mt-2" 
+                                     alt="NDRE {{ registro.periodo_texto }}"
+                                     onclick="openLightbox('{{ registro.imagen_ndre.url }}', 'NDRE', '{{ registro.periodo_texto }}', '{{ registro.nubosidad_imagen|floatformat:1 }}')">
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>NDRE:</strong> {{ registro.ndre_promedio|floatformat:3 }}
+                                    </small>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{{ registro.imagen_ndre_url }}" download="NDRE_{{ registro.periodo_texto }}.png" class="btn btn-sm btn-outline-danger w-100">
+                                        <i class="fas fa-download"></i> Descargar
+                                    </a>
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-ver-mapa w-100" onclick="openMapOverlay('{{ registro.imagen_ndre.url }}', 'NDRE', '{{ registro.periodo_texto }}')">
+                                        🗺️ Ver en Mapa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if registro.imagen_evi %}
+                        <div class="col-md-4">
+                            <div class="imagen-card">
+                                <span class="indice-badge" style="background: #495057; color: white;">EVI</span>
+                                <img src="{{ registro.imagen_evi.url }}" 
+                                     class="imagen-thumbnail mt-2" 
+                                     alt="EVI {{ registro.periodo_texto }}"
+                                     onclick="openLightbox('{{ registro.imagen_evi.url }}', 'EVI', '{{ registro.periodo_texto }}', '{{ registro.nubosidad_imagen|floatformat:1 }}')">
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>EVI:</strong> {{ registro.evi_promedio|floatformat:3 }}
+                                    </small>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{{ registro.imagen_evi_url }}" download="EVI_{{ registro.periodo_texto }}.png" class="btn btn-sm btn-outline-secondary w-100">
+                                        <i class="fas fa-download"></i> Descargar
+                                    </a>
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-ver-mapa w-100" onclick="openMapOverlay('{{ registro.imagen_evi.url }}', 'EVI', '{{ registro.periodo_texto }}')">
+                                        🗺️ Ver en Mapa
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -396,7 +857,704 @@ function closeLightbox() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeLightbox();
+        closeMapOverlay();
     }
 });
+
+// ========== MAPA CON OVERLAY ==========
+let mapaOverlay = null;
+let imagenOverlayLayer = null;
+let parcelaLayer = null;
+const parcelaGeoJSON = '{{ parcela_geojson|escapejs }}';
+
+function openMapOverlay(imagenUrl, indice, periodo) {
+    const modal = document.getElementById('mapModal');
+    document.getElementById('map-modal-title').textContent = `${indice} — ${periodo}`;
+    modal.classList.add('active');
+    
+    // Guardar referencia actual para el comparador
+    currentOpenIndice = indice;
+    currentOpenPeriodo = periodo;
+    
+    // Resetear modo comparación si estaba activo
+    if (compareMode) toggleCompareMode();
+    
+    // Actualizar leyenda y panel informativo
+    updateLegend(indice);
+    updateInfoPanel(indice);
+    
+    // Inicializar mapa (solo la primera vez)
+    setTimeout(function() {
+        if (!mapaOverlay) {
+            mapaOverlay = L.map('mapa-overlay-container', {
+                zoomControl: true,
+                attributionControl: false
+            });
+            
+            // Capa satélite
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19
+            }).addTo(mapaOverlay);
+            
+            // Etiquetas encima
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+                maxZoom: 19, pane: 'overlayPane'
+            }).addTo(mapaOverlay);
+        }
+        
+        // Limpiar capas anteriores
+        if (imagenOverlayLayer) { mapaOverlay.removeLayer(imagenOverlayLayer); }
+        if (parcelaLayer) { mapaOverlay.removeLayer(parcelaLayer); }
+        
+        if (parcelaGeoJSON) {
+            try {
+                const geo = JSON.parse(parcelaGeoJSON);
+                const geoFeature = geo.geometry ? geo : { type: "Feature", geometry: geo, properties: {} };
+                
+                // Dibujar polígono de la parcela
+                parcelaLayer = L.geoJSON(geoFeature, {
+                    style: {
+                        color: '#ffffff',
+                        weight: 3,
+                        opacity: 0.9,
+                        fillOpacity: 0.0,
+                        dashArray: '8, 6'
+                    }
+                }).addTo(mapaOverlay);
+                
+                // Obtener bounds del polígono
+                const bounds = parcelaLayer.getBounds();
+                overlayBounds = bounds;
+                
+                // Superponer imagen satelital sobre la parcela
+                imagenOverlayLayer = L.imageOverlay(imagenUrl, bounds, {
+                    opacity: 0.75,
+                    interactive: false
+                }).addTo(mapaOverlay);
+                
+                // Centrar mapa en la parcela con padding
+                mapaOverlay.fitBounds(bounds, { padding: [40, 40] });
+                
+                // Inicializar muestreo de color para tooltip
+                initPixelSampler(imagenUrl, indice);
+                
+                // Reset slider
+                const slider = document.getElementById('opacitySlider');
+                const valLabel = document.getElementById('opacityVal');
+                slider.value = 75;
+                valLabel.textContent = '75%';
+                
+            } catch(err) {
+                console.error('Error procesando GeoJSON:', err);
+            }
+        }
+        
+        mapaOverlay.invalidateSize();
+    }, 100);
+}
+
+function closeMapOverlay() {
+    document.getElementById('mapModal').classList.remove('active');
+    hidePixelTooltip();
+}
+
+function updateOverlayOpacity(val) {
+    document.getElementById('opacityVal').textContent = val + '%';
+    if (imagenOverlayLayer) {
+        imagenOverlayLayer.setOpacity(val / 100);
+    }
+}
+
+// ========== LEYENDA DINÁMICA ==========
+const legendConfig = {
+    'NDVI': {
+        icon: '🌿',
+        nombre: 'Verdor del Cultivo',
+        gradient: 'linear-gradient(to right, #8B0000, #CC3300, #FF8C00, #FFD700, #90EE90, #228B22, #006400)',
+        items: [
+            { color: '#006400', range: '0.7 – 1.0', label: 'Excelente', desc: 'Cultivo muy sano y vigoroso' },
+            { color: '#228B22', range: '0.5 – 0.7', label: 'Bueno', desc: 'Buen estado general' },
+            { color: '#FFD700', range: '0.3 – 0.5', label: 'Regular', desc: 'Revisar riego o abono' },
+            { color: '#CC3300', range: '0.1 – 0.3', label: 'Alerta', desc: 'Estrés, posible plaga' },
+            { color: '#8B0000', range: '0.0 – 0.1', label: 'Crítico', desc: 'Suelo desnudo o cultivo muerto' },
+        ]
+    },
+    'NDMI': {
+        icon: '💧',
+        nombre: 'Humedad del Cultivo',
+        gradient: 'linear-gradient(to right, #8B4513, #D2691E, #F4A460, #FFFACD, #87CEEB, #4169E1, #00008B)',
+        items: [
+            { color: '#00008B', range: '0.4 – 1.0', label: 'Muy húmedo', desc: 'Exceso de agua, revisar drenaje' },
+            { color: '#4169E1', range: '0.2 – 0.4', label: 'Bien hidratado', desc: 'Humedad ideal para el cultivo' },
+            { color: '#87CEEB', range: '0.0 – 0.2', label: 'Normal', desc: 'Humedad aceptable' },
+            { color: '#F4A460', range: '-0.2 – 0.0', label: 'Seco', desc: 'Falta agua, aumentar riego' },
+            { color: '#8B4513', range: '-1.0 – -0.2', label: 'Muy seco', desc: 'Estrés hídrico severo' },
+        ]
+    },
+    'SAVI': {
+        icon: '🌱',
+        nombre: 'Vegetación (ajustado al suelo)',
+        gradient: 'linear-gradient(to right, #8B0000, #CC3300, #FF8C00, #FFD700, #90EE90, #228B22, #006400)',
+        items: [
+            { color: '#006400', range: '0.6 – 1.0', label: 'Denso', desc: 'Cobertura vegetal muy densa' },
+            { color: '#228B22', range: '0.4 – 0.6', label: 'Bueno', desc: 'Buena cobertura' },
+            { color: '#FFD700', range: '0.2 – 0.4', label: 'Moderado', desc: 'Cultivo joven o ralo' },
+            { color: '#CC3300', range: '0.0 – 0.2', label: 'Bajo', desc: 'Poco cultivo, mucho suelo' },
+        ]
+    },
+    'NDRE': {
+        icon: '🔬',
+        nombre: 'Salud Interna de la Planta',
+        gradient: 'linear-gradient(to right, #8B0000, #CC3300, #FF8C00, #FFD700, #90EE90, #228B22, #006400)',
+        items: [
+            { color: '#006400', range: '0.5 – 1.0', label: 'Excelente', desc: 'Bien nutrida, sana por dentro' },
+            { color: '#228B22', range: '0.3 – 0.5', label: 'Buena', desc: 'Nutrición adecuada' },
+            { color: '#FFD700', range: '0.2 – 0.3', label: 'Regular', desc: 'Puede faltar fertilizante' },
+            { color: '#CC3300', range: '0.1 – 0.2', label: 'Deficiente', desc: 'Falta nutrición, actuar pronto' },
+            { color: '#8B0000', range: '0.0 – 0.1', label: 'Crítico', desc: 'Deficiencia severa de nutrientes' },
+        ]
+    },
+    'EVI': {
+        icon: '🌳',
+        nombre: 'Vigor de la Vegetación',
+        gradient: 'linear-gradient(to right, #8B0000, #CC3300, #FF8C00, #FFD700, #90EE90, #228B22, #006400)',
+        items: [
+            { color: '#006400', range: '0.5 – 1.0', label: 'Muy vigoroso', desc: 'Crecimiento fuerte y activo' },
+            { color: '#228B22', range: '0.3 – 0.5', label: 'Buen vigor', desc: 'Producción normal' },
+            { color: '#FFD700', range: '0.2 – 0.3', label: 'Moderado', desc: 'Crecimiento lento' },
+            { color: '#CC3300', range: '0.0 – 0.2', label: 'Bajo', desc: 'Poco vigor, revisar la causa' },
+        ]
+    }
+};
+
+function updateLegend(indice) {
+    const legend = document.getElementById('indexLegend');
+    const cfg = legendConfig[indice];
+    if (!cfg) { legend.innerHTML = ''; return; }
+    
+    let itemsHtml = cfg.items.map(item => `
+        <div class="legend-item">
+            <div class="legend-dot" style="background: ${item.color};"></div>
+            <div class="legend-item-text">
+                <span class="legend-item-label">${item.range}</span> ${item.label}<br>
+                <span style="opacity:0.6; font-size:0.68rem;">${item.desc}</span>
+            </div>
+        </div>
+    `).join('');
+    
+    legend.innerHTML = `
+        <div class="index-legend-title">${cfg.icon} ${cfg.nombre}</div>
+        <div class="legend-gradient" style="background: ${cfg.gradient};"></div>
+        <div class="legend-scale">
+            <span>${indice === 'NDMI' ? '-1.0' : '0.0'}</span>
+            <span>→</span>
+            <span>1.0</span>
+        </div>
+        <div class="legend-items">${itemsHtml}</div>
+        <div class="legend-avg">
+            Más cerca de <strong>1.0</strong> = Mejor estado<br>
+            ${indice === 'NDMI' ? 'Negativo = Seco &nbsp;|&nbsp; Positivo = Húmedo' : 'Más bajo = Menos salud'}
+        </div>
+    `;
+}
+
+// ========== MODO COMPARACIÓN ==========
+const catalogoImagenes = {{ catalogo_imagenes_json|safe }};
+let compareMode = false;
+let mapLeft = null, mapRight = null;
+let overlayLeft = null, overlayRight = null;
+let parcelaLeft = null, parcelaRight = null;
+let syncingMap = false;
+let currentOpenIndice = '';
+let currentOpenPeriodo = '';
+
+function toggleCompareMode() {
+    compareMode = !compareMode;
+    const btn = document.getElementById('btnCompare');
+    const normalBody = document.querySelector('.map-modal-body');
+    const splitContainer = document.getElementById('splitContainer');
+    const compareBar = document.getElementById('compareBar');
+    
+    if (compareMode) {
+        btn.classList.add('active');
+        btn.textContent = '✕ Cerrar Comparación';
+        normalBody.style.display = 'none';
+        splitContainer.classList.add('active');
+        compareBar.classList.add('active');
+        
+        // Poblar selectores con imágenes disponibles
+        populateCompareSelectors();
+        
+        // Inicializar mapas de comparación
+        setTimeout(initCompareMaps, 150);
+    } else {
+        btn.classList.remove('active');
+        btn.textContent = '📸 Comparar';
+        normalBody.style.display = 'flex';
+        splitContainer.classList.remove('active');
+        compareBar.classList.remove('active');
+        
+        // Refrescar mapa normal
+        if (mapaOverlay) mapaOverlay.invalidateSize();
+    }
+}
+
+function populateCompareSelectors() {
+    const selLeft = document.getElementById('compareLeft');
+    const selRight = document.getElementById('compareRight');
+    
+    let options = catalogoImagenes.map((img, i) => 
+        `<option value="${i}">${img.indice} — ${img.periodo_texto}</option>`
+    ).join('');
+    
+    selLeft.innerHTML = options;
+    selRight.innerHTML = options;
+    
+    // Pre-seleccionar: izquierda = imagen actual, derecha = otro índice mismo periodo
+    const currentIdx = catalogoImagenes.findIndex(
+        img => img.indice === currentOpenIndice && img.periodo_texto === currentOpenPeriodo
+    );
+    if (currentIdx >= 0) selLeft.value = currentIdx;
+    
+    // Buscar otro índice del mismo periodo para la derecha
+    const otherIdx = catalogoImagenes.findIndex(
+        (img, i) => i !== currentIdx && img.periodo_texto === currentOpenPeriodo
+    );
+    if (otherIdx >= 0) {
+        selRight.value = otherIdx;
+    } else if (catalogoImagenes.length > 1) {
+        selRight.value = currentIdx === 0 ? 1 : 0;
+    }
+}
+
+function initCompareMaps() {
+    if (!mapLeft) {
+        mapLeft = L.map('mapa-compare-left', { zoomControl: false, attributionControl: false });
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mapLeft);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', { maxZoom: 19, pane: 'overlayPane' }).addTo(mapLeft);
+        
+        // Sincronizar movimiento
+        mapLeft.on('moveend zoomend', function() {
+            if (syncingMap) return;
+            syncingMap = true;
+            mapRight.setView(mapLeft.getCenter(), mapLeft.getZoom(), { animate: false });
+            syncingMap = false;
+        });
+    }
+    
+    if (!mapRight) {
+        mapRight = L.map('mapa-compare-right', { zoomControl: true, attributionControl: false });
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mapRight);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', { maxZoom: 19, pane: 'overlayPane' }).addTo(mapRight);
+        
+        mapRight.on('moveend zoomend', function() {
+            if (syncingMap) return;
+            syncingMap = true;
+            mapLeft.setView(mapRight.getCenter(), mapRight.getZoom(), { animate: false });
+            syncingMap = false;
+        });
+    }
+    
+    mapLeft.invalidateSize();
+    mapRight.invalidateSize();
+    
+    // Cargar imágenes seleccionadas
+    updateCompareImage('left');
+    updateCompareImage('right');
+}
+
+function updateCompareImage(side) {
+    const sel = document.getElementById(side === 'left' ? 'compareLeft' : 'compareRight');
+    const idx = parseInt(sel.value);
+    const imgData = catalogoImagenes[idx];
+    if (!imgData) return;
+    
+    const map = side === 'left' ? mapLeft : mapRight;
+    const label = document.getElementById(side === 'left' ? 'splitLabelLeft' : 'splitLabelRight');
+    
+    // Actualizar label
+    label.textContent = `${imgData.indice} — ${imgData.periodo_texto}`;
+    
+    // Limpiar overlay anterior
+    if (side === 'left' && overlayLeft) { map.removeLayer(overlayLeft); }
+    if (side === 'right' && overlayRight) { map.removeLayer(overlayRight); }
+    if (side === 'left' && parcelaLeft) { map.removeLayer(parcelaLeft); }
+    if (side === 'right' && parcelaRight) { map.removeLayer(parcelaRight); }
+    
+    if (parcelaGeoJSON) {
+        try {
+            const geo = JSON.parse(parcelaGeoJSON);
+            const geoFeature = geo.geometry ? geo : { type: "Feature", geometry: geo, properties: {} };
+            
+            const pLayer = L.geoJSON(geoFeature, {
+                style: { color: '#ffffff', weight: 2, opacity: 0.8, fillOpacity: 0.0, dashArray: '6, 4' }
+            }).addTo(map);
+            
+            const bounds = pLayer.getBounds();
+            const iOverlay = L.imageOverlay(imgData.url, bounds, { opacity: 0.8 }).addTo(map);
+            
+            if (side === 'left') {
+                overlayLeft = iOverlay;
+                parcelaLeft = pLayer;
+            } else {
+                overlayRight = iOverlay;
+                parcelaRight = pLayer;
+            }
+            
+            map.fitBounds(bounds, { padding: [20, 20] });
+        } catch(e) { console.error(e); }
+    }
+}
+
+// ========== PANEL INFORMATIVO DINÁMICO ==========
+const infoConfig = {
+    'NDVI': {
+        icon: '🌿',
+        titulo: 'Verdor del Cultivo',
+        queEs: 'Mide si hay hojas verdes en la parcela. Usa la luz roja que las hojas absorben para hacer fotosíntesis.',
+        queMuestra: 'Verde oscuro = mucha hoja sana. Amarillo/rojo = poca vegetación o suelo expuesto.',
+        limitacion: 'En cultivos adultos y tupidos (como palma grande) se "satura": dice que todo está bien aunque por dentro la planta esté débil.',
+        tip: 'Ideal para detectar zonas sin cultivo, áreas afectadas por plagas visibles, o monitorear cultivos jóvenes.',
+        vs: null
+    },
+    'NDMI': {
+        icon: '💧',
+        titulo: 'Humedad del Cultivo',
+        queEs: 'Mide cuánta agua tiene la planta en sus hojas y tejidos. Usa bandas infrarrojas sensibles al contenido de agua.',
+        queMuestra: 'Azul oscuro = muy húmedo. Azul claro = normal. Marrón = seco, falta agua.',
+        limitacion: 'No distingue si el agua viene del riego, la lluvia, o una inundación. Solo dice "hay agua" o "no hay".',
+        tip: 'Compare con los datos de precipitación del mismo mes. Si no llovió y NDMI está bajo, el riego no está llegando bien a esa zona.',
+        vs: null
+    },
+    'SAVI': {
+        icon: '🌱',
+        titulo: 'Vegetación Ajustada al Suelo',
+        queEs: 'Similar a NDVI pero corrige el efecto del suelo visible. Útil cuando el cultivo no cubre toda la parcela.',
+        queMuestra: 'Verde = buena cobertura vegetal. Bajo = mucho suelo expuesto entre plantas.',
+        limitacion: 'En cultivos 100% densos da resultados muy parecidos al NDVI.',
+        tip: 'Ideal para palma joven o recién sembrada, donde se ve mucho suelo entre las palmas. También sirve para detectar claros o palmas muertas.',
+        vs: null
+    },
+    'NDRE': {
+        icon: '🔬',
+        titulo: 'Salud Interna de la Planta',
+        queEs: 'Mide la clorofila y el nitrógeno real dentro de la hoja, usando el "borde rojo" de la luz que el ojo humano no ve.',
+        queMuestra: 'Verde oscuro = planta bien nutrida. Verde claro = posible falta de nutrientes (nitrógeno, magnesio o boro).',
+        limitacion: 'No identifica cuál nutriente específico falta. Para eso se necesita análisis de suelo en la zona señalada.',
+        tip: 'Si NDRE está bajo pero NDMI está bien, es nutrición. Recomiende análisis de suelo en las zonas claras y optimice la fertilización solo donde se necesita.',
+        vs: 'NDVI dice "hay hojas verdes". NDRE dice "las hojas están sanas por dentro". En palma adulta, NDRE detecta problemas que NDVI no ve.'
+    },
+    'EVI': {
+        icon: '🌳',
+        titulo: 'Vigor de la Vegetación',
+        queEs: 'Mide qué tan activamente está creciendo y produciendo la planta. Corrige efectos de la atmósfera y el suelo.',
+        queMuestra: 'Verde intenso = crecimiento activo. Claro = crecimiento lento o detenido.',
+        limitacion: 'Es más sensible a cambios estacionales. Puede bajar en épocas secas sin que haya un problema real.',
+        tip: 'Compare el EVI entre meses. Si baja progresivamente fuera de temporada seca, algo está afectando la producción de esa zona.',
+        vs: 'NDVI puede saturarse, EVI no. En zonas muy verdes donde NDVI dice "todo igual", EVI muestra diferencias de vigor entre palmas.'
+    }
+};
+
+function updateInfoPanel(indice) {
+    const panel = document.getElementById('indexInfoPanel');
+    const cfg = infoConfig[indice];
+    if (!cfg) { panel.innerHTML = ''; return; }
+    
+    let vsHtml = '';
+    if (cfg.vs) {
+        vsHtml = `<div class="info-panel-vs"><strong>💡 vs NDVI:</strong> ${cfg.vs}</div>`;
+    }
+    
+    panel.innerHTML = `
+        <div class="info-panel-title">${cfg.icon} ${cfg.titulo}</div>
+        
+        <div class="info-panel-subtitle">¿Qué estoy viendo?</div>
+        <div class="info-panel-text">${cfg.queEs}</div>
+        
+        <div class="info-panel-subtitle">¿Cómo leer los colores?</div>
+        <div class="info-panel-text">${cfg.queMuestra}</div>
+        
+        <div class="info-panel-subtitle">⚠️ Tener en cuenta</div>
+        <div class="info-panel-text">${cfg.limitacion}</div>
+        
+        ${vsHtml}
+        
+        <div class="info-panel-tip">
+            <strong>📋 Recomendación:</strong><br>
+            ${cfg.tip}
+        </div>
+    `;
+}
+
+// ========== TOOLTIP DE PIXEL (muestreo de color) ==========
+let hiddenCanvas = null;
+let hiddenCtx = null;
+let imgNatWidth = 0;
+let imgNatHeight = 0;
+let overlayBounds = null;
+let currentIndice = '';
+
+function initPixelSampler(imagenUrl, indice) {
+    currentIndice = indice;
+    const canvas = document.getElementById('hiddenCanvas');
+    hiddenCanvas = canvas;
+    hiddenCtx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        imgNatWidth = img.naturalWidth;
+        imgNatHeight = img.naturalHeight;
+        hiddenCtx.drawImage(img, 0, 0);
+        
+        // Activar mousemove en el mapa
+        if (mapaOverlay) {
+            mapaOverlay.off('mousemove', onMapMouseMove);
+            mapaOverlay.on('mousemove', onMapMouseMove);
+            mapaOverlay.off('mouseout', onMapMouseOut);
+            mapaOverlay.on('mouseout', onMapMouseOut);
+        }
+    };
+    img.src = imagenUrl;
+}
+
+function onMapMouseMove(e) {
+    if (!overlayBounds || !hiddenCtx || imgNatWidth === 0) return;
+    
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+    
+    const south = overlayBounds.getSouth();
+    const north = overlayBounds.getNorth();
+    const west = overlayBounds.getWest();
+    const east = overlayBounds.getEast();
+    
+    // Verificar si está dentro del bounds
+    if (lat < south || lat > north || lng < west || lng > east) {
+        hidePixelTooltip();
+        return;
+    }
+    
+    // Mapear coordenadas geográficas a píxeles de la imagen
+    const xRatio = (lng - west) / (east - west);
+    const yRatio = 1 - (lat - south) / (north - south); // invertir Y
+    const px = Math.floor(xRatio * imgNatWidth);
+    const py = Math.floor(yRatio * imgNatHeight);
+    
+    if (px < 0 || px >= imgNatWidth || py < 0 || py >= imgNatHeight) {
+        hidePixelTooltip();
+        return;
+    }
+    
+    // Leer pixel
+    const pixel = hiddenCtx.getImageData(px, py, 1, 1).data;
+    const r = pixel[0], g = pixel[1], b = pixel[2], a = pixel[3];
+    
+    // Ignorar píxeles transparentes o negros (fuera de la parcela)
+    if (a < 50 || (r < 15 && g < 15 && b < 15)) {
+        hidePixelTooltip();
+        return;
+    }
+    
+    // Estimar valor del índice a partir del color
+    const result = colorToIndexValue(r, g, b, currentIndice);
+    
+    // Posicionar tooltip relativo al contenedor del mapa
+    const container = document.getElementById('mapa-overlay-container');
+    const rect = container.getBoundingClientRect();
+    const tooltip = document.getElementById('pixelTooltip');
+    
+    tooltip.style.left = (e.originalEvent.clientX - rect.left + 14) + 'px';
+    tooltip.style.top = (e.originalEvent.clientY - rect.top) + 'px';
+    
+    const hexColor = `rgb(${r},${g},${b})`;
+    tooltip.innerHTML = `
+        <span class="pixel-tooltip-color" style="background:${hexColor};"></span>
+        <span class="pixel-tooltip-val">${result.valor}</span>
+        <span class="pixel-tooltip-label">${result.estado}</span>
+    `;
+    tooltip.classList.add('visible');
+}
+
+function onMapMouseOut() {
+    hidePixelTooltip();
+}
+
+function hidePixelTooltip() {
+    document.getElementById('pixelTooltip').classList.remove('visible');
+}
+
+function colorToIndexValue(r, g, b, indice) {
+    if (indice === 'NDMI') {
+        return colorToNDMI(r, g, b);
+    }
+    return colorToVegetation(r, g, b);
+}
+
+function colorToVegetation(r, g, b) {
+    // Escala de vegetación: rojo → amarillo → verde
+    // Usar el ratio verde vs rojo para estimar
+    let valor;
+    const max = Math.max(r, g, b);
+    
+    if (max < 20) {
+        return { valor: '-', estado: 'Sin datos' };
+    }
+    
+    // Convertir a HSL para mejor mapeo
+    const hsl = rgbToHsl(r, g, b);
+    const hue = hsl[0]; // 0-360
+    const sat = hsl[1];
+    const lum = hsl[2];
+    
+    // Blanco/gris = sin vegetación
+    if (sat < 0.15 && lum > 0.7) {
+        return { valor: '~0.0', estado: '⬜ Sin vegetación' };
+    }
+    
+    // Mapeo de hue a valor:
+    // Rojo (0°/360°) → 0.0-0.15
+    // Naranja (30°) → 0.15-0.25  
+    // Amarillo (60°) → 0.25-0.40
+    // Verde-amarillo (90°) → 0.40-0.55
+    // Verde (120°) → 0.55-0.75
+    // Verde oscuro (140°+) → 0.75-1.0
+    
+    if (hue <= 15 || hue >= 345) {
+        valor = (0.15 * (hue <= 15 ? hue / 15 : (360 - hue) / 15)).toFixed(2);
+        return { valor: `~${valor}`, estado: '🔴 Crítico — Suelo o muy dañado' };
+    } else if (hue <= 35) {
+        valor = (0.15 + 0.10 * ((hue - 15) / 20)).toFixed(2);
+        return { valor: `~${valor}`, estado: '🟠 Alerta — Estrés severo' };
+    } else if (hue <= 65) {
+        valor = (0.25 + 0.15 * ((hue - 35) / 30)).toFixed(2);
+        return { valor: `~${valor}`, estado: '🟡 Regular — Revisar zona' };
+    } else if (hue <= 100) {
+        valor = (0.40 + 0.15 * ((hue - 65) / 35)).toFixed(2);
+        return { valor: `~${valor}`, estado: '🟢 Bueno — Estado aceptable' };
+    } else if (hue <= 140) {
+        valor = (0.55 + 0.20 * ((hue - 100) / 40)).toFixed(2);
+        return { valor: `~${valor}`, estado: '🟢 Muy bueno — Sano' };
+    } else {
+        // Verde oscuro
+        const darkBonus = Math.min(0.25, (1 - lum) * 0.3);
+        valor = Math.min(1.0, 0.75 + darkBonus).toFixed(2);
+        return { valor: `~${valor}`, estado: '💚 Excelente — Muy vigoroso' };
+    }
+}
+
+function colorToNDMI(r, g, b) {
+    const hsl = rgbToHsl(r, g, b);
+    const hue = hsl[0];
+    const sat = hsl[1];
+    const lum = hsl[2];
+    
+    if (sat < 0.12 && lum > 0.7) {
+        return { valor: '~0.0', estado: '⬜ Neutro' };
+    }
+    
+    // Azul (200-240°) → húmedo (positivo)
+    // Marrón/naranja (20-40°) → seco (negativo)
+    // Amarillo (50-70°) → intermedio
+    
+    if (hue >= 190 && hue <= 260) {
+        const ratio = Math.min(1, (hue - 190) / 50);
+        const val = (0.1 + 0.5 * ratio).toFixed(2);
+        const darkBonus = (1 - lum) * 0.2;
+        const finalVal = Math.min(0.8, parseFloat(val) + darkBonus).toFixed(2);
+        return { valor: `~${finalVal}`, estado: '💧 Húmedo — Buena hidratación' };
+    } else if (hue >= 160 && hue < 190) {
+        return { valor: '~0.1', estado: '💧 Ligeramente húmedo' };
+    } else if (hue >= 50 && hue <= 75) {
+        return { valor: '~0.0', estado: '➖ Intermedio' };
+    } else if (hue >= 10 && hue < 50) {
+        const ratio = 1 - ((hue - 10) / 40);
+        const val = (-0.1 - 0.4 * ratio).toFixed(2);
+        return { valor: `~${val}`, estado: '🏜️ Seco — Falta agua' };
+    } else {
+        return { valor: '~-0.3', estado: '🏜️ Muy seco — Estrés hídrico' };
+    }
+}
+
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    
+    if (max === min) {
+        h = s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+            case g: h = ((b - r) / d + 2) / 6; break;
+            case b: h = ((r - g) / d + 4) / 6; break;
+        }
+    }
+    return [h * 360, s, l];
+}
 </script>
+
+<!-- Modal Mapa con Overlay -->
+<div id="mapModal" class="map-modal-overlay" onclick="if(event.target===this) closeMapOverlay()">
+    <div class="map-modal-container">
+        <div class="map-modal-header">
+            <h5 id="map-modal-title">🗺️ Índice en Mapa</h5>
+            <div>
+                <button class="btn-compare" id="btnCompare" onclick="toggleCompareMode()">📸 Comparar</button>
+                <button class="map-modal-close" onclick="closeMapOverlay()">&times;</button>
+            </div>
+        </div>
+        
+        <!-- Barra de selectores modo comparación -->
+        <div class="compare-bar" id="compareBar">
+            <label>🅰️ Izquierda:</label>
+            <select id="compareLeft" onchange="updateCompareImage('left')"></select>
+            <div class="compare-divider"></div>
+            <label>🅱️ Derecha:</label>
+            <select id="compareRight" onchange="updateCompareImage('right')"></select>
+        </div>
+        <div class="map-modal-body">
+            <!-- Panel informativo izquierdo -->
+            <div class="map-sidebar">
+                <div class="index-info-panel" id="indexInfoPanel"></div>
+            </div>
+            
+            <!-- Mapa central -->
+            <div id="mapa-overlay-container">
+                <!-- Tooltip de pixel -->
+                <div class="pixel-tooltip" id="pixelTooltip"></div>
+                
+                <!-- Canvas oculto para muestreo de color -->
+                <canvas id="hiddenCanvas" style="display:none;"></canvas>
+                
+                <div class="opacity-control">
+                    <label>🎨 Opacidad imagen:</label>
+                    <input type="range" id="opacitySlider" min="0" max="100" value="75" oninput="updateOverlayOpacity(this.value)">
+                    <span class="opacity-val" id="opacityVal">75%</span>
+                </div>
+            </div>
+            
+            <!-- Leyenda derecha -->
+            <div class="map-sidebar map-sidebar-right" id="legendSidebar">
+                <div class="index-legend" id="indexLegend"></div>
+            </div>
+        </div>
+        
+        <!-- Split view para comparación -->
+        <div class="map-split-container" id="splitContainer">
+            <div class="map-split-half">
+                <div class="split-label" id="splitLabelLeft">NDVI</div>
+                <div id="mapa-compare-left" style="width:100%;height:100%;"></div>
+            </div>
+            <div class="map-split-half">
+                <div class="split-label" id="splitLabelRight">NDRE</div>
+                <div id="mapa-compare-right" style="width:100%;height:100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

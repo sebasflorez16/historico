@@ -1544,12 +1544,18 @@ def obtener_datos_historicos(request, parcela_id):
             # Recargar parcela después de sincronizar
             parcela.refresh_from_db()
         
-        # Obtener datos desde EOSDA usando método optimizado (1 request en lugar de 3)
+        # Obtener datos desde EOSDA usando método optimizado
+        # Determinar índices según tipo de cultivo (NDRE y EVI opcionales)
+        from informes.motor_analisis.config_umbrales import obtener_indices_recomendados
+        indices_a_consultar = obtener_indices_recomendados(
+            getattr(parcela, 'tipo_cultivo', None)
+        )
+        
         datos_satelitales = eosda_service.obtener_datos_optimizado(
             parcela=parcela,
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
-            indices=['NDVI', 'NDMI', 'SAVI'],  # ✅ MAYÚSCULAS según documentación EOSDA
+            indices=indices_a_consultar,
             usuario=request.user,
             max_nubosidad=50
         )
@@ -1572,6 +1578,8 @@ def obtener_datos_historicos(request, parcela_id):
             'ndvi_valores': [], 'ndvi_max': [], 'ndvi_min': [],
             'ndmi_valores': [], 'ndmi_max': [], 'ndmi_min': [],
             'savi_valores': [], 'savi_max': [], 'savi_min': [],
+            'ndre_valores': [], 'ndre_max': [], 'ndre_min': [],
+            'evi_valores': [], 'evi_max': [], 'evi_min': [],
             'nubosidad': [],
             'escenas': []  # Guardar todas las escenas para encontrar la mejor
         })
@@ -1609,6 +1617,18 @@ def obtener_datos_historicos(request, parcela_id):
                     datos_por_mes[clave_mes]['savi_max'].append(indexes['SAVI'].get('max', 0))
                     datos_por_mes[clave_mes]['savi_min'].append(indexes['SAVI'].get('min', 0))
                 
+                # NDRE
+                if 'NDRE' in indexes:
+                    datos_por_mes[clave_mes]['ndre_valores'].append(indexes['NDRE'].get('average', 0))
+                    datos_por_mes[clave_mes]['ndre_max'].append(indexes['NDRE'].get('max', 0))
+                    datos_por_mes[clave_mes]['ndre_min'].append(indexes['NDRE'].get('min', 0))
+                
+                # EVI
+                if 'EVI' in indexes:
+                    datos_por_mes[clave_mes]['evi_valores'].append(indexes['EVI'].get('average', 0))
+                    datos_por_mes[clave_mes]['evi_max'].append(indexes['EVI'].get('max', 0))
+                    datos_por_mes[clave_mes]['evi_min'].append(indexes['EVI'].get('min', 0))
+                
                 datos_por_mes[clave_mes]['nubosidad'].append(nubosidad)
                 
                 # ✅ Guardar info completa de la escena para encontrar la mejor
@@ -1638,6 +1658,14 @@ def obtener_datos_historicos(request, parcela_id):
                 savi_max = max(datos['savi_max']) if datos['savi_max'] else None
                 savi_min = min(datos['savi_min']) if datos['savi_min'] else None
                 
+                ndre_prom = sum(datos['ndre_valores']) / len(datos['ndre_valores']) if datos['ndre_valores'] else None
+                ndre_max = max(datos['ndre_max']) if datos['ndre_max'] else None
+                ndre_min = min(datos['ndre_min']) if datos['ndre_min'] else None
+                
+                evi_prom = sum(datos['evi_valores']) / len(datos['evi_valores']) if datos['evi_valores'] else None
+                evi_max = max(datos['evi_max']) if datos['evi_max'] else None
+                evi_min = min(datos['evi_min']) if datos['evi_min'] else None
+                
                 nub_prom = sum(datos['nubosidad']) / len(datos['nubosidad']) if datos['nubosidad'] else 0
                 
                 # ✅ Encontrar la escena con MENOR nubosidad del mes para imágenes
@@ -1660,6 +1688,12 @@ def obtener_datos_historicos(request, parcela_id):
                     'savi_promedio': savi_prom,
                     'savi_maximo': savi_max,
                     'savi_minimo': savi_min,
+                    'ndre_promedio': ndre_prom,
+                    'ndre_maximo': ndre_max,
+                    'ndre_minimo': ndre_min,
+                    'evi_promedio': evi_prom,
+                    'evi_maximo': evi_max,
+                    'evi_minimo': evi_min,
                     'nubosidad_promedio': nub_prom,
                     'fuente_datos': 'EOSDA',
                     'calidad_datos': 'buena' if nub_prom < 30 else ('regular' if nub_prom < 50 else 'pobre')
@@ -1686,8 +1720,11 @@ def obtener_datos_historicos(request, parcela_id):
                 ndvi_str = f"{ndvi_prom:.3f}" if ndvi_prom else "N/A"
                 ndmi_str = f"{ndmi_prom:.3f}" if ndmi_prom else "N/A"
                 savi_str = f"{savi_prom:.3f}" if savi_prom else "N/A"
+                ndre_str = f"{ndre_prom:.3f}" if ndre_prom else "-"
+                evi_str = f"{evi_prom:.3f}" if evi_prom else "-"
                 logger.info(f"✅ Guardado {month:02d}/{year}: NDVI={ndvi_str}, "
                            f"NDMI={ndmi_str}, SAVI={savi_str}, "
+                           f"NDRE={ndre_str}, EVI={evi_str}, "
                            f"Nubosidad={nub_prom:.1f}%")
                 
             except Exception as e:
@@ -1842,9 +1879,15 @@ def ver_datos_guardados(request, parcela_id):
             'ndvi': [],
             'ndmi': [],
             'savi': [],
+            'ndre': [],
+            'evi': [],
             'temperatura': [],
             'precipitacion': []
         }
+        
+        # Detectar si hay datos NDRE/EVI
+        tiene_ndre = False
+        tiene_evi = False
         
         for indice in indices:
             fecha_label = f"{indice.año}-{indice.mes:02d}"
@@ -1852,8 +1895,14 @@ def ver_datos_guardados(request, parcela_id):
             datos_graficos['ndvi'].append(indice.ndvi_promedio)
             datos_graficos['ndmi'].append(indice.ndmi_promedio)
             datos_graficos['savi'].append(indice.savi_promedio)
+            datos_graficos['ndre'].append(indice.ndre_promedio)
+            datos_graficos['evi'].append(indice.evi_promedio)
             datos_graficos['temperatura'].append(indice.temperatura_promedio)
             datos_graficos['precipitacion'].append(indice.precipitacion_total)
+            if indice.ndre_promedio is not None:
+                tiene_ndre = True
+            if indice.evi_promedio is not None:
+                tiene_evi = True
         
         contexto = {
             'parcela': parcela,
@@ -1862,7 +1911,9 @@ def ver_datos_guardados(request, parcela_id):
             'registros_eosda': registros_eosda,
             'registros_simulados': registros_simulados,
             'datos_graficos': json.dumps(datos_graficos),
-            'tiene_datos': total_registros > 0
+            'tiene_datos': total_registros > 0,
+            'tiene_ndre': tiene_ndre,
+            'tiene_evi': tiene_evi,
         }
         
         return render(request, 'informes/parcelas/datos_guardados.html', contexto)
@@ -1971,7 +2022,9 @@ def galeria_imagenes(request, parcela_id):
         ).filter(
             Q(imagen_ndvi__isnull=False) | 
             Q(imagen_ndmi__isnull=False) | 
-            Q(imagen_savi__isnull=False)
+            Q(imagen_savi__isnull=False) |
+            Q(imagen_ndre__isnull=False) |
+            Q(imagen_evi__isnull=False)
         ).order_by('-año', '-mes')
         
         # Convertir URLs de imágenes a absolutas para descargas
@@ -1982,10 +2035,14 @@ def galeria_imagenes(request, parcela_id):
                 registro.imagen_ndmi_url = request.build_absolute_uri(registro.imagen_ndmi.url)
             if registro.imagen_savi:
                 registro.imagen_savi_url = request.build_absolute_uri(registro.imagen_savi.url)
+            if registro.imagen_ndre:
+                registro.imagen_ndre_url = request.build_absolute_uri(registro.imagen_ndre.url)
+            if registro.imagen_evi:
+                registro.imagen_evi_url = request.build_absolute_uri(registro.imagen_evi.url)
         
         # Estadísticas
         total_imagenes = 0
-        imagenes_por_tipo = {'NDVI': 0, 'NDMI': 0, 'SAVI': 0}
+        imagenes_por_tipo = {'NDVI': 0, 'NDMI': 0, 'SAVI': 0, 'NDRE': 0, 'EVI': 0}
         
         for registro in registros_con_imagenes:
             if registro.imagen_ndvi:
@@ -1997,12 +2054,41 @@ def galeria_imagenes(request, parcela_id):
             if registro.imagen_savi:
                 total_imagenes += 1
                 imagenes_por_tipo['SAVI'] += 1
+            if registro.imagen_ndre:
+                total_imagenes += 1
+                imagenes_por_tipo['NDRE'] += 1
+            if registro.imagen_evi:
+                total_imagenes += 1
+                imagenes_por_tipo['EVI'] += 1
+        
+        tiene_ndre = imagenes_por_tipo['NDRE'] > 0
+        tiene_evi = imagenes_por_tipo['EVI'] > 0
+        
+        # Construir catálogo de imágenes para comparador JS
+        import json as json_mod
+        catalogo_imagenes = []
+        for reg in registros_con_imagenes:
+            periodo = f"{reg.año}-{reg.mes:02d}"
+            periodo_texto = getattr(reg, 'periodo_texto', periodo)
+            for idx in ['ndvi', 'ndmi', 'savi', 'ndre', 'evi']:
+                img = getattr(reg, f'imagen_{idx}', None)
+                if img and img.name:
+                    catalogo_imagenes.append({
+                        'periodo': periodo,
+                        'periodo_texto': periodo_texto,
+                        'indice': idx.upper(),
+                        'url': img.url,
+                    })
         
         contexto = {
             'parcela': parcela,
             'registros_con_imagenes': registros_con_imagenes,
             'total_imagenes': total_imagenes,
             'imagenes_por_tipo': imagenes_por_tipo,
+            'tiene_ndre': tiene_ndre,
+            'tiene_evi': tiene_evi,
+            'parcela_geojson': parcela.poligono_geojson or '',
+            'catalogo_imagenes_json': json_mod.dumps(catalogo_imagenes),
         }
         
         return render(request, 'informes/parcelas/galeria_imagenes.html', contexto)
@@ -2033,10 +2119,10 @@ def descargar_imagen_indice(request, registro_id):
         
         # Obtener tipo de índice solicitado
         indice = request.POST.get('indice', '').upper()
-        if indice not in ['NDVI', 'NDMI', 'SAVI']:
+        if indice not in ['NDVI', 'NDMI', 'SAVI', 'NDRE', 'EVI']:
             return JsonResponse({
                 'success': False, 
-                'error': f'Índice no válido: {indice}. Usar NDVI, NDMI o SAVI'
+                'error': f'Índice no válido: {indice}. Usar NDVI, NDMI, SAVI, NDRE o EVI'
             }, status=400)
         
         # Verificar si la imagen ya existe localmente
@@ -2115,6 +2201,10 @@ def descargar_imagen_indice(request, registro_id):
             registro.imagen_ndmi.save(nombre_archivo, content_file, save=False)
         elif indice == 'SAVI':
             registro.imagen_savi.save(nombre_archivo, content_file, save=False)
+        elif indice == 'NDRE':
+            registro.imagen_ndre.save(nombre_archivo, content_file, save=False)
+        elif indice == 'EVI':
+            registro.imagen_evi.save(nombre_archivo, content_file, save=False)
         
         # Actualizar metadatos
         registro.view_id_imagen = resultado.get('view_id')
@@ -2427,10 +2517,11 @@ def exportar_video_timeline(request, parcela_id):
         bitrate = request.GET.get('bitrate', '8000k')
         
         # Validar índice
-        if indice not in ['ndvi', 'ndmi', 'savi']:
+        indices_validos = ['ndvi', 'ndmi', 'savi', 'ndre', 'evi']
+        if indice not in indices_validos:
             return JsonResponse({
                 'error': True,
-                'mensaje': f'Índice inválido: {indice}. Debe ser ndvi, ndmi o savi.'
+                'mensaje': f'Índice inválido: {indice}. Debe ser uno de: {", ".join(indices_validos)}.'
             }, status=400)
         
         logger.info(f"🎬 Iniciando exportación de video multi-escena para parcela {parcela_id}, índice={indice}")
@@ -2926,10 +3017,18 @@ def generar_informe_legal_pdf(request, parcela_id):
             # Instanciar verificador (sin argumento departamento)
             verificador = VerificadorRestriccionesLegales()
             
-            # Ejecutar verificación legal usando verificar_parcela que retorna ResultadoVerificacion
+            # Cargar capas geográficas
+            logger.info(f"📂 Cargando capas geográficas para verificación legal...")
+            verificador.cargar_red_hidrica()
+            verificador.cargar_areas_protegidas()
+            verificador.cargar_resguardos_indigenas()
+            verificador.cargar_paramos()
+            
+            # Ejecutar verificación de restricciones
+            logger.info(f"⚖️ Verificando restricciones legales para parcela {parcela.nombre}...")
             resultado = verificador.verificar_parcela(
                 parcela_id=parcela.id,
-                geometria_parcela=parcela.geometria,  # Django GEOS Polygon
+                geometria_parcela=parcela.geometria,
                 nombre_parcela=parcela.nombre
             )
             
@@ -2947,7 +3046,17 @@ def generar_informe_legal_pdf(request, parcela_id):
             output_path = os.path.join(output_dir, nombre_archivo)
             
             # Generar PDF
-            logger.info(f"🗺️ Iniciando generación de informe legal para parcela {parcela.nombre} (ID: {parcela_id})")
+            logger.info(f"🗺️ Iniciando generación de PDF legal para parcela {parcela.nombre} (ID: {parcela_id})")
+            
+            # Crear ruta de salida
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_archivo_pdf = f"informe_legal_{parcela.nombre.replace(' ', '_')}_{timestamp}.pdf"
+            
+            # Directorio de salida
+            media_dir = os.path.join(settings.MEDIA_ROOT, 'verificacion_legal')
+            os.makedirs(media_dir, exist_ok=True)
+            output_path = os.path.join(media_dir, nombre_archivo_pdf)
             
             ruta_pdf = generador.generar_pdf(
                 parcela=parcela,
@@ -2968,13 +3077,13 @@ def generar_informe_legal_pdf(request, parcela_id):
             propietario_limpio = parcela.propietario.replace(" ", "_").replace("/", "-")
             parcela_limpia = parcela.nombre.replace(" ", "_").replace("/", "-")
             fecha_str = datetime.now().strftime("%Y%m%d")
-            nombre_descarga = f"informe_legal_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
+            nombre_archivo_descarga = f"informe_legal_{propietario_limpio}_{parcela_limpia}_{fecha_str}.pdf"
             
             response = FileResponse(
                 open(ruta_pdf, 'rb'),
                 content_type='application/pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="{nombre_descarga}"'
+            response['Content-Disposition'] = f'attachment; filename="{nombre_archivo_descarga}"'
             
             # Log de éxito
             logger.info(f"✅ Informe legal PDF generado exitosamente para parcela {parcela.nombre} (ID: {parcela_id})")

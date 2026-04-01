@@ -73,6 +73,16 @@ class ConfiguracionReporte(models.Model):
         verbose_name='Incluir SAVI',
         help_text='Índice Ajustado de Suelo (cobertura)'
     )
+    incluir_ndre = models.BooleanField(
+        default=False,
+        verbose_name='Incluir NDRE',
+        help_text='Índice de Borde Rojo (nitrógeno/clorofila en dosel denso)'
+    )
+    incluir_evi = models.BooleanField(
+        default=False,
+        verbose_name='Incluir EVI',
+        help_text='Vegetación Mejorada (estructura dosel, no se satura en alta biomasa)'
+    )
     
     # Imágenes satelitales
     incluir_imagenes = models.BooleanField(
@@ -153,6 +163,10 @@ class ConfiguracionReporte(models.Model):
             indices.append('NDMI')
         if self.incluir_savi:
             indices.append('SAVI')
+        if self.incluir_ndre:
+            indices.append('NDRE')
+        if self.incluir_evi:
+            indices.append('EVI')
         return indices
     
     @property

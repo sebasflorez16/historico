@@ -12,6 +12,8 @@ from ..models import IndiceMensual, Parcela
 from ..analizadores.ndvi_analyzer import AnalizadorNDVI
 from ..analizadores.ndmi_analyzer import AnalizadorNDMI
 from ..analizadores.savi_analyzer import AnalizadorSAVI
+from ..analizadores.ndre_analyzer import AnalizadorNDRE
+from ..analizadores.evi_analyzer import AnalizadorEVI
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,16 @@ class TimelineProcessor:
                     'maximo': float(indice_mensual.savi_maximo) if indice_mensual.savi_maximo else None,
                     'minimo': float(indice_mensual.savi_minimo) if indice_mensual.savi_minimo else None,
                 },
+                'ndre': {
+                    'promedio': float(indice_mensual.ndre_promedio) if indice_mensual.ndre_promedio else None,
+                    'maximo': float(indice_mensual.ndre_maximo) if indice_mensual.ndre_maximo else None,
+                    'minimo': float(indice_mensual.ndre_minimo) if indice_mensual.ndre_minimo else None,
+                },
+                'evi': {
+                    'promedio': float(indice_mensual.evi_promedio) if indice_mensual.evi_promedio else None,
+                    'maximo': float(indice_mensual.evi_maximo) if indice_mensual.evi_maximo else None,
+                    'minimo': float(indice_mensual.evi_minimo) if indice_mensual.evi_minimo else None,
+                },
                 
                 # Clima
                 'temperatura': float(indice_mensual.temperatura_promedio) if indice_mensual.temperatura_promedio else None,
@@ -67,6 +79,8 @@ class TimelineProcessor:
                     'ndvi': indice_mensual.imagen_ndvi.url if indice_mensual.imagen_ndvi and indice_mensual.imagen_ndvi.name else None,
                     'ndmi': indice_mensual.imagen_ndmi.url if indice_mensual.imagen_ndmi and indice_mensual.imagen_ndmi.name else None,
                     'savi': indice_mensual.imagen_savi.url if indice_mensual.imagen_savi and indice_mensual.imagen_savi.name else None,
+                    'ndre': indice_mensual.imagen_ndre.url if indice_mensual.imagen_ndre and indice_mensual.imagen_ndre.name else None,
+                    'evi': indice_mensual.imagen_evi.url if indice_mensual.imagen_evi and indice_mensual.imagen_evi.name else None,
                 },
                 
                 # Metadata de imagen
@@ -230,6 +244,76 @@ class TimelineProcessor:
                     'descripcion': 'Cobertura vegetal escasa'
                 }
         
+        # NDRE
+        if indice.ndre_promedio is not None:
+            if indice.ndre_promedio >= 0.5:
+                clasificaciones['ndre'] = {
+                    'nivel': 'excelente',
+                    'etiqueta': 'Nutrición Óptima',
+                    'color': '#20c997',
+                    'icono': '🌟',
+                    'descripcion': 'Contenido de clorofila y nitrógeno óptimo'
+                }
+            elif indice.ndre_promedio >= 0.35:
+                clasificaciones['ndre'] = {
+                    'nivel': 'bueno',
+                    'etiqueta': 'Buena Nutrición',
+                    'color': '#28a745',
+                    'icono': '✅',
+                    'descripcion': 'Buen contenido de clorofila'
+                }
+            elif indice.ndre_promedio >= 0.2:
+                clasificaciones['ndre'] = {
+                    'nivel': 'moderado',
+                    'etiqueta': 'Nutrición Moderada',
+                    'color': '#ffc107',
+                    'icono': '⚠️',
+                    'descripcion': 'Contenido de clorofila moderado'
+                }
+            else:
+                clasificaciones['ndre'] = {
+                    'nivel': 'bajo',
+                    'etiqueta': 'Deficiencia Nutricional',
+                    'color': '#dc3545',
+                    'icono': '🔴',
+                    'descripcion': 'Posible deficiencia de nitrógeno'
+                }
+        
+        # EVI
+        if indice.evi_promedio is not None:
+            if indice.evi_promedio >= 0.6:
+                clasificaciones['evi'] = {
+                    'nivel': 'excelente',
+                    'etiqueta': 'Biomasa Óptima',
+                    'color': '#20c997',
+                    'icono': '🌟',
+                    'descripcion': 'Biomasa alta, dosel cerrado y productivo'
+                }
+            elif indice.evi_promedio >= 0.45:
+                clasificaciones['evi'] = {
+                    'nivel': 'bueno',
+                    'etiqueta': 'Alta Biomasa',
+                    'color': '#28a745',
+                    'icono': '✅',
+                    'descripcion': 'Buena biomasa y estructura del dosel'
+                }
+            elif indice.evi_promedio >= 0.3:
+                clasificaciones['evi'] = {
+                    'nivel': 'moderado',
+                    'etiqueta': 'Biomasa Moderada',
+                    'color': '#ffc107',
+                    'icono': '📊',
+                    'descripcion': 'Biomasa en desarrollo'
+                }
+            else:
+                clasificaciones['evi'] = {
+                    'nivel': 'bajo',
+                    'etiqueta': 'Biomasa Baja',
+                    'color': '#dc3545',
+                    'icono': '⚠️',
+                    'descripcion': 'Biomasa baja, dosel poco denso'
+                }
+        
         return clasificaciones
     
     @staticmethod
@@ -273,6 +357,30 @@ class TimelineProcessor:
                 'porcentaje': float(porcentaje),
                 'tendencia': 'mejora' if diff_savi > 0.02 else 'deterioro' if diff_savi < -0.02 else 'estable',
                 'icono': '📈' if diff_savi > 0.02 else '📉' if diff_savi < -0.02 else '➡️'
+            }
+        
+        # NDRE
+        if actual.ndre_promedio and anterior.ndre_promedio:
+            diff_ndre = actual.ndre_promedio - anterior.ndre_promedio
+            porcentaje = (diff_ndre / anterior.ndre_promedio) * 100 if anterior.ndre_promedio != 0 else 0
+            
+            comparacion['ndre'] = {
+                'diferencia': float(diff_ndre),
+                'porcentaje': float(porcentaje),
+                'tendencia': 'mejora' if diff_ndre > 0.02 else 'deterioro' if diff_ndre < -0.02 else 'estable',
+                'icono': '📈' if diff_ndre > 0.02 else '📉' if diff_ndre < -0.02 else '➡️'
+            }
+        
+        # EVI
+        if actual.evi_promedio and anterior.evi_promedio:
+            diff_evi = actual.evi_promedio - anterior.evi_promedio
+            porcentaje = (diff_evi / anterior.evi_promedio) * 100 if anterior.evi_promedio != 0 else 0
+            
+            comparacion['evi'] = {
+                'diferencia': float(diff_evi),
+                'porcentaje': float(porcentaje),
+                'tendencia': 'mejora' if diff_evi > 0.02 else 'deterioro' if diff_evi < -0.02 else 'estable',
+                'icono': '📈' if diff_evi > 0.02 else '📉' if diff_evi < -0.02 else '➡️'
             }
         
         return comparacion

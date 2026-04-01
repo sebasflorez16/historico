@@ -57,3 +57,10 @@ test_outputs_mapas/
 # Archivos estáticos compilados
 staticfiles/
 tests/output_heatmap_test/
+
+# Archivos ZIP grandes (datos descargados)
+Servicio-205*
+*.zip.gz
+
+# Backups temporales
+temp_backup/

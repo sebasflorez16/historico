@@ -451,6 +451,14 @@ class GeneradorPDFProfesional:
             story.extend(self._crear_seccion_savi(analisis_completo['savi'], graficos))
             story.append(Spacer(1, 1*cm))
         
+        if 'ndre' in analisis_completo and analisis_completo['ndre']:
+            story.extend(self._crear_seccion_ndre(analisis_completo['ndre'], graficos))
+            story.append(Spacer(1, 1*cm))
+        
+        if 'evi' in analisis_completo and analisis_completo['evi']:
+            story.extend(self._crear_seccion_evi(analisis_completo['evi'], graficos))
+            story.append(Spacer(1, 1*cm))
+        
         # Anexo D: Análisis de tendencias
         story.extend(self._crear_seccion_tendencias(analisis_completo['tendencias'], graficos))
         story.append(PageBreak())
@@ -1688,6 +1696,104 @@ y algoritmos científicamente validados para el análisis de vegetación.</i>
         if analisis.get('alertas'):
             for alerta in analisis['alertas']:
                 alerta_texto = f"<strong>Alerta:</strong> {alerta}"
+                elements.append(Paragraph(alerta_texto, self.estilos['TextoAlerta']))
+                elements.append(Spacer(1, 0.3*cm))
+
+        return elements
+    
+    def _crear_seccion_ndre(self, analisis: Dict, graficos: Dict) -> List:
+        """Crea sección de análisis NDRE (Borde Rojo - Nitrógeno/Clorofila)"""
+        elements = []
+        titulo = Paragraph("Análisis NDRE - Contenido de Clorofila y Nitrógeno", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+
+        estado = analisis['estado']
+        estado_texto = f"""
+<strong>Estado Nutricional:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
+<strong>NDRE Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
+<strong>Nivel de Nitrógeno Estimado:</strong> {analisis.get('nivel_nitrogeno_estimado', 'N/A')}<br/>
+<strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10 
+<i>(métrica relativa interna AgroTech basada en umbrales de nitrógeno foliar)</i><br/>
+"""
+        elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
+        interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
+        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
+        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        ndre_prom = analisis['estadisticas']['promedio']
+        if ndre_prom >= 0.4:
+            interpretacion_practica = "Para su campo: El contenido de clorofila y nitrógeno es adecuado. El plan de fertilización actual es efectivo."
+        elif ndre_prom >= 0.25:
+            interpretacion_practica = "Para su campo: Contenido moderado de nutrientes. Considere verificar plan de fertilización nitrogenada con análisis foliar."
+        else:
+            interpretacion_practica = "Para su campo: Posible deficiencia de nitrógeno detectada. Se recomienda análisis foliar urgente y evaluación del plan de fertilización."
+
+        elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
+
+        if analisis.get('alertas'):
+            for alerta in analisis['alertas']:
+                if isinstance(alerta, dict):
+                    alerta_texto = f"<strong>{alerta.get('titulo', 'Alerta')}:</strong> {alerta.get('mensaje', '')}"
+                else:
+                    alerta_texto = f"<strong>Alerta:</strong> {alerta}"
+                elements.append(Paragraph(alerta_texto, self.estilos['TextoAlerta']))
+                elements.append(Spacer(1, 0.3*cm))
+
+        return elements
+    
+    def _crear_seccion_evi(self, analisis: Dict, graficos: Dict) -> List:
+        """Crea sección de análisis EVI (Vegetación Mejorada - Biomasa)"""
+        elements = []
+        titulo = Paragraph("Análisis EVI - Biomasa y Estructura del Dosel", self.estilos['TituloSeccion'])
+        elements.append(titulo)
+        elements.append(Spacer(1, 0.5*cm))
+
+        estado = analisis['estado']
+        estado_texto = f"""
+<strong>Estado de Biomasa:</strong> {estado.get('icono', '')} {estado['etiqueta']}<br/>
+<strong>EVI Promedio:</strong> {analisis['estadisticas']['promedio']:.3f}<br/>
+<strong>Densidad del Dosel:</strong> {analisis.get('densidad_dosel_estimada', 'N/A')}<br/>
+<strong>Puntuación:</strong> {analisis.get('puntuacion', 0)}/10 
+<i>(métrica relativa interna AgroTech basada en umbrales de biomasa)</i><br/>
+"""
+        elements.append(Paragraph(estado_texto, self.estilos['TextoNormal']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        elements.append(Paragraph("<strong>Análisis Técnico:</strong>", self.estilos['TextoNormal']))
+        interpretacion_limpia = limpiar_html_completo(analisis['interpretacion_tecnica'])
+        elements.append(Paragraph(interpretacion_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        elements.append(Paragraph("<strong>Explicación Sencilla:</strong>", self.estilos['TextoNormal']))
+        simple_limpia = limpiar_html_completo(analisis['interpretacion_simple'])
+        elements.append(Paragraph(simple_limpia, self.estilos['AnalisisTecnico']))
+        elements.append(Spacer(1, 0.5*cm))
+
+        evi_prom = analisis['estadisticas']['promedio']
+        if evi_prom >= 0.5:
+            interpretacion_practica = "Para su campo: EVI confirma alta biomasa y dosel cerrado. Su plantación está en estado productivo óptimo."
+        elif evi_prom >= 0.35:
+            interpretacion_practica = "Para su campo: Biomasa moderada. Normal para plantaciones en desarrollo o en período de poda."
+        else:
+            interpretacion_practica = "Para su campo: Biomasa baja detectada. Puede indicar palmas jóvenes, pérdida de hojas o estrés en la plantación."
+
+        elements.append(Paragraph(f"<strong>Qué significa para su terreno:</strong> {interpretacion_practica}", self.estilos['TextoNormal']))
+
+        if analisis.get('alertas'):
+            for alerta in analisis['alertas']:
+                if isinstance(alerta, dict):
+                    alerta_texto = f"<strong>{alerta.get('titulo', 'Alerta')}:</strong> {alerta.get('mensaje', '')}"
+                else:
+                    alerta_texto = f"<strong>Alerta:</strong> {alerta}"
                 elements.append(Paragraph(alerta_texto, self.estilos['TextoAlerta']))
                 elements.append(Spacer(1, 0.3*cm))
 
