@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('informes', '0029_add_verificacion_legal'),
+        ('informes', '0034_clienteinvitacion_area_max_hectareas'),
     ]
 
     operations = [
